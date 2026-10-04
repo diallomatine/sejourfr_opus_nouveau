@@ -1,5 +1,6 @@
 package com.sejourfr.app.audioquestion.entity;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.sejourfr.app.entity.Theme;
 import com.sejourfr.app.enums.Difficulty;
@@ -110,6 +111,13 @@ public class AudioQuestionDraft {
     @Column(name = "rejection_reason", columnDefinition = "text")
     private String rejectionReason;
 
+    /**
+     * Identifiant éditorial du manifeste d'import CO image (V088). Unique tous
+     * statuts confondus ; NULL pour les brouillons saisis par migration.
+     */
+    @Column(name = "external_id", length = 64)
+    private String externalId;
+
     @PrePersist
     void prePersist() {
         if (createdAt == null) createdAt = Instant.now();
@@ -119,12 +127,22 @@ public class AudioQuestionDraft {
      * Mapping JSONB <-> record : les choices sont inseres en SQL avec des cles
      * snake_case (`is_correct`, `display_order`), conformement au schema documente
      * dans la migration. Jackson serialise en CamelCase par defaut, d'ou les annotations.
+     *
+     * <p>{@code text} (facultatif, import CO image) porte la proposition LUE dans
+     * l'audio ; {@code label} reste la lettre A-D, seule recopiee dans
+     * {@code choices.label} a la publication. Absente des brouillons V800+, elle
+     * n'est jamais ecrite a {@code null} : leur JSONB reste identique.
      */
     public record DraftChoice(
         String label,
         @JsonProperty("is_correct") boolean isCorrect,
-        @JsonProperty("display_order") int displayOrder
-    ) {}
+        @JsonProperty("display_order") int displayOrder,
+        @JsonInclude(JsonInclude.Include.NON_NULL) String text
+    ) {
+        public DraftChoice(String label, boolean isCorrect, int displayOrder) {
+            this(label, isCorrect, displayOrder, null);
+        }
+    }
 
     public UUID getId() { return id; }
     public void setId(UUID id) { this.id = id; }
@@ -194,4 +212,7 @@ public class AudioQuestionDraft {
 
     public String getRejectionReason() { return rejectionReason; }
     public void setRejectionReason(String rejectionReason) { this.rejectionReason = rejectionReason; }
+
+    public String getExternalId() { return externalId; }
+    public void setExternalId(String externalId) { this.externalId = externalId; }
 }

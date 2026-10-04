@@ -25,7 +25,9 @@ travaille dans ce dossier, donc il ne contient que **la façon d'écrire du code
   lieu de `LoggerFactory`. Sur les entités JPA : `@Getter`/`@Setter` OK, **jamais `@Data`** ni
   `@EqualsAndHashCode` automatique (toString/equals + lazy loading = bugs).
 - **Seule exception** : `audioquestion/`, sous-module isolé non migré (refacto reportée). Ses
-  services peuvent encore appeler `MediaRepository` directement. Ne pas étendre l'exception.
+  services peuvent encore appeler `MediaRepository` directement. Ne pas étendre l'exception :
+  hors du module, les brouillons audio passent par `manager/AudioQuestionDraftManager`
+  (import CO image, `service/questionimport/`).
 
 Arborescence : `entity/`, `repository/`, `manager/`, `service/`, `controller/`, `dto/`,
 `mapper/`, `specification/`, `security/`, `config/`, `exception/`, `enums/` (+ `audioquestion/`).
@@ -198,6 +200,7 @@ main. Un libellé qui bouge, ce sont quatre fichiers dans la même passe.
 | l'accès effectif (achats + décisions admin `access_overrides`, `AccesEffectifResolver`), la console admin « Utilisateurs » | `docs/regles/paiements.md` § « Accès effectif », `docs/admin/utilisateurs/decisions-gestion-utilisateurs.md` |
 | un email, un gabarit, `email_deliveries`, le désabonnement, le scheduler d'engagement | `docs/regles/emails.md` |
 | la sémantique fine d'un enum métier | `docs/regles/domaine.md` |
+| un brouillon audio CO, l'import par lot des questions CO image, la charte des images CO, `ImageUploadSupport`, un SSML serveur (`util/Ssml`) | `docs/pipeline-audio-co.md` § « Import par lot » |
 
 **Avant de changer une règle** : `docs/decisions/<même sujet>.md` (journal daté de ce qui a été
 essayé, mesuré et révoqué), plus `docs/decisions/contradictions-ouvertes.md` et

@@ -32,15 +32,17 @@ public record AudioDraftDto(
     Instant audioGeneratedAt,
     UUID batchId,
     Instant createdAt,
-    String rejectionReason
+    String rejectionReason,
+    String externalId
 ) {
-    public record ChoiceDto(String label, boolean isCorrect, int displayOrder) {}
+    /** {@code text} : proposition lue dans l'audio (brouillon importe), {@code null} sinon. */
+    public record ChoiceDto(String label, boolean isCorrect, int displayOrder, String text) {}
 
     public static AudioDraftDto from(AudioQuestionDraft d) {
         List<ChoiceDto> choices = d.getChoices() == null ? List.of() :
             d.getChoices().stream()
                 .sorted((a, b) -> Integer.compare(a.displayOrder(), b.displayOrder()))
-                .map(c -> new ChoiceDto(c.label(), c.isCorrect(), c.displayOrder()))
+                .map(c -> new ChoiceDto(c.label(), c.isCorrect(), c.displayOrder(), c.text()))
                 .toList();
         return new AudioDraftDto(
             d.getId(),
@@ -63,7 +65,8 @@ public record AudioDraftDto(
             d.getAudioGeneratedAt(),
             d.getBatchId(),
             d.getCreatedAt(),
-            d.getRejectionReason()
+            d.getRejectionReason(),
+            d.getExternalId()
         );
     }
 }

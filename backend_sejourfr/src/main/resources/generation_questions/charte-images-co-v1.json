@@ -1,0 +1,22 @@
+{
+  "version": "charte-images-co-v1",
+  "objet": "Images support des questions TCF CO_IMAGE (une image affichée, quatre propositions lues dans l'audio). Le validateur d'import lit les contraintes techniques ci-dessous : c'est leur seule autorité.",
+  "technique": {
+    "formats": ["png", "webp"],
+    "ratio": { "largeur": 4, "hauteur": 3, "tolerance": 0.02 },
+    "largeurMinPx": 800,
+    "fondOpaque": true
+  },
+  "style": [
+    "Dessin au trait noir sur fond blanc OPAQUE (aucune transparence : le zoom mobile affiche l'image sur fond noir).",
+    "Aucun texte, aucun chiffre, aucun logo, aucune marque, aucune enseigne lisible dans l'image.",
+    "Personnages neutres : âges, genres et origines variés, sans stéréotype ni caricature.",
+    "Une seule action lisible par scène, cadrage serré sur cette action ; décor réduit à ce qui la situe.",
+    "Une seule des quatre propositions doit correspondre à la scène ; les trois autres doivent être clairement exclues par l'image."
+  ],
+  "interdits": [
+    "Reproduire, décalquer ou imiter une image des livrets ou annales de France Éducation international (FEI).",
+    "Représenter une personne réelle identifiable.",
+    "Photographie ou rendu photoréaliste."
+  ]
+}

@@ -34,7 +34,12 @@ spring:
   servlet:
     multipart:
       max-file-size: 25MB
-      max-request-size: 25MB
+      # 110MB : un lot d'import CO image (admin) compte jusqu'a 20 images de
+      # 5 Mo + le manifeste (/api/admin/question-imports/co-image/*). Chaque
+      # FICHIER reste plafonne a max-file-size, et chaque image a 5 Mo par
+      # ImageUploadSupport. Cout : un lot tient en memoire (seuil ci-dessous),
+      # au pire ~105 Mo de tas pendant un import, admin seulement.
+      max-request-size: 110MB
       # L'AUDIO D'UN CANDIDAT NE DOIT JAMAIS TOUCHER LE DISQUE. Par defaut ce
       # seuil vaut 0B : Spring ecrit alors TOUT upload multipart dans un fichier
       # temporaire, y compris les enregistrements des candidats — que la
@@ -319,6 +324,16 @@ sejourfr:
     global-timeout-sec: ${AUDIO_GENERATION_TIMEOUT_SEC:120}
     rate-limit-per-minute: 10
     duplicate-similarity-threshold: 0.85
+  # Import par lot des questions CO image -> brouillons audio (QuestionImportProperties,
+  # valeurs par defaut identiques). Les contraintes des IMAGES vivent dans la charte.
+  question-import:
+    co-image:
+      default-theme-code: TCF_CO
+      charte: generation_questions/charte-images-co-v1.json
+      max-questions: 20
+      choice-max-length: 120
+      scene-description-max-length: 500
+      explanation-max-length: 2000
 
   # Rate-limit anti-abus (par IP / par utilisateur), applique en memoire.
   # Les seuils par surface ont des defauts genereux dans RateLimitProperties

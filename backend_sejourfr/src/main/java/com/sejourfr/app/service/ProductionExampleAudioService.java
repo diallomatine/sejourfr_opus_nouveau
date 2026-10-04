@@ -11,6 +11,7 @@ import com.sejourfr.app.enums.ExampleAudioStatus;
 import com.sejourfr.app.exception.BusinessException;
 import com.sejourfr.app.exception.NotFoundException;
 import com.sejourfr.app.manager.ProductionTaskManager;
+import com.sejourfr.app.util.Ssml;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -179,20 +180,9 @@ public class ProductionExampleAudioService {
      * chaque ponctuation forte pour un rendu naturel. Le contenu est échappé XML.
      */
     private String buildSsml(String contenu, String voice) {
-        String escaped = escapeXml(contenu == null ? "" : contenu.strip());
+        String escaped = Ssml.echapperXml(contenu == null ? "" : contenu.strip());
         String withBreaks = escaped.replaceAll("([.!?])\\s+", "$1<break time=\"300ms\"/> ");
-        return "<speak version=\"1.0\" xml:lang=\"fr-FR\">"
-                + "<voice name=\"" + voice + "\">"
-                + "<prosody rate=\"0.95\">" + withBreaks + "</prosody>"
-                + "</voice></speak>";
-    }
-
-    private static String escapeXml(String s) {
-        return s.replace("&", "&amp;")
-                .replace("<", "&lt;")
-                .replace(">", "&gt;")
-                .replace("\"", "&quot;")
-                .replace("'", "&apos;");
+        return Ssml.voixUnique(voice, withBreaks);
     }
 
     private static String message(Exception e) {

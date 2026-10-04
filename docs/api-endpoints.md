@@ -1032,6 +1032,32 @@ haut) et `POST /api/me/funnel-events` (cf. `docs/regles/mesure-audience.md`).
   `ANNOTEES|NON_ANNOTEES`). La calibration garde `GET /stats`, `GET /stats/niveau`,
   `GET|POST /submissions/{id}/human-note`.
 
+### Admin — Import CO image (`/api/admin/question-imports/co-image`, 2026-10-04)
+
+Import par lot de questions TCF `CO_IMAGE` vers les **brouillons audio**
+(`audio_question_draft`, statut `TEXT_VALIDATED`) — jamais vers `questions`. La suite est
+le pipeline existant : « Générer l'audio » (`POST /api/admin/audio-drafts/batch-generate`),
+revue, puis validation (`POST /api/admin/audio-drafts/{id}/validate`). Détail :
+`docs/pipeline-audio-co.md` § « Import par lot ».
+
+- `POST …/analyze` et `POST …/import`, **multipart** :
+  - partie `manifest` : le manifeste JSON (Blob `application/json` ou champ texte, UTF-8) ;
+  - N parties `images` : un fichier chacune, nom **exact** cité par `questions[].image`.
+- Manifeste : `{ "version": "1", "format": "CO_IMAGE", "questions": [ { "externalId",
+  "level" (A2|B1|B2), "themeCode"? (défaut `TCF_CO`), "image", "sceneDescription",
+  "choices" (4 textes, lus A→D), "correctAnswer" (A-D), "explanation"? } ] }`. Champ
+  inconnu = manifeste refusé.
+- Réponse `CoImageImportReport` : `ok`, `imported`, `format`, `charteVersion`,
+  `maxQuestions`, `questionCount`, `errors[]` (erreurs de **lot**), `questions[]`
+  (`index`, `externalId`, `ok`, `level`, `themeCode`, `themeName`, `image`, `imageFormat`,
+  `imageWidth`, `imageHeight`, `imageSizeBytes`, `sceneDescription`, `choices[]`
+  `{letter,text,correct}`, `correctAnswer`, `explanation`, `transcriptText`, `errors[]`,
+  `draftId`, `imageUrl`). Une erreur = `{code, field, message}` (`CoImageImportErrorCode`).
+- `analyze` : **200** toujours, rien n'est écrit ni envoyé. `import` : **201** +
+  `imported=true` (brouillons créés, `draftId`/`imageUrl` renseignés) ou **422** + le même
+  rapport, **rien d'écrit**. Échec R2 pendant l'import : erreur du pipeline audio (5xx,
+  `code`), brouillons annulés, images déjà envoyées supprimées au mieux.
+
 ### Admin — Productions IA (`/api/admin/productions`, 2026-10-03)
 
 Audit : `docs/admin/productions_corrections/audit-admin-productions-ia.md` ; décisions :

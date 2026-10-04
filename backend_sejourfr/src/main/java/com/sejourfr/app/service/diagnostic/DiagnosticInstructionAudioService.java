@@ -10,6 +10,7 @@ import com.sejourfr.app.enums.EpreuveType;
 import com.sejourfr.app.exception.BusinessException;
 import com.sejourfr.app.exception.NotFoundException;
 import com.sejourfr.app.manager.ProductionTaskManager;
+import com.sejourfr.app.util.Ssml;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -102,19 +103,7 @@ public class DiagnosticInstructionAudioService {
 
     /** Les balises ne changent aucun mot : le texte parlé est la consigne visible. */
     private static String buildSsml(String instruction) {
-        String escaped = escapeXml(instruction);
-        return "<speak version=\"1.0\" xml:lang=\"fr-FR\">"
-                + "<voice name=\"" + VOICE + "\">"
-                + "<prosody rate=\"0.95\">" + escaped + "</prosody>"
-                + "</voice></speak>";
-    }
-
-    private static String escapeXml(String value) {
-        return value.replace("&", "&amp;")
-                .replace("<", "&lt;")
-                .replace(">", "&gt;")
-                .replace("\"", "&quot;")
-                .replace("'", "&apos;");
+        return Ssml.voixUnique(VOICE, Ssml.echapperXml(instruction));
     }
 
     private DiagnosticInstructionAudioDto toDto(

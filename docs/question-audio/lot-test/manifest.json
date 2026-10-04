@@ -1,0 +1,48 @@
+{
+  "version": "1",
+  "format": "CO_IMAGE",
+  "questions": [
+    {
+      "externalId": "co-a2-test-001",
+      "level": "A2",
+      "image": "co-a2-test-001.png",
+      "sceneDescription": "Une personne attend à un arrêt de bus et lève la main : le bus arrive devant elle.",
+      "choices": [
+        "Je vais acheter du pain.",
+        "Le bus arrive, je monte.",
+        "Je prends une douche.",
+        "On regarde un film ce soir."
+      ],
+      "correctAnswer": "B",
+      "explanation": "L'image montre une personne à un arrêt de bus, au moment où le bus arrive. Seule B « Le bus arrive, je monte » correspond à la scène. A (acheter du pain), C (prendre une douche) et D (regarder un film) ne correspondent pas à l'action représentée."
+    },
+    {
+      "externalId": "co-a2-test-002",
+      "level": "A2",
+      "image": "co-a2-test-002.png",
+      "sceneDescription": "Dans une boulangerie, une cliente tend des pièces au boulanger ; des baguettes sont posées sur le comptoir.",
+      "choices": [
+        "Où est la gare, s'il vous plaît ?",
+        "Je vais au cinéma demain.",
+        "Il fait très froid aujourd'hui.",
+        "Une baguette, s'il vous plaît."
+      ],
+      "correctAnswer": "D",
+      "explanation": "La scène se passe dans une boulangerie : la cliente paie le boulanger devant des baguettes. Seule D « Une baguette, s'il vous plaît » correspond. A demande un chemin, B parle d'un projet de sortie et C parle de la météo."
+    },
+    {
+      "externalId": "co-a2-test-003",
+      "level": "A2",
+      "image": "co-a2-test-003.webp",
+      "sceneDescription": "Dans un jardin ensoleillé, une personne arrose des fleurs avec un arrosoir.",
+      "choices": [
+        "Je lave la voiture.",
+        "Je prépare le dîner.",
+        "J'arrose les fleurs du jardin.",
+        "Je range ma chambre."
+      ],
+      "correctAnswer": "C",
+      "explanation": "L'image montre une personne qui arrose des fleurs dans un jardin. Seule C « J'arrose les fleurs du jardin » correspond. A (laver la voiture), B (préparer le dîner) et D (ranger sa chambre) décrivent d'autres activités."
+    }
+  ]
+}

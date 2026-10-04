@@ -45,8 +45,10 @@ class QuestionImageServiceTest {
     @InjectMocks
     private QuestionImageService service;
 
+    private static final byte[] PNG = com.sejourfr.app.support.ImagesDeTest.png(40, 30);
+
     private MultipartFile pngFile() {
-        return new MockMultipartFile("file", "image.png", "image/png", new byte[]{1, 2, 3, 4});
+        return new MockMultipartFile("file", "image.png", "image/png", PNG);
     }
 
     @Test
@@ -67,7 +69,7 @@ class QuestionImageServiceTest {
         assertThat(attached.getStorageKey()).isEqualTo("questions/images/new.png");
         assertThat(attached.getInlineSvg()).isNull();
         assertThat(attached.getContentType()).isEqualTo("image/png");
-        assertThat(attached.getSizeBytes()).isEqualTo(4L);
+        assertThat(attached.getSizeBytes()).isEqualTo((long) PNG.length);
 
         verify(mediaManager).save(attached);
         verify(questionManager).save(question);

@@ -6,8 +6,11 @@ import com.sejourfr.app.enums.Difficulty;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 
@@ -27,4 +30,8 @@ public interface AudioQuestionDraftRepository extends JpaRepository<AudioQuestio
     long countByStatus(AudioDraftStatus status);
 
     long countByStatusAndDifficulty(AudioDraftStatus status, Difficulty difficulty);
+
+    /** Les identifiants externes deja connus parmi {@code externalIds}, tous statuts confondus. */
+    @Query("SELECT d.externalId FROM AudioQuestionDraft d WHERE d.externalId IN :externalIds")
+    List<String> findExistingExternalIds(@Param("externalIds") Collection<String> externalIds);
 }
