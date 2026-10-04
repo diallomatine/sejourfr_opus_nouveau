@@ -37,10 +37,10 @@ import java.util.stream.Collectors;
  * <p><b>Le perimetre est celui de l'ETAPE</b>, pas celui de la competence : le
  * choix se fait parmi les {@value LearningPlanStep#PROMPTS_PAR_ETAPE} premiers
  * sujets actifs ({@link LearningPlanStep#scope}). Sans cette borne, « Continuer
- * cette etape » enverrait vers un sujet hors etape, dont l'anneau « x/5 » ne
+ * cette etape » enverrait vers un sujet hors etape, dont l'anneau « x/3 » ne
  * bougerait pas. La borne vaut pour les DEUX appelants : l'ecran de resultat du
  * diagnostic designe la competence de la priorite n&deg;1, il doit pointer dans
- * les memes cinq sujets que le Plan.
+ * les memes sujets que le Plan.
  *
  * <p><b>La regle : ca doit avancer.</b> Prendre systematiquement le premier
  * sujet de la competence — ce que faisait le code d'origine — renvoyait

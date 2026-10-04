@@ -39,7 +39,7 @@ public record LearningPlanCompletedStepDto(
         Instant observedAt,
         /** Sujets de l'étape : au plus 5, moins si la compétence en publie moins. */
         int stepPromptCount,
-        /** Sujets de l'étape déjà traités. Une étape franchie n'est pas forcément à 5/5. */
+        /** Sujets de l'étape déjà traités. Une étape franchie n'est pas forcément complète. */
         int stepAttemptedCount,
         /** Sujets de l'étape dont le critère a été validé. Toujours ≤ {@link #stepAttemptedCount()}. */
         int stepValidatedCount,

@@ -50,18 +50,28 @@ class SkillProgressCounterTest {
     }
 
     /**
-     * Le cas central : 15 sujets publies, 5 dans l'etape, 10 dehors. Les
-     * compteurs de competence comptent les 15, ceux de l'etape les 5 — les
-     * detourner ferait dire « /5 » au Plan et « /15 » a la fiche de competence
+     * 🛑 <b>D-71 (2026-10-04, decision du proprietaire) : une etape EE/EO, ce
+     * sont 3 sujets.</b> Ce test verrouille le chiffre : le changer est une
+     * decision produit, consignee dans {@code docs/decisions/plan-parcours-tcf.md}.
+     */
+    @Test
+    void uneEtapeCeSontTroisSujets() {
+        assertThat(LearningPlanStep.PROMPTS_PAR_ETAPE).isEqualTo(3);
+    }
+
+    /**
+     * Le cas central : 15 sujets publies, 3 dans l'etape, 12 dehors. Les
+     * compteurs de competence comptent les 15, ceux de l'etape les 3 — les
+     * detourner ferait dire « /3 » au Plan et « /15 » a la fiche de competence
      * pour une seule et meme competence.
      */
     @Test
-    void lesCompteursDEtapeNeRegardentQueLesCinqPremiersSujets() {
+    void lesCompteursDEtapeNeRegardentQueLesTroisPremiersSujets() {
         stub(prompts, Map.of(
                 prompts.get(0).getId(), analysed(prompts.get(0), SkillCriterionStatus.VALIDATED),
                 prompts.get(1).getId(), recorded(prompts.get(1)),
                 // Hors etape : ils comptent pour la competence, jamais pour l'etape.
-                prompts.get(9).getId(), analysed(prompts.get(9), SkillCriterionStatus.VALIDATED),
+                prompts.get(3).getId(), analysed(prompts.get(3), SkillCriterionStatus.VALIDATED),
                 prompts.get(14).getId(), analysed(prompts.get(14), SkillCriterionStatus.PARTIAL)));
 
         SkillProgressCounter.SkillProgress progress = progress();
@@ -69,7 +79,7 @@ class SkillProgressCounterTest {
         assertThat(progress.promptCount()).isEqualTo(15);
         assertThat(progress.attemptedCount()).isEqualTo(4);
         assertThat(progress.validatedCount()).isEqualTo(2);
-        assertThat(progress.step().promptCount()).isEqualTo(5);
+        assertThat(progress.step().promptCount()).isEqualTo(3);
         assertThat(progress.step().attemptedCount()).isEqualTo(2);
         assertThat(progress.step().validatedCount()).isEqualTo(1);
         assertThat(progress.step().completed()).isFalse();
@@ -78,76 +88,87 @@ class SkillProgressCounterTest {
     /**
      * Le <b>perimetre</b> de l'etape est publie, pas seulement compte : c'est ce
      * que les fronts affichent quand on ouvre la competence depuis le Plan. Ils
-     * ne rejouent pas « les cinq premiers actifs » de leur cote.
+     * ne rejouent pas « les premiers actifs » de leur cote.
      */
     @Test
-    void lePerimetreDeLEtapeEstLesCinqPremiersSujetsDansLOrdre() {
+    void lePerimetreDeLEtapeEstLesTroisPremiersSujetsDansLOrdre() {
         stub(prompts, Map.of());
 
         SkillProgressCounter.SkillProgress progress = progress();
 
         assertThat(progress.step().promptIds()).containsExactly(
-                prompts.get(0).getId(), prompts.get(1).getId(), prompts.get(2).getId(),
-                prompts.get(3).getId(), prompts.get(4).getId());
-        assertThat(progress.step().promptCount()).isEqualTo(5);
+                prompts.get(0).getId(), prompts.get(1).getId(), prompts.get(2).getId());
+        assertThat(progress.step().promptCount()).isEqualTo(3);
     }
 
     @Test
-    void quatreSujetsSurCinqNeTerminentPasLEtape() {
-        stub(prompts, latestOn(0, 1, 2, 3));
+    void deuxSujetsSurTroisNeTerminentPasLEtape() {
+        stub(prompts, latestOn(0, 1));
 
-        assertThat(progress().step().attemptedCount()).isEqualTo(4);
+        assertThat(progress().step().attemptedCount()).isEqualTo(2);
+        assertThat(progress().step().completed()).isFalse();
+    }
+
+    /**
+     * Un sujet traite HORS etape (rang 4) ne compte pas : 2 sujets de l'etape
+     * + 1 hors etape ne la terminent pas.
+     */
+    @Test
+    void unSujetHorsEtapeNeTerminePasLEtape() {
+        stub(prompts, latestOn(0, 1, 3));
+
+        assertThat(progress().step().attemptedCount()).isEqualTo(2);
         assertThat(progress().step().completed()).isFalse();
     }
 
     @Test
-    void cinqSujetsTraitesTerminentLEtape() {
-        stub(prompts, latestOn(0, 1, 2, 3, 4));
+    void troisSujetsTraitesTerminentLEtape() {
+        stub(prompts, latestOn(0, 1, 2));
 
         assertThat(progress().step().completed()).isTrue();
     }
 
-    /** Terminee n'est pas « tout valide » : les deux informations restent distinctes. */
+    /**
+     * Terminee n'est pas « tout valide » : le critere est <b>traite</b>, les
+     * deux informations restent distinctes.
+     */
     @Test
-    void uneEtapeTermineeAvecDeuxValidesResteTermineeSansEtreToutValidee() {
+    void uneEtapeTermineeAvecUnSeulValideResteTermineeSansEtreToutValidee() {
         Map<UUID, UserSkillAttempt> latest = new LinkedHashMap<>();
         latest.put(prompts.get(0).getId(),
                 analysed(prompts.get(0), SkillCriterionStatus.VALIDATED));
         latest.put(prompts.get(1).getId(),
-                analysed(prompts.get(1), SkillCriterionStatus.VALIDATED));
-        latest.put(prompts.get(2).getId(),
-                analysed(prompts.get(2), SkillCriterionStatus.NOT_VALIDATED));
-        latest.put(prompts.get(3).getId(), recorded(prompts.get(3)));
-        latest.put(prompts.get(4).getId(), recorded(prompts.get(4)));
+                analysed(prompts.get(1), SkillCriterionStatus.NOT_VALIDATED));
+        latest.put(prompts.get(2).getId(), recorded(prompts.get(2)));
         stub(prompts, latest);
 
         SkillProgressCounter.SkillProgress progress = progress();
 
-        assertThat(progress.step().promptCount()).isEqualTo(5);
-        assertThat(progress.step().attemptedCount()).isEqualTo(5);
-        assertThat(progress.step().validatedCount()).isEqualTo(2);
+        assertThat(progress.step().promptCount()).isEqualTo(3);
+        assertThat(progress.step().attemptedCount()).isEqualTo(3);
+        assertThat(progress.step().validatedCount()).isEqualTo(1);
         assertThat(progress.step().completed()).isTrue();
     }
 
     /**
-     * Une competence qui publie moins de cinq sujets a une etape plus courte :
-     * le perimetre vaut ce qui existe, aucun denominateur n'est invente.
+     * Une competence qui publie moins de sujets que la taille d'etape a une
+     * etape plus courte : le perimetre vaut ce qui existe, aucun denominateur
+     * n'est invente.
      */
     @Test
-    void uneCompetenceDeMoinsDeCinqSujetsALeDenominateurDeCeQuiExiste() {
-        List<SkillPrompt> troisSujets = prompts.subList(0, 3);
-        stub(troisSujets, latestOn(0, 1, 2));
+    void uneCompetenceDeMoinsDeTroisSujetsALeDenominateurDeCeQuiExiste() {
+        List<SkillPrompt> deuxSujets = prompts.subList(0, 2);
+        stub(deuxSujets, latestOn(0, 1));
 
         SkillProgressCounter.SkillProgress progress = progress();
 
-        assertThat(progress.promptCount()).isEqualTo(3);
-        assertThat(progress.step().promptCount()).isEqualTo(3);
-        // Aucun identifiant invente pour completer a cinq : le perimetre vaut
+        assertThat(progress.promptCount()).isEqualTo(2);
+        assertThat(progress.step().promptCount()).isEqualTo(2);
+        // Aucun identifiant invente pour completer a trois : le perimetre vaut
         // exactement ce qui est publie.
         assertThat(progress.step().promptIds()).containsExactly(
-                troisSujets.get(0).getId(), troisSujets.get(1).getId(),
-                troisSujets.get(2).getId());
-        assertThat(progress.step().attemptedCount()).isEqualTo(3);
+                deuxSujets.get(0).getId(), deuxSujets.get(1).getId());
+        assertThat(progress.step().attemptedCount()).isEqualTo(2);
         assertThat(progress.step().completed()).isTrue();
     }
 

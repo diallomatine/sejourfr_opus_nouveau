@@ -306,7 +306,7 @@ public class LearningPlanService {
         SkillAccessService.SkillAccess access = accessService.resolve(userId);
         Map<UUID, SkillProgressCounter.SkillProgress> progress =
                 progressCounter.bySkillIds(userId, skillIds);
-        // BASCULE DE L'ETAPE : des que l'etape est TERMINEE — ses cinq sujets
+        // BASCULE DE L'ETAPE : des que l'etape est TERMINEE — ses sujets
         // traites — la meme carte cesse de proposer un micro-sujet et propose
         // une vraie tache. L'etape ne se dedouble jamais. Si la tache n'a aucun
         // sujet publie, la verification est simplement absente et le
@@ -327,7 +327,7 @@ public class LearningPlanService {
         // qui apporte la preuve, et le moteur de maitrise n'a pas bouge d'un
         // octet.
         //
-        // Le perimetre de cette condition est l'ETAPE ENTIERE (les 5 sujets
+        // Le perimetre de cette condition est l'ETAPE ENTIERE (les 3 sujets
         // editoriaux), pas ce que l'acces du candidat lui ouvre. C'est un
         // ARBITRAGE PRODUIT du proprietaire (2026-08-14) : la verification de
         // progression est PREMIUM. Depuis D-18 (2026-09-18) un compte gratuit

@@ -296,6 +296,11 @@ Cf. `exams-tcf.md`.
   cyclesDeTravail}`, **`null` quand il n'est pas proposé** (le cas courant ; jamais sur un cycle
   d'examens). Autorité unique `JourneyJalonExamenComplet`. `state` gagne `CYCLE_COMPLETED`
   (cycle terminé) ; `UP_TO_DATE` garde son sens (plus rien à faire du tout).
+  Une étape `TRAIN_SKILL` d'**expression** sert `progress` (`done`/`quota`, unité `PROMPT`),
+  `stepPromptIds`, `stepValidatedCount`, `stepCompleted` : **3 sujets** depuis D-71
+  (2026-10-04, 5 avant), autorité `LearningPlanStep.PROMPTS_PAR_ETAPE` ; les fronts lisent le
+  nombre servi, jamais une constante. Elle se clôt quand ses sujets sont tous **traités**, à
+  l'analyse d'un petit sujet **et** à la lecture suivante (étape déjà au quota).
   🛑 **L'examen d'un bloc est `locked` tant qu'une compétence du même bloc reste ouverte**
   (D-15) — un bloc sans compétence a son examen ouvert immédiatement. ⚠️ **Sauf au cycle
   d'affinage** (`cycle.cycleDAffinage`, 2026-09-27, D-64 : premier cycle issu du diagnostic
@@ -886,7 +891,7 @@ de niveau CECRL**. Tous ces endpoints sont **authentifiés** ; aucun n'est publi
   (`EE1..EE3` ou `EO1..EO3`). `section` est requis.
 - `GET /api/skills?taskCode=EE1|EE2|EE3|EO1|EO2|EO3` → les 8 compétences actives de la tâche,
   avec la progression de l'utilisateur courant.
-- `GET /api/skills/{skillId}` → `SkillDetailDto` : la compétence + ses 5 sujets avec leur
+- `GET /api/skills/{skillId}` → `SkillDetailDto` : la compétence + ses 15 sujets avec leur
   statut (`TODO` / `TREATED` / `VALIDATED` / `TO_REINFORCE`), **dérivé serveur** — aucun
   front ne le recalcule.
 - `GET /api/skills/analysis-quota` → `SkillAnalysisQuotaDto

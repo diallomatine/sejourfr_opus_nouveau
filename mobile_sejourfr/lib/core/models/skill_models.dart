@@ -507,7 +507,7 @@ class SkillPromptSummary {
   final SkillPromptStatus status;
   final int attemptCount;
 
-  /// Le temps que **CE** sujet demande, en minutes — « 5 petits sujets ·
+  /// Le temps que **CE** sujet demande, en minutes — « 3 petits sujets ·
   /// ≈ 4 min chacun » sur la fiche d'une compétence.
   ///
   /// 🛑 **Dérivé serveur** (`ExerciseDuration`, l'autorité déjà employée par le

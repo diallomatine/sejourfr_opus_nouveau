@@ -131,7 +131,7 @@ export function CompetenceResult({config}: {config: ProductionConfig}) {
 
   const base = `${config.base}/tache/${n}/competences`;
   /* Le marqueur d'étape se propage jusqu'ici : remonter d'un résultat doit
-     ramener à l'étape (« 2/5 ») quand on est venu du Plan, pas à la fiche des
+     ramener à l'étape (« 2/3 ») quand on est venu du Plan, pas à la fiche des
      15 sujets. Absent, tout se comporte exactement comme avant. */
   const step = isPlanStep(searchParams);
   const skillHref = withPlanStep(`${base}/${skillId}`, step);

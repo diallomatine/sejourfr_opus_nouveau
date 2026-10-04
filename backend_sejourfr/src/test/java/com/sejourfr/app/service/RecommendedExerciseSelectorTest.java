@@ -103,34 +103,34 @@ class RecommendedExerciseSelectorTest {
 
     /**
      * Le perimetre est celui de l'ETAPE : sur une competence de 15 sujets, les
-     * 5 premiers etant tous traites, on rejoue dans l'etape plutot que de partir
-     * sur le rang 6 — sinon « Continuer cette etape » enverrait hors etape et
-     * l'anneau « x/5 » ne bougerait jamais.
+     * 3 premiers etant tous traites (D-71), on rejoue dans l'etape plutot que
+     * de partir sur le rang 4 — sinon « Continuer cette etape » enverrait hors
+     * etape et l'anneau « x/3 » ne bougerait jamais.
      */
     @Test
-    void leChoixNeSortJamaisDesCinqSujetsDeLEtape() {
+    void leChoixNeSortJamaisDesTroisSujetsDeLEtape() {
         Skill skill = skill(SkillSection.EE);
         List<SkillPrompt> quinze = new java.util.ArrayList<>();
         Map<UUID, UserSkillAttempt> latest = new LinkedHashMap<>();
         for (int order = 1; order <= 15; order++) {
             SkillPrompt prompt = prompt(skill, (short) order);
             quinze.add(prompt);
-            // Seuls les 5 premiers sont traites : le rang 6 est « jamais tente ».
-            if (order <= 5) {
+            // Seuls les 3 premiers sont traites : le rang 4 est « jamais tente ».
+            if (order <= 3) {
                 latest.put(prompt.getId(), attempt(prompt, SkillCriterionStatus.VALIDATED,
                         minutesAgo(100 - order * 10)));
             }
         }
         stub(skill, quinze, latest);
 
-        // Regle 1 (jamais tente) ne peut pas designer le rang 6 : hors etape.
+        // Regle 1 (jamais tente) ne peut pas designer le rang 4 : hors etape.
         // Regle 3 s'applique DANS l'etape : le rang 1, tente le plus anciennement.
         assertThat(selector.select(userId, skill))
                 .get().extracting(PlanRecommendedExerciseDto::skillPromptId)
                 .isEqualTo(quinze.get(0).getId());
     }
 
-    /** Les 4 regles restent intactes dans l'etape : un rang 4 jamais tente gagne. */
+    /** Les 4 regles restent intactes dans l'etape : un rang 3 jamais tente gagne. */
     @Test
     void dansLEtapeLePremierSujetJamaisTenteGagneToujours() {
         Skill skill = skill(SkillSection.EE);
@@ -139,7 +139,7 @@ class RecommendedExerciseSelectorTest {
         for (int order = 1; order <= 15; order++) {
             SkillPrompt prompt = prompt(skill, (short) order);
             quinze.add(prompt);
-            if (order <= 3) {
+            if (order <= 2) {
                 latest.put(prompt.getId(),
                         attempt(prompt, SkillCriterionStatus.NOT_VALIDATED, minutesAgo(order * 5)));
             }
@@ -148,7 +148,7 @@ class RecommendedExerciseSelectorTest {
 
         assertThat(selector.select(userId, skill))
                 .get().extracting(PlanRecommendedExerciseDto::skillPromptId)
-                .isEqualTo(quinze.get(3).getId());
+                .isEqualTo(quinze.get(2).getId());
     }
 
     @Test

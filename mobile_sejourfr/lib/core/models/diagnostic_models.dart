@@ -277,7 +277,7 @@ enum PlanActionNature {
 /// voyait deux parcours différents selon l'appareil. Un front ne classe pas un
 /// compteur en état pédagogique.
 ///
-/// 🛑 **[serieTerminee] n'est pas [acquis]** : cinq petits sujets traités ne
+/// 🛑 **[serieTerminee] n'est pas [acquis]** : les petits sujets traités ne
 /// prouvent rien en situation. Seule une **preuve de transfert** vaut
 /// « acquis ».
 ///
@@ -294,7 +294,7 @@ enum PlanSkillStepState {
   /// Le transfert est prouvé : la maîtrise est démontrée en situation.
   acquis('ACQUIS', 'Acquis'),
 
-  /// Les 5 petits sujets sont traités, la vérification n'est pas rendue.
+  /// Les petits sujets de l'étape sont traités, la vérification n'est pas rendue.
   aVerifier('A_VERIFIER', 'Série terminée · À vérifier'),
 
   /// Série finie **et** vérification rendue, sans maîtrise installée : le Plan
@@ -1220,9 +1220,9 @@ class LearningPlanPriority {
   final int attemptedCount;
   final int validatedCount;
 
-  /// Compteurs de l'**étape** : les 5 premiers sujets actifs de la compétence,
+  /// Compteurs de l'**étape** : les premiers sujets actifs de la compétence (leur nombre est servi),
   /// et rien d'autre. ⚠️ C'est ce couple que l'anneau d'une étape affiche
-  /// (« 2/5 »), jamais les compteurs de la compétence entière ci-dessus, qui
+  /// (« 2/3 »), jamais les compteurs de la compétence entière ci-dessus, qui
   /// restent ceux des cartes « compétences observées ». Dérivés serveur.
   final int stepPromptCount;
   final int stepAttemptedCount;
@@ -1239,8 +1239,8 @@ class LearningPlanPriority {
   /// recompte rien à partir de là.
   ///
   /// Il permet à l'écran d'une compétence ouverte **depuis le Plan** de rester
-  /// dans l'étape (les mêmes 5 sujets, « 2/5 ») au lieu de retomber sur la
-  /// fiche complète et son « 1/15 ». La règle « les 5 premiers sujets actifs »
+  /// dans l'étape (les mêmes sujets, « 2/3 ») au lieu de retomber sur la
+  /// fiche complète et son « 1/15 ». La règle « les N premiers sujets actifs »
   /// vit côté serveur : elle ne se réimplémente nulle part.
   ///
   /// Liste **vide** quand la compétence n'a aucun sujet actif — cas normal.
@@ -1343,8 +1343,8 @@ class LearningPlanCompletedStep {
   /// franchies entre elles (ordre déjà appliqué par le serveur).
   final DateTime observedAt;
 
-  /// Compteurs de l'**étape** — les 5 premiers sujets actifs de la compétence.
-  /// Une étape franchie n'est pas forcément à 5/5.
+  /// Compteurs de l'**étape** — les premiers sujets actifs de la compétence (leur nombre est servi).
+  /// Une étape franchie n'est pas forcément complète.
   final int stepPromptCount;
   final int stepAttemptedCount;
   final int stepValidatedCount;
@@ -2115,8 +2115,8 @@ class PlanSeanceItem {
   /// compétence jamais observée.
   final SkillMasteryState? masteryState;
 
-  /// Avancement de l'étape (« 3 sujets sur 5 »). [stepPromptCount] vaut `0` en
-  /// compréhension, qui n'a pas d'étape à cinq sujets.
+  /// Avancement de l'étape (« 2 sujets sur 3 »). [stepPromptCount] vaut `0` en
+  /// compréhension, qui n'a pas d'étape à petits sujets.
   final int stepPromptCount;
   final int stepAttemptedCount;
   final int stepValidatedCount;

@@ -163,7 +163,7 @@ class PlanNowCard {
   final String? objectiveLabel;
   final String? objective;
 
-  /// « ≈ 4 min » ou « 5 petits sujets · ≈ 4 min chacun ». `null` quand aucune
+  /// « ≈ 4 min » ou « 3 petits sujets · ≈ 4 min chacun ». `null` quand aucune
   /// durée n'est servie — jamais un chiffre inventé.
   final String? minutesLabel;
 
@@ -562,8 +562,8 @@ PlanNowCard _cartePriorite(
   final minutesLabel = minutes <= 0
       ? null
       // « chacun » : les minutes sont celles d'UN sujet, pas de la série
-      // entière — sans lui, « 5 sujets · ≈ 6 min » promettait six minutes pour
-      // les cinq.
+      // entière — sans lui, « 3 sujets · ≈ 6 min » promettait six minutes pour
+      // les trois.
       : !verifier &&
               priority.stepPromptCount > 0 &&
               exercise?.kind == PlanExerciseKind.microTraining

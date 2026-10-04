@@ -256,8 +256,8 @@ String? planExerciseKindLabel(PlanExerciseKind? kind, {int? questionCount}) =>
     };
 
 /// Ce qu'est l'entraînement d'une étape. **Au pluriel** : une étape n'est pas un
-/// sujet, c'est une série de cinq — le singulier faisait croire à une action
-/// unique là où le Plan en demande cinq. Miroir mot pour mot du web
+/// sujet, c'est une série de plusieurs — le singulier faisait croire à une action
+/// unique là où le Plan en demande plusieurs. Miroir mot pour mot du web
 /// (`PLAN_MICRO_TRAINING_NATURE`).
 const String kPlanMicroTrainingNature = 'Sujets ciblés';
 

@@ -323,8 +323,8 @@ export const PLAN_REASON_MILESTONE =
     "Un cran au-dessus des étapes : venez prouver ce qui est déjà acquis.";
 
 /** Ce qu'est l'entraînement d'une étape. **Au pluriel** : une étape n'est pas
- *  un sujet, c'est une série de cinq — le singulier faisait croire à une action
- *  unique là où le Plan en demande cinq. Miroir mot pour mot du mobile
+ *  un sujet, c'est une série de plusieurs — le singulier faisait croire à une action
+ *  unique là où le Plan en demande plusieurs. Miroir mot pour mot du mobile
  *  (`planExerciseKindLabel`). */
 export const PLAN_MICRO_TRAINING_NATURE = "Sujets ciblés";
 
@@ -556,7 +556,7 @@ export interface PlanNowVue {
     badge: string | null;
     objectiveLabel: string | null;
     objective: string | null;
-    /** « ≈ 4 min » ou « 5 petits sujets · ≈ 4 min chacun ». `null` quand aucune
+    /** « ≈ 4 min » ou « 3 petits sujets · ≈ 4 min chacun ». `null` quand aucune
      *  durée n'est servie — jamais un chiffre inventé. */
     minutesLabel: string | null;
     /** La nature de l'exercice lancé. `null` sur une mesure : le sous-titre
@@ -1091,10 +1091,10 @@ export function planNowCard(
 
     const minutes = mesure ? planItemMinutes(mesure) : exercise?.estimatedMinutes ?? null;
     /* « chacun » : les minutes sont celles d'UN sujet, pas de la série entière —
-       sans lui, « 5 sujets · ≈ 6 min » promettait six minutes pour les cinq.
+       sans lui, « 3 sujets · ≈ 6 min » promettait six minutes pour les trois.
        ⚠️ La nature est testée avec les compteurs (miroir du mobile) : une série
        ciblée de compréhension porte elle aussi un `stepPromptCount`, et sans ce
-       test elle annonçait « 5 petits sujets » qu'elle ne contient pas. */
+       test elle annonçait « 3 petits sujets » qu'elle ne contient pas. */
     const minutesLabel = minutes === null
         ? null
         : mesure === null
@@ -1486,7 +1486,7 @@ function parisDay(date: Date): string {
  * **Cette ligne de la séance est-elle faite ?**
  *
  * Deux faits **servis**, aucun marqueur local : l'étape est bouclée
- * (`stepCompleted` sur ses cinq sujets), **ou** la dernière activité sur la
+ * (`stepCompleted` sur ses sujets), **ou** la dernière activité sur la
  * compétence tombe aujourd'hui (**Europe/Paris**).
  *
  * 🛑 C'est le front qui compare, jamais le serveur : la séance ne dépend
@@ -1854,7 +1854,7 @@ export function planStepKitState(state: PlanSkillStepState): PlanPathStep["state
 
 /**
  * Le libellé d'un état d'étape, **avec sa progression réelle** quand elle
- * éclaire quelque chose : « Série terminée · 5/5 », « En cours · 2/5 ».
+ * éclaire quelque chose : « Série terminée · 3/3 », « En cours · 2/3 ».
  *
  * 🛑 Le libellé vient de l'enum servi ; seuls les **nombres** s'y ajoutent, et
  * ce sont ceux que le serveur a comptés. Aucun état n'est déduit ici.

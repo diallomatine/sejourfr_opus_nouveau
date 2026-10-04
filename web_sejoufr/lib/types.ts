@@ -1501,7 +1501,7 @@ export const PLAN_ACTION_NATURE_LABEL: Record<PlanActionNature, string> = {
  * voyait deux parcours différents selon l'appareil. Un front ne classe pas un
  * compteur en état pédagogique.
  *
- * 🛑 **`SERIE_TERMINEE` n'est pas `ACQUIS`** : cinq petits sujets traités ne
+ * 🛑 **`SERIE_TERMINEE` n'est pas `ACQUIS`** : les petits sujets traités ne
  * prouvent rien en situation. Seule une **preuve de transfert** vaut « acquis ».
  *
  * 🛑 **`ACQUIS` n'est PAS `masteryState === "SOLID"`.** Le serveur le résout sur
@@ -1516,7 +1516,7 @@ export const PLAN_ACTION_NATURE_LABEL: Record<PlanActionNature, string> = {
 export type PlanSkillStepState =
     /** Le transfert est prouvé : la maîtrise est démontrée en situation. */
     | "ACQUIS"
-    /** Les 5 petits sujets sont traités, la vérification n'est pas rendue. */
+    /** Les petits sujets de l'étape sont traités, la vérification n'est pas rendue. */
     | "A_VERIFIER"
     /** Série finie **et** vérification rendue, sans maîtrise installée : le Plan
      *  passe à la suite, la compétence pourra revenir. */
@@ -1529,7 +1529,7 @@ export type PlanSkillStepState =
     | "A_VENIR";
 
 /** Libellés FR des états d'étape (**contrat gelé** par `SkillLabelsTest`,
- *  recopié à la main ici et dans `plan_step_state.dart`). Le compteur « · 3/5 »
+ *  recopié à la main ici et dans `plan_step_state.dart`). Le compteur « · 2/3 »
  *  se compose à côté, dans `planStepStateLabel`. */
 export const PLAN_SKILL_STEP_STATE_LABEL: Record<PlanSkillStepState, string> = {
     ACQUIS: "Acquis",
@@ -1547,8 +1547,8 @@ export const PLAN_SKILL_STEP_STATE_LABEL: Record<PlanSkillStepState, string> = {
  * `LearningPlanSkillCounters` (`promptCount` / `attemptedCount` /
  * `validatedCount`) décrivent la **compétence entière** (15 sujets) et servent
  * aux cartes « compétences observées ». Les `step*` ci-dessous décrivent
- * l'**étape** : les 5 premiers sujets actifs de la compétence, et rien d'autre
- * — **c'est ce couple que l'anneau d'une étape affiche** (« 2/5 », pas
+ * l'**étape** : les premiers sujets actifs de la compétence (leur nombre est servi), et rien d'autre
+ * — **c'est ce couple que l'anneau d'une étape affiche** (« 2/3 », pas
  * « 2/15 »). Les deux sont dérivés serveur, jamais recalculés ici.
  */
 export interface LearningPlanPriorityDto extends LearningPlanSkillCounters, SkillLockable {
@@ -1586,7 +1586,7 @@ export interface LearningPlanPriorityDto extends LearningPlanSkillCounters, Skil
      * `kind`, il ne le devine jamais d'un identifiant nul.
      */
     recommendedExercise: PlanSkillExerciseDto | null;
-    /** Sujets de l'étape : au plus les 5 premiers actifs, moins si la compétence en publie moins. */
+    /** Sujets de l'étape : au plus les N premiers actifs (N servi, 3 depuis D-71), moins si la compétence en publie moins. */
     stepPromptCount: number;
     /** Sujets de l'étape déjà traités (tout sauf « À faire »). */
     stepAttemptedCount: number;
@@ -1605,8 +1605,8 @@ export interface LearningPlanPriorityDto extends LearningPlanSkillCounters, Skil
      * construction — ne rien recompter à partir de là.
      *
      * Il permet à l'écran d'une compétence ouverte **depuis le Plan** de rester
-     * dans l'étape (les mêmes 5 sujets, « 2/5 ») au lieu de retomber sur la
-     * fiche complète et son « 1/15 ». La règle « les 5 premiers sujets actifs »
+     * dans l'étape (les mêmes sujets, « 2/3 ») au lieu de retomber sur la
+     * fiche complète et son « 1/15 ». La règle « les N premiers sujets actifs »
      * vit côté serveur : elle ne se réimplémente nulle part.
      *
      * Liste **vide** quand la compétence n'a aucun sujet actif — cas normal ;
@@ -1654,9 +1654,9 @@ export interface LearningPlanCompletedStepDto {
     section: SkillSection;
     /** Dernière observation probante : c'est elle qui ordonne les étapes franchies. */
     observedAt: string;
-    /** Sujets de l'étape : au plus les 5 premiers actifs, moins si la compétence en publie moins. */
+    /** Sujets de l'étape : au plus les N premiers actifs (N servi, 3 depuis D-71), moins si la compétence en publie moins. */
     stepPromptCount: number;
-    /** Sujets de l'étape déjà traités. Une étape franchie n'est pas forcément à 5/5. */
+    /** Sujets de l'étape déjà traités. Une étape franchie n'est pas forcément complète. */
     stepAttemptedCount: number;
     /** Sujets de l'étape dont le critère a été validé. Toujours ≤ `stepAttemptedCount`. */
     stepValidatedCount: number;
@@ -2057,7 +2057,7 @@ interface PlanSeanceItemBase {
     /** État agrégé, `null` sur un jalon, sur une mesure et sur une compétence
      *  **jamais observée** (à acquérir). */
     masteryState: SkillMasteryState | null;
-    /** Sujets de l'étape ; **`0` en compréhension**, qui n'a pas d'étape à cinq
+    /** Sujets de l'étape ; **`0` en compréhension**, qui n'a pas d'étape à petits
      *  sujets, et sur une mesure comme sur un jalon. */
     stepPromptCount: number;
     stepAttemptedCount: number;
@@ -2535,15 +2535,15 @@ export interface SkillPromptSummaryDto extends SkillLockable {
     /** EO — indicatif, jamais bloquant. */
     recommendedDurationSeconds: number | null;
     /**
-     * Le temps que **CE** sujet demande, en minutes — « 5 petits sujets ·
+     * Le temps que **CE** sujet demande, en minutes — « 3 petits sujets ·
      * ≈ 4 min chacun » sur la fiche d'une compétence.
      *
      * 🛑 **Dérivé serveur** (`ExerciseDuration`, l'autorité déjà employée par le
      * Plan) : écrit = milieu de la fourchette de mots / 12 mots-minute, oral =
      * temps de parole × 3. Les deux fronts auraient sinon recopié cette règle.
      *
-     * ⚠️ C'est le temps d'**UN** sujet, jamais celui de la série : les 5 sujets
-     * d'une étape font une quinzaine de minutes, pas cinq.
+     * ⚠️ C'est le temps d'**UN** sujet, jamais celui de la série : les sujets
+     * d'une étape font plusieurs fois cette durée.
      */
     estimatedMinutes: number;
     status: SkillPromptStatus;
@@ -5059,7 +5059,7 @@ export interface JourneyStepDto {
      *
      * 🛑 **Même cause qu'`exercise` (A24)** : les priorités du Plan sont une vue
      * bornée que la file dépasse. Une étape EO absente de ces listes ouvrait la
-     * fiche des 15 sujets au lieu de ses 5 (bug du 2026-10-04). Ce sont
+     * fiche des 15 sujets au lieu de ceux de l'étape (bug du 2026-10-04). Ce sont
      * exactement les sujets qui closent l'étape — `planStepFor` les lit, rien
      * ne les recompose.
      */

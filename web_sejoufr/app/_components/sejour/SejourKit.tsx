@@ -830,7 +830,7 @@ export function SkillList({ children }: { children: ReactNode }) {
 
 /**
  * Une étape de parcours. `pill` est **servi** par l'appelant (le libellé de
- * l'état d'étape, « Série terminée · 5/5 »…) : le kit ne compose aucune phrase
+ * l'état d'étape, « Série terminée · 3/3 »…) : le kit ne compose aucune phrase
  * et n'en déduit aucune d'un compteur.
  */
 export type PathStep = { label: string; state: StepState; pill?: string };
@@ -930,7 +930,7 @@ export function PathRow({ label, state, pill }: {
  * finirait par désigner une autre étape que le serveur.
  *
  * ⚠️ **Distinct de {@link StepState}**, qui décrit une étape de *tâche* (les
- * 5 petits sujets d'une compétence). Deux objets, deux vocabulaires : les
+ * petits sujets d'une compétence). Deux objets, deux vocabulaires : les
  * confondre ferait cocher en vert une série finie qui n'a rien prouvé.
  *
  * ⚠️ Miroir de `SfJourneyState` (`mobile .../core/widgets/sejour/sejour_kit.dart`).

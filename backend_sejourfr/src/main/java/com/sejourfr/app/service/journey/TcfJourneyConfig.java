@@ -26,11 +26,11 @@ import com.sejourfr.app.enums.JourneyLotSelectionStrategy;
  * <h2>Ce qui n'est PAS ici, et ne doit jamais y entrer</h2>
  * <ul>
  *   <li><b>Le quota d'etape d'EXPRESSION.</b> Il <b>est</b>
- *       {@code LearningPlanStep.PROMPTS_PAR_ETAPE} (5), et c'est son unique
+ *       {@code LearningPlanStep.PROMPTS_PAR_ETAPE} (3 depuis D-71), et c'est son unique
  *       autorite : ce chiffre est deja servi aux deux fronts dans
  *       {@code progress.quota}. Le declarer ici en ferait la 2<sup>e</sup> copie,
- *       et un jour l'ecran annoncerait « 2/5 » pendant que le moteur en
- *       exigerait 6.</li>
+ *       et un jour l'ecran annoncerait « 2/3 » pendant que le moteur en
+ *       exigerait 4.</li>
  *   <li><b>La TAILLE d'une serie et son SEUIL de reussite.</b> La taille est
  *       {@code AttemptService.COMPREHENSION_SERIES_SIZE} (TCF) ou
  *       {@code civic-plan.questions-par-serie} (civique) ; le seuil se

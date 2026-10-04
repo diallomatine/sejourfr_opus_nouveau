@@ -89,7 +89,7 @@ export function EeWritingForm({
   error?: string | null;
   submitLabel?: string;
   /** Remplace « Tâche N » sur le badge de contrainte (micro-exercices :
-   *  « Petit sujet · 2/5 »). */
+   *  « Petit sujet · 2/3 »). */
   consigneLabel?: string;
   /** Titre d'intention affiché **dans** la carte d'exercice, au-dessus de la
    *  consigne. Absent par défaut : les micro-exercices portent déjà le leur

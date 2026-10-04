@@ -11,9 +11,9 @@ import type {
 /**
  * **Une compétence ouverte depuis le Plan reste dans son étape.**
  *
- * Une étape du Plan, ce sont les 5 premiers sujets actifs d'une compétence
+ * Une étape du Plan, ce sont les premiers sujets actifs d'une compétence (leur nombre est servi)
  * (`stepPromptIds`, servis par le serveur). La carte d'étape affiche déjà
- * « 2/5 » ; sans ce marqueur, ouvrir la compétence retombait sur la fiche
+ * « 2/3 » ; sans ce marqueur, ouvrir la compétence retombait sur la fiche
  * générique et son « 1/15 », donc le candidat perdait de vue ce qu'il lui reste
  * à faire pour finir son étape.
  *
@@ -21,7 +21,7 @@ import type {
  * par « Réviser → épreuve → Compétences », la fiche complète (les 15 sujets,
  * « x/15 ») ne bouge pas d'un pixel.
  *
- * 🛑 **Rien n'est recalculé ici** : ni « les 5 premiers par ordre d'affichage »,
+ * 🛑 **Rien n'est recalculé ici** : ni « les N premiers par ordre d'affichage »,
  * ni un statut de sujet, ni un compteur. Le serveur sert le périmètre
  * (`stepPromptIds`) et les compteurs (`stepAttemptedCount` /
  * `stepPromptCount`), ce module ne fait que les retrouver.
@@ -34,7 +34,7 @@ import type {
  * rien à charger, donc aucun appel réseau supplémentaire » — tenait tant que le
  * candidat ne rechargeait pas : le marqueur survit à un F5, le cache mémoire
  * non. L'écran retombait alors sur la fiche des 15 sujets, perdait sa pilule
- * d'étape, affichait « 1/15 » à la place de « 2/5 », et son retour partait dans
+ * d'étape, affichait « 1/15 » à la place de « 2/3 », et son retour partait dans
  * `/entrainement/tcf/…` alors que le candidat venait du Plan. `CompetenceDetail`
  * branche donc le Plan sur `useCachedData(learningPlanApi.cacheKey, …)` :
  * **zéro appel** quand on arrive du Plan (le cache est chaud), **un** appel sur
@@ -144,7 +144,7 @@ function journeyStepScope(
 /**
  * L'étape du Plan qui porte cette compétence — priorité, **étape du cycle** et
  * **étape franchie** comprises. Une étape franchie garde son périmètre : ouvrir
- * une carte cochée doit mener aux mêmes 5 sujets, pas à la fiche des 15.
+ * une carte cochée doit mener aux mêmes sujets d'étape, pas à la fiche des 15.
  *
  * 🛑 **Le cycle est lu aussi** (bug du 2026-10-04) : les priorités
  * (`currentPriority` + `nextPriorities`) sont une **vue bornée**, que la file
@@ -192,12 +192,12 @@ export function planStepPrompts<T extends Pick<SkillPromptSummaryDto, "id">>(
 }
 
 /**
- * **Où en est ce sujet DANS l'étape** — « 1 / 5 », jamais « 1 / 15 ».
+ * **Où en est ce sujet DANS l'étape** — « 1 / 3 », jamais « 1 / 15 ».
  *
  * 🛑 **Aucun périmètre n'est recalculé ici** : le rang est la position du sujet
  * dans `stepPromptIds`, la liste **ordonnée et servie** par le serveur
  * (`LearningPlanStep.scope`, rang d'affichage croissant). Un front qui
- * reprendrait « les 5 premiers sujets actifs » de son côté désignerait tôt ou
+ * reprendrait « les N premiers sujets actifs » de son côté désignerait tôt ou
  * tard une autre étape que le Plan.
  *
  * `null` dès qu'on n'est pas dans une étape, ou que le sujet n'en fait pas
@@ -289,7 +289,7 @@ export const PLAN_STEP_DONE_CTA = "Revenir à mon plan";
 export const PLAN_STEP_START_CTA = "Commencer le prochain sujet";
 export const PLAN_STEP_RETRY_CTA = "Retravailler ce sujet";
 
-/** « Cette étape, ce sont les 5 premiers sujets de cette compétence. » — le
+/** « Cette étape, ce sont les {total} premiers sujets de cette compétence. » — le
  *  nombre vient du serveur, il n'est jamais écrit en dur (une compétence qui
  *  publie moins de sujets a une étape plus courte). */
 export function planStepSectionText(total: number): string {

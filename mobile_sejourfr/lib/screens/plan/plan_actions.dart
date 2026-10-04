@@ -56,7 +56,7 @@ Future<void> openPlanExercise(
   }
   // 🛑 **Un petit sujet ciblé ouvre la FICHE DE SA COMPÉTENCE**, jamais le
   // sujet directement (demande du propriétaire, 2026-09-20) : c'est là que le
-  // candidat voit ses cinq sujets et lesquels sont faits.
+  // candidat voit ses sujets et lesquels sont faits.
   //
   // ⚠️ **Révoque** « le bouton principal démarre l'entraînement, il n'ouvre pas
   // une fiche » : les lignes du cycle et la carte « À faire maintenant »
@@ -65,7 +65,7 @@ Future<void> openPlanExercise(
   // deux écrans selon l'endroit où on la touchait.
   //
   // 🛑 **La VÉRIFICATION garde son lancement direct** : son sujet est une tâche
-  // de production qui ne fait pas partie des cinq — l'y envoyer laisserait le
+  // de production qui ne fait pas partie des sujets de l'étape — l'y envoyer laisserait le
   // candidat sans aucun moyen de la faire.
   final section = exercise.section;
   if (exercise.kind == PlanExerciseKind.microTraining && section.isProduction) {
@@ -152,7 +152,7 @@ Future<void> startPlanSeanceItem(
 /// d'expression construite avec un module deviné.
 ///
 /// En expression, ouverte **depuis le Plan**, la compétence s'affiche à
-/// l'échelle de son **étape** (les 5 sujets, « 2/5 ») : c'est le marqueur
+/// l'échelle de son **étape** (ses sujets, « 2/3 ») : c'est le marqueur
 /// `?etape=1`, relu sur le Plan déjà chargé.
 void openPlanSkill(
   BuildContext context,

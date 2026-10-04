@@ -756,18 +756,19 @@ Plan propose (`PlanDomainAssessmentDto`). **Ne pas recréer** le parcours.
   `skillProgressLabel` (`core/utils/skill_progress.dart`, dont `competenceProgressLabel`
   n'est plus qu'une application au `SkillDto`). `stepPromptCount` /
   `stepAttemptedCount` / `stepValidatedCount` / `stepCompleted` (priorités seulement)
-  décrivent l'**étape** — les **5 premiers** sujets de la compétence : c'est ce couple que
-  l'anneau d'une étape du parcours affiche (« 2/5 », jamais « 2/15 »). Tout est dérivé
+  décrivent l'**étape** — les **3 premiers** sujets de la compétence (D-71, 2026-10-04 ; 5 avant ;
+  nombre **servi**, jamais écrit en dur, les « x/3 » historiques de ce fichier se lisent « x/N ») : c'est ce couple que
+  l'anneau d'une étape du parcours affiche (« 2/3 », jamais « 2/15 »). Tout est dérivé
   serveur, y compris `stepCompleted` : l'écran ne compare plus rien lui-même.
 - **L'étape SUIT le candidat jusque dans la fiche de compétence** (2026-08-15).
   Une compétence ouverte **depuis le Plan** (`CompetenceDetailScreen.planStep`)
-  n'affiche plus que les **sujets de l'étape** et compte « 2/5 » ; par
+  n'affiche plus que les **sujets de l'étape** et compte « 2/3 » ; par
   « Réviser → épreuve → Compétences », la fiche complète (les 15 sujets,
   « x/15 ») est **strictement inchangée**. Deux vues d'une même compétence selon
   la porte d'entrée : c'est **assumé** (décision propriétaire, prise sur maquette).
   - **Le périmètre est servi** : `LearningPlanPriority.stepPromptIds` (jamais
     `null`, éventuellement vide, `length == stepPromptCount`). On ne rejoue
-    **jamais** la règle « les 5 premiers par rang d'affichage », qui vit côté
+    **jamais** la règle « les N premiers par rang d'affichage », qui vit côté
     serveur.
   - **Aucun identifiant ne voyage dans la route** : un simple marqueur
     `?etape=1`, posé par `competenceDetailPath(..., planStep: true)` depuis
@@ -798,7 +799,7 @@ Plan propose (`PlanDomainAssessmentDto`). **Ne pas recréer** le parcours.
     (`stepCompleted`) ⇒ un `ProductionNotice` « Étape terminée » + « Revenir à
     mon plan ». « Vérifier ma progression » vit **sur le Plan**, qui seul
     connaît la deuxième condition (moteur de maîtrise prêt) : une étape peut
-    donc afficher « 5/5 » sans que la vérification s'ouvre — **c'est voulu**, ne
+    donc afficher « 3/3 » sans que la vérification s'ouvre — **c'est voulu**, ne
     pas l'expliquer par un message ni contourner la règle.
   - **L'action principale vise le sujet DÉSIGNÉ PAR LE SERVEUR** (2026-08-15 ;
     elle vivait dans une `FixedActionBar`, elle vit depuis le 2026-08-21 dans la
@@ -806,7 +807,7 @@ Plan propose (`PlanDomainAssessmentDto`). **Ne pas recréer** le parcours.
     En mode étape, `_primaryAction` lit `recommendedExercise.skillPromptId` via
     `planStepRecommendedPrompt` (`screens/plan/plan_step_labels.dart`) : la
     règle de choix vit dans `RecommendedExerciseSelector`, son périmètre est
-    **déjà borné aux 5 sujets de l'étape**, et un « premier sujet non validé »
+    **déjà borné aux sujets de l'étape**, et un « premier sujet non validé »
     recodé ici désignerait un autre sujet que le Plan. Libellés gelés, miroir du
     web : **`kPlanStepStartCta`** (« Commencer le prochain sujet », sujet
     `TODO`) et **`kPlanStepRetryCta`** (« Retravailler ce sujet ») — le bouton
@@ -852,18 +853,18 @@ Plan propose (`PlanDomainAssessmentDto`). **Ne pas recréer** le parcours.
   reste désigné.
 - **La carte d'une ÉTAPE ne nomme plus l'exercice** (décision propriétaire,
   2026-08-15). `_CurrentStepCard` garde son numéro, son badge d'état, le titre de
-  la compétence, l'anneau « x/5 », `_StepDoneLines` et le méta code · épreuve ;
+  la compétence, l'anneau « x/3 », `_StepDoneLines` et le méta code · épreuve ;
   la `_ExerciseRow` qui nommait le micro-sujet **en est retirée** (le widget
   vit toujours, `_NowCard` l'utilise), et **« Continuer cette étape » ouvre
   l'écran d'étape** — `onOpenSkill` → `competenceDetailPath(..., planStep: true)`,
   le même chemin que les cartes de compétences observées. Motif : un seul endroit
   nomme l'exercice — « À faire maintenant » (`_NowCard`, **inchangée**, qui garde
   `_ExerciseRow` + le lancement direct) — et le candidat voit enfin *lesquels*
-  sont ses 5 sujets avant de s'y remettre.
+  sont ses sujets d'étape avant de s'y remettre.
   🛑 **Exception, la VÉRIFICATION** : `kind == reassessment` ⇒ la carte garde
   **exactement** son comportement d'origine (badge `VÉRIFICATION`, bouton
   « Vérifier ma progression », `openRecommendedExercise`). Le candidat vient de
-  terminer ces 5 sujets : l'y renvoyer serait un cul-de-sac. `locked` ⇒
+  terminer ces sujets : l'y renvoyer serait un cul-de-sac. `locked` ⇒
   « Débloquer cette étape », inchangé.
 - **Une étape FRANCHIE ne disparaît plus du parcours : elle se coche**
   (2026-08-16). `LearningPlan.completedSteps` (`LearningPlanCompletedStep`,
@@ -874,7 +875,7 @@ Plan propose (`PlanDomainAssessmentDto`). **Ne pas recréer** le parcours.
   - **À la place du numéro, une coche, et la pastille passe au vert**
     (`_PathStep(icon: LucideIcons.check, tone: AppColors.green)`) — demande du
     propriétaire, au mot près. `_CompletedStepCard` est sobre : `AppTag`
-    « TERMINÉE », anneau « 5/5 », titre, `code · épreuve`, chevron. **Aucun
+    « TERMINÉE », anneau « 3/3 », titre, `code · épreuve`, chevron. **Aucun
     bouton d'action** — le DTO ne porte **ni exercice recommandé ni `locked`**.
     Ne pas en inventer.
   - ⚠️ **`masteryState` n'est PAS toujours `solid`** (mesuré : 1 `solid`,
@@ -1261,7 +1262,7 @@ valent `done | verify | doing | now | todo`, et `PathStep` / `SfPathStep` porten
 un `pill` **composé par l'appelant** à partir d'un libellé **servi**
 (`PlanSkillStepState`) — le kit ne compose aucune phrase et n'en déduit aucune
 d'un compteur. `verify` (« Série terminée · À vérifier ») est ambre et **n'est
-pas** `done` : une série de 5 petits sujets finie n'est pas une compétence
+pas** `done` : une série de petits sujets finie n'est pas une compétence
 acquise. `NowCard` / `SfNowCard` ont un `variant` `verify` pour la même raison —
 quand la série se termine, le nom de la compétence ne change pas, et sans accent
 propre la carte se lirait « rien n'a bougé ». → `docs/regles/plan.md`
@@ -2024,7 +2025,7 @@ mon profil** → **Mon chemin vers l'objectif** → liens secondaires.
     le résultat mesuré d'un côté, l'action verrouillée de l'autre.
 - **Une ligne de « Aujourd'hui » OUVRE, le bouton principal LANCE** (2026-08-21).
   `openPlanSeanceItem` (le tap de la ligne) envoie un **petit sujet ciblé** vers la
-  **fiche de sa compétence** — ses 5 sujets et ce qui est fait —, exactement comme la ligne
+  **fiche de sa compétence** — ses sujets d'étape et ce qui est fait —, exactement comme la ligne
   correspondante de « Mes priorités » : la même compétence ne peut pas mener à deux écrans
   selon l'endroit où on la touche. `startPlanSeanceItem` (le CTA du héros) **démarre**
   l'entraînement, comme avant. 🛑 **Trois natures gardent le lancement direct** : la
@@ -2064,7 +2065,7 @@ mon profil** → **Mon chemin vers l'objectif** → liens secondaires.
   série. Les libellés **gelés** (mastery, priorité de domaine, fenêtre de changements)
   restent ceux des enums, recopiés du serveur.
 - **`planSeanceItemDone`** (`plan_seance_state.dart`) coche les lignes de la séance à
-  partir de **deux faits servis** : l'étape est bouclée (`stepCompleted` sur ses 5 sujets),
+  partir de **deux faits servis** : l'étape est bouclée (`stepCompleted` sur ses sujets d'étape),
   **ou** `lastActivityAt` tombe aujourd'hui (**Europe/Paris**). 🛑 Le marqueur local
   `planSeanceDoneProvider` est **supprimé** : il s'évaporait au rechargement et le même
   candidat voyait deux séances selon l'appareil. Ne pas le réintroduire, et ne pas demander
@@ -2460,7 +2461,7 @@ même pour les vingt sujets d'une tâche, donc il ne distingue rien. `displayTit
 reste employé là où c'est bien la tâche qu'on nomme (briefings, temps réel,
 historique).
 
-**Une ligne de compétence** porte un `ProgressRing` « 2/5 » + l'état en clair
+**Une ligne de compétence** porte un `ProgressRing` « 2/3 » + l'état en clair
 (« 2 réussis · 3 restants »), plus une pastille de numéro et une barre fine.
 **Une carte de sujet** porte son rang sur deux chiffres (`01`), sa contrainte et
 sa tâche — le palier a quitté la carte, il est annoncé une fois par le badge de

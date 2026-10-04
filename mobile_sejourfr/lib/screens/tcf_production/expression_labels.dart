@@ -105,7 +105,6 @@ String? tacheBadge(List<SkillDto> skills) {
   return skills.any((s) => s.attemptedCount > 0) ? kExpressionEnCours : null;
 }
 
-
 /* ------------------------------------------------- Une fiche de compétence */
 
 const String kExpressionLearningPointsTitle = 'Vous allez apprendre à :';
@@ -129,10 +128,10 @@ String competenceEyebrow(SkillDto skill) {
   return kExpressionCompetenceEnCours;
 }
 
-/// « 5 petits sujets · ≈ 4 min chacun ».
+/// « 3 petits sujets · ≈ 4 min chacun ».
 ///
-/// 🛑 **« chacun », et c'est tout l'enjeu** : les 5 sujets d'une étape font une
-/// quinzaine de minutes, pas cinq. Annoncer « ≈ 5 min » comme durée de séance
+/// 🛑 **« chacun », et c'est tout l'enjeu** : les sujets d'une étape font plusieurs
+/// fois cette durée. Annoncer « ≈ 5 min » comme durée de séance
 /// serait faux (arbitrage du 2026-09-12).
 ///
 /// La minute vient de `estimatedMinutes`, **servi** par `ExerciseDuration`. On
@@ -165,8 +164,7 @@ const String kExpressionCtaLocked = 'Voir le pass Intégral';
 /// nouvelle n'est inventée ici.
 String competenceCta(List<SkillPromptSummary> prompts, {required bool locked}) {
   if (locked) return kExpressionCtaLocked;
-  final reste =
-      prompts.where((p) => p.status == SkillPromptStatus.todo).length;
+  final reste = prompts.where((p) => p.status == SkillPromptStatus.todo).length;
   if (reste == 0) {
     return prompts.isEmpty ? kExpressionCtaStart : kExpressionCtaRedo;
   }
@@ -175,8 +173,7 @@ String competenceCta(List<SkillPromptSummary> prompts, {required bool locked}) {
 
 /// « 0 restants » / « 3 restants » — ce qu'il reste à faire dans le périmètre.
 String restantsLabel(List<SkillPromptSummary> prompts) {
-  final reste =
-      prompts.where((p) => p.status == SkillPromptStatus.todo).length;
+  final reste = prompts.where((p) => p.status == SkillPromptStatus.todo).length;
   return '$reste restant${reste > 1 ? 's' : ''}';
 }
 
@@ -188,8 +185,7 @@ String tacheLabel(String taskCode) {
 }
 
 /// « Votre progression vers l'objectif B2 ». `null` sans objectif déclaré.
-String? progressionVersObjectif(String? objectif) => objectif == null
-    ? null
-    : 'Votre progression vers l\'objectif $objectif';
+String? progressionVersObjectif(String? objectif) =>
+    objectif == null ? null : 'Votre progression vers l\'objectif $objectif';
 
 /* ------------------------------------- La recommandation VIENT DU PLAN --- */

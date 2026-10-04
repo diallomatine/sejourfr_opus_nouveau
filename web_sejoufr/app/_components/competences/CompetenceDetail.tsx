@@ -117,7 +117,7 @@ function shortDate(iso: string): string {
  * ⚠️ **Deux vues, selon la porte d'entrée** (décision produit, cf.
  * `lib/plan-step.ts`). Ouvert **depuis le Plan** (`?etape=1`) et tant que la
  * compétence est une priorité, l'écran se limite aux **sujets de l'étape** et
- * compte « 2/5 » ; par « Réviser → épreuve → Compétences », il garde la fiche
+ * compte « 2/3 » ; par « Réviser → épreuve → Compétences », il garde la fiche
  * complète et son « x/15 », **strictement inchangée**. Sans périmètre
  * exploitable — Plan pas chargé, compétence sortie des priorités, étape vide —
  * on retombe **silencieusement** sur la fiche complète : jamais d'erreur,
@@ -164,7 +164,7 @@ export function CompetenceDetail({config}: {config: ProductionConfig}) {
   const origin = usePlanStepPurchaseOrigin(fromPlan, "OTHER");
   /* Tant que le Plan n'est pas revenu, on ne sait pas encore si l'écran est
      celui d'une étape : afficher la fiche complète en attendant la ferait
-     passer de 15 sujets à 5 sous les yeux du candidat. On garde le
+     passer de 15 sujets à 3 sous les yeux du candidat. On garde le
      squelette — il est déjà là pour la compétence elle-même. */
   const planPending =
     fromPlan &&
@@ -200,7 +200,7 @@ export function CompetenceDetail({config}: {config: ProductionConfig}) {
   const skill = data?.skill;
   const allPrompts = data?.prompts ?? [];
   /* Périmètre de l'étape : les identifiants servis par le serveur, dans leur
-     ordre. On ne rejoue **aucune** règle (« les 5 premiers par rang »), on ne
+     ordre. On ne rejoue **aucune** règle (« les N premiers par rang »), on ne
      fait que retrouver les sujets correspondants. Rien à montrer ⇒ repli sur la
      fiche complète, sans un mot. */
   const stepPrompts = step ? planStepPrompts(allPrompts, step.stepPromptIds) : [];
@@ -338,7 +338,7 @@ export function CompetenceDetail({config}: {config: ProductionConfig}) {
                 {scoped && <span className={s.stepPill}>{PLAN_STEP_PILL}</span>}
 
                 {/* Première ligne de la carte : les points d'avancement de la
-                    maquette — un segment par sujet du périmètre affiché (5 en
+                    maquette — un segment par sujet du périmètre affiché (3 en
                     mode étape, 15 sur la fiche complète). Les deux nombres
                     viennent d'au-dessus — en mode étape, ce sont **ceux du
                     serveur**.
@@ -423,9 +423,9 @@ export function CompetenceDetail({config}: {config: ProductionConfig}) {
                   </div>
                 )}
 
-                {/* « 5 petits sujets · ≈ 4 min chacun » — la minute vient
+                {/* « 3 petits sujets · ≈ 4 min chacun » — la minute vient
                     d'`estimatedMinutes`, dérivé serveur par `ExerciseDuration`.
-                    🛑 « chacun » : les 5 sujets font un quart d'heure, pas 4 min. */}
+                    🛑 « chacun » : les sujets de l'étape font plusieurs fois 4 min. */}
                 {meta && (
                   <p className={s.learnMeta}>
                     <span>

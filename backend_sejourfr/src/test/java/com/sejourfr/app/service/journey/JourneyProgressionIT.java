@@ -121,8 +121,8 @@ class JourneyProgressionIT extends AbstractIntegrationTest {
     // =====================================================================
 
     @Test
-    @DisplayName("§18-6 — expression : les 5 sujets de l'etape traites la closent (QUOTA_REACHED)")
-    void lesCinqSujetsTraitesClosentLEtapeDExpression() {
+    @DisplayName("§18-6 — expression : les sujets de l'etape traites la closent (QUOTA_REACHED)")
+    void lesSujetsTraitesClosentLEtapeDExpression() {
         User user = abonne();
         Skill skill = skill(SkillTaskCode.EE1);
         List<SkillPrompt> sujets = sujetsDeLEtape(skill);
@@ -143,6 +143,42 @@ class JourneyProgressionIT extends AbstractIntegrationTest {
         // maitrisee — l'examen decidera si elle revient.
         assertThat(etapeDe(apres, skill).status())
                 .isIn(JourneyStepStatus.COMPLETED, JourneyStepStatus.SKIPPED);
+    }
+
+    /**
+     * 🛑 <b>D-71 (2026-10-04) : une etape EE/EO, ce sont 3 sujets</b>, et une
+     * etape deja ouverte qui a ses 3 sujets traites se clot a la <b>lecture</b>
+     * suivante — sans attendre une soumission de plus. C'est le cas des etapes
+     * en cours au changement de taille (3 sujets faits sur les 5 d'avant) : la
+     * cloture d'ecriture ({@code onTrainingProgress}) n'arrive qu'avec une
+     * nouvelle analyse, et l'ecran aurait affiche « 3/3 » sur une etape
+     * toujours courante.
+     */
+    @Test
+    @DisplayName("D-71 — expression : 3 sujets ; 2/3 reste ouverte, 3/3 se clot a la lecture")
+    void uneEtapeDExpressionAuQuotaSeClotALaLecture() {
+        User user = abonne();
+        Skill skill = skill(SkillTaskCode.EO1);
+        List<SkillPrompt> sujets = sujetsDeLEtape(skill);
+        assertThat(sujets).hasSize(3);
+        UUID amorce = UUID.randomUUID();
+        observationDExamen(user, skill, amorce);
+        amorcer(user, amorce);
+        UUID stepId = etapeEnBase(user, skill).getId();
+
+        data.userSkillAttempt(user, sujets.get(0));
+        data.userSkillAttempt(user, sujets.get(1));
+        JourneyStepDto deuxSurTrois = etapeDe(journeyService.lire(user.getId(), Module.TCF), skill);
+        assertThat(deuxSurTrois.progress())
+                .isEqualTo(new JourneyStepDto.JourneyProgressDto(2, 3, JourneyProgressUnit.PROMPT));
+        assertThat(deuxSurTrois.stepCompleted()).isFalse();
+        assertThat(resolutionEnBase(stepId)).isNull();
+
+        // Le 3e sujet traite, SANS signal d'entrainement : la lecture la clot.
+        data.userSkillAttempt(user, sujets.get(2));
+        JourneyStepDto close = etapeDe(journeyService.lire(user.getId(), Module.TCF), skill);
+        assertThat(close.status()).isIn(JourneyStepStatus.COMPLETED, JourneyStepStatus.SKIPPED);
+        assertThat(resolutionEnBase(stepId)).isEqualTo(JourneyStepResolution.QUOTA_REACHED.name());
     }
 
     /**

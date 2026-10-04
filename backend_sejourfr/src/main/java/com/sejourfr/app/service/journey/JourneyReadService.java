@@ -701,7 +701,7 @@ public class JourneyReadService {
             return false;
         }
         // 🛑 Expression : l'etape n'est finissable que si le candidat a
-        // acces a TOUS ses sujets. Un compte gratuit plafonne a 2 sur 5
+        // acces a TOUS ses sujets. Un compte gratuit n'a aucun sujet ouvert (D-18)
         // et ne la clot donc jamais — c'est un arbitrage produit, pas un
         // bug, et D-1 en tire la consequence : elle reste affichee,
         // cadenassee, et ne prend pas la main.
@@ -1159,7 +1159,7 @@ public class JourneyReadService {
         }
         // 🛑 Le denominateur est la TAILLE DE L'ETAPE, son unique autorite
         // (LearningPlanStep.PROMPTS_PAR_ETAPE, borne par les sujets reellement
-        // publies) : on n'invente jamais un « /5 » qu'on ne saurait pas servir.
+        // publies) : on n'invente jamais un « /3 » qu'on ne saurait pas servir.
         return new JourneyStepDto.JourneyProgressDto(
                 progress.step().attemptedCount(),
                 progress.step().promptCount(),

@@ -24,7 +24,7 @@ public enum JourneyStepType {
 
     /**
      * Travailler une competence. ⚠️ <b>Deux grains sous un seul nom</b> : en
-     * expression, les 5 petits sujets de l'etape
+     * expression, les petits sujets de l'etape
      * ({@code LearningPlanStep.PROMPTS_PAR_ETAPE}) ; en comprehension, des
      * series ciblees de 20 QCM ({@code trainSeriesQuota}) — les competences
      * CO/CE n'ont ni tache ni petit sujet. Le discriminant est

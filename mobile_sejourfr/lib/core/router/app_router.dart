@@ -869,7 +869,7 @@ final routerProvider = Provider<GoRouter>((ref) {
                       state.pathParameters['moduleKey']),
                   skillId: state.pathParameters['skillId']!,
                   // Marqueur d'étape du Plan : la compétence s'affiche alors à
-                  // l'échelle de l'étape (« 2/5 »). Cf. plan_step_labels.dart.
+                  // l'échelle de l'étape (« 2/3 »). Cf. plan_step_labels.dart.
                   planStep: isPlanStepQuery(state.uri.queryParameters),
                 ),
               ),
@@ -1130,7 +1130,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           module: _productionModuleFromKey(state.pathParameters['moduleKey']),
           skillId: state.pathParameters['skillId']!,
           promptId: state.pathParameters['promptId']!,
-          // Marqueur d'étape : le repère devient « Sujet 1/5 » et le retour
+          // Marqueur d'étape : le repère devient « Sujet 1/3 » et le retour
           // ramène à l'étape, pas à la fiche des 15.
           planStep: isPlanStepQuery(state.uri.queryParameters),
         ),

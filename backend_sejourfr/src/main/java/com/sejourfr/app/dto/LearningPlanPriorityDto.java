@@ -26,7 +26,7 @@ import java.util.UUID;
  *       {@code stepValidatedCount} / {@code stepCompleted} décrivent l'<b>étape</b>
  *       : les {@code LearningPlanStep.PROMPTS_PAR_ETAPE} premiers sujets actifs
  *       de la compétence, et rien d'autre. <b>C'est ce couple que les fronts
- *       affichent sur l'anneau de progression d'une étape</b> — « 2/5 », pas
+ *       affichent sur l'anneau de progression d'une étape</b> — « 2/3 », pas
  *       « 2/15 ».</li>
  * </ul>
  * Les deux sont dérivés serveur, jamais persistés, jamais recalculés par un
@@ -60,7 +60,7 @@ public record LearningPlanPriorityDto(
         int promptCount,
         int attemptedCount,
         int validatedCount,
-        /** Sujets de l'étape : au plus les 5 premiers sujets actifs, moins si la compétence en publie moins. */
+        /** Sujets de l'étape : au plus les {@code LearningPlanStep.PROMPTS_PAR_ETAPE} (3) premiers sujets actifs, moins si la compétence en publie moins. */
         int stepPromptCount,
         /** Sujets de l'étape déjà traités (tout sauf « À faire »). */
         int stepAttemptedCount,
@@ -83,7 +83,7 @@ public record LearningPlanPriorityDto(
          * == stepPromptCount} par construction.
          *
          * <p>Il est servi parce qu'un front qui ouvre la compétence <b>depuis le
-         * Plan</b> doit rester dans l'étape — les mêmes 5 sujets, « 2/5 » — au
+         * Plan</b> doit rester dans l'étape — les mêmes sujets, « 2/3 » — au
          * lieu de retomber sur la fiche générique et son « 1/15 ». La règle
          * « les {@code LearningPlanStep.PROMPTS_PAR_ETAPE} premiers sujets
          * actifs » vit côté serveur ({@code LearningPlanStep.scope}) et
@@ -106,7 +106,7 @@ public record LearningPlanPriorityDto(
          * <b>Ou en est l'ETAPE</b> — l'etat servi que les fronts affichent, sans
          * jamais le deriver d'un compteur.
          *
-         * <p>Il dit ce qu'aucun autre champ ne disait : la serie des cinq petits
+         * <p>Il dit ce qu'aucun autre champ ne disait : la serie des petits
          * sujets est-elle finie, et la verification a-t-elle ete rendue ?
          * {@code stepAttemptedCount}/{@code stepPromptCount} restent la
          * progression chiffree (« 3/5 »), lui en est la <b>lecture</b>.

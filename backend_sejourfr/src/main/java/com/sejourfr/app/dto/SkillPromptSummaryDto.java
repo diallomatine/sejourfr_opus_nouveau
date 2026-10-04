@@ -26,7 +26,7 @@ public record SkillPromptSummaryDto(
         /** EO uniquement : conseil de duree, jamais bloquant. */
         Integer recommendedDurationSeconds,
         /**
-         * Le temps que ce sujet demande, en minutes — « 5 petits sujets ·
+         * Le temps que ce sujet demande, en minutes — « 3 petits sujets ·
          * <b>≈ 4 min chacun</b> » sur la fiche d'une competence.
          *
          * <p>🛑 <b>Derive serveur par {@code ExerciseDuration}</b>, l'autorite
@@ -36,7 +36,7 @@ public record SkillPromptSummaryDto(
          * apparue dans le depot.
          *
          * <p>⚠️ C'est le temps d'<b>UN</b> sujet, jamais celui de la serie :
-         * les 5 sujets d'une etape font une quinzaine de minutes, pas cinq.
+         * les 3 sujets d'une etape font une dizaine de minutes, pas trois.
          */
         int estimatedMinutes,
         /** Derive serveur de la derniere tentative — aucun front ne le recalcule. */

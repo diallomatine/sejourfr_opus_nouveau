@@ -80,7 +80,7 @@ const String kSkillSeriesNote =
 /// ⚠️ **Deux vues, selon la porte d'entrée** (décision produit, cf.
 /// `screens/plan/plan_step_labels.dart`). Ouvert **depuis le Plan**
 /// ([planStep]) et tant que la compétence est une priorité, l'écran se limite
-/// aux **sujets de l'étape** et compte « 2/5 » ; par « Réviser → épreuve →
+/// aux **sujets de l'étape** et compte « 2/3 » ; par « Réviser → épreuve →
 /// Compétences », il garde la fiche complète et son « x/15 », **strictement
 /// inchangée**. Sans périmètre exploitable — Plan pas chargé, compétence sortie
 /// des priorités, étape vide — on retombe **silencieusement** sur la fiche
@@ -252,7 +252,7 @@ class _CompetenceDetailScreenState extends ConsumerState<CompetenceDetailScreen>
   }
 
   /// Les sujets de l'étape, **dans l'ordre servi**. On ne rejoue aucune règle
-  /// (« les 5 premiers par rang ») : on retrouve simplement les sujets des
+  /// (« les N premiers par rang ») : on retrouve simplement les sujets des
   /// identifiants servis. Vide ⇒ l'appelant se replie sur la fiche complète.
   List<SkillPromptSummary> _stepPrompts(
     List<SkillPromptSummary> prompts,
@@ -329,7 +329,7 @@ class _CompetenceDetailScreenState extends ConsumerState<CompetenceDetailScreen>
   /// Ce que l'écran propose de faire **maintenant**.
   ///
   /// **En mode étape**, la cible est celle **désignée par le serveur**
-  /// (`recommendedExercise.skillPromptId`, périmètre déjà borné aux 5 sujets de
+  /// (`recommendedExercise.skillPromptId`, périmètre déjà borné aux sujets de
   /// l'étape) : le Plan et cet écran ne peuvent donc pas désigner deux sujets
   /// différents. Sans désignation exploitable (fiche complète, pas d'exercice
   /// recommandé, vérification), on garde le comportement historique : le

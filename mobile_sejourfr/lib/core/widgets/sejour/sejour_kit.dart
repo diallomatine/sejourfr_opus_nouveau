@@ -1351,7 +1351,7 @@ class SfPathStep {
   final SfStepState state;
 
   /// Le libellé de la pastille, **servi** par l'appelant (« Série terminée ·
-  /// 5/5 »…). Le kit ne compose aucune phrase et n'en déduit aucune d'un
+  /// 3/3 »…). Le kit ne compose aucune phrase et n'en déduit aucune d'un
   /// compteur. `null` ⇒ pas de pastille.
   final String? pill;
 }
@@ -2725,7 +2725,7 @@ class SfInfoNote extends StatelessWidget {
 /// finirait par designer une autre etape que le serveur.
 ///
 /// ⚠️ **Distinct de [SfStepState]**, qui decrit une etape de *tache* (les
-/// 5 petits sujets d'une competence). Deux objets, deux vocabulaires : les
+/// petits sujets d'une competence). Deux objets, deux vocabulaires : les
 /// confondre ferait cocher en vert une serie finie qui n'a rien prouve.
 ///
 /// ⚠️ Miroir de `JourneyState` (`web .../sejour/SejourKit.tsx`).

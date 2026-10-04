@@ -67,7 +67,7 @@ public class SkillProgressCounter {
             List<SkillPrompt> prompts = promptsBySkill.getOrDefault(skillId, List.of());
             // Le PERIMETRE de l'etape, servi tel quel aux fronts : ils ouvrent
             // la competence sur ces sujets-la, dans cet ordre-la, plutot que de
-            // rejouer « les 5 premiers actifs » chacun de leur cote. Il ne coute
+            // rejouer « les premiers actifs » chacun de leur cote. Il ne coute
             // rien — les sujets sont deja charges pour les compteurs.
             List<UUID> stepPromptIds = LearningPlanStep.scope(prompts).stream()
                     .map(SkillPrompt::getId)

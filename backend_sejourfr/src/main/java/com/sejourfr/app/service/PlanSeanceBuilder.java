@@ -181,7 +181,7 @@ public class PlanSeanceBuilder {
     }
 
     /**
-     * Une etape : les compteurs servis sont ceux de l'<b>etape</b> (5 sujets),
+     * Une etape : les compteurs servis sont ceux de l'<b>etape</b> (3 sujets),
      * jamais ceux de la competence (15) — c'est ce couple que l'anneau de
      * progression affiche. Sur une competence <b>a acquerir</b> le nombre traite
      * vaut 0, ce qui est exact : rien n'a encore ete fait.

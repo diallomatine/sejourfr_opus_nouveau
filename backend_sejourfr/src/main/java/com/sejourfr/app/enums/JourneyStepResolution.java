@@ -39,7 +39,7 @@ public enum JourneyStepResolution {
      * decidera si elle revient.
      *
      * <p>Le quota n'a pas la meme unite selon la famille (R8, D-5) :
-     * 5 petits sujets en expression, {@code trainSeriesQuota} series ciblees en
+     * {@code LearningPlanStep.PROMPTS_PAR_ETAPE} petits sujets en expression, {@code trainSeriesQuota} series ciblees en
      * comprehension.
      */
     QUOTA_REACHED,

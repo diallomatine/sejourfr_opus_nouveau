@@ -7,7 +7,7 @@ import '../tcf_production_module.dart';
 /// du module (la liste) vit dans `production_nav.dart` : c'est un mode du
 /// parcours, pas un écran propre aux compétences.
 /// [planStep] ajoute le marqueur `?etape=1` : ouverte **depuis le Plan**, la
-/// compétence s'affiche à l'échelle de son **étape** (les 5 sujets, « 2/5 »),
+/// compétence s'affiche à l'échelle de son **étape** (ses sujets, « 2/3 »),
 /// pas de la compétence entière (« 1/15 ») — cf. `screens/plan/plan_step_labels
 /// .dart`. Sans le marqueur, comportement strictement inchangé.
 String competenceDetailPath(

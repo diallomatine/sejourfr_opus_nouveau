@@ -169,6 +169,7 @@ public class JourneyService {
         // 🛑 EN PREMIER : une etape rouverte redevient une competence DUE, et
         // les deux filets suivants lisent ce fait (garde D-15).
         boolean relire = rouvrirLesEtapesCloseesSansSeries(courant, etapes);
+        relire |= cloreLesEtapesDExpressionAuQuota(courant, etapes);
         relire |= rattraperLesEvaluationsInitiales(courant, etapes);
         relire |= rattraperLesExamensNonSignales(courant, etapes);
         // 🛑 EN DERNIER : un bloc vide se juge sur la file deja reparee.
@@ -1640,6 +1641,56 @@ public class JourneyService {
                 stepManager.save(step);
             }
         }
+        return true;
+    }
+
+    /**
+     * <b>Le filet de D-71, a la lecture</b> : dans le cycle <b>EN COURS</b>, une
+     * etape d'<b>expression</b> encore ouverte dont tous les sujets sont deja
+     * traites est close {@code QUOTA_REACHED}.
+     *
+     * <p>Pourquoi : l'ecriture ne clot une etape qu'a l'arrivee de l'analyse
+     * d'un petit sujet ({@link #onTrainingProgress}). Quand la taille d'etape
+     * baisse ({@code LearningPlanStep.PROMPTS_PAR_ETAPE}, 5 &rarr; 3 le
+     * 2026-10-04), une etape ouverte qui avait deja ses 3 premiers sujets
+     * traites serait restee « 3/3, Etape terminee » a l'ecran tout en restant
+     * {@code journey.current} jusqu'a une soumission de plus. La lecture la
+     * clot donc, par la <b>meme</b> autorite que l'ecriture
+     * ({@code JourneyReadService.etapesAuQuota}) — jamais une regle a part.
+     *
+     * <p>🛑 Rien n'est reecrit hors du cycle en cours : les cycles historises
+     * ne passent pas par ici, et une etape deja close ({@code QUOTA_REACHED} a
+     * 5/5 compris) n'est jamais touchee. Meme garde que D-65 : le <b>lot</b>
+     * doit etre encore ouvert. La comprehension et le civique (series) ne sont
+     * pas concernes : leur quota n'a pas change.
+     *
+     * @return {@code true} si une etape a ete close
+     */
+    private boolean cloreLesEtapesDExpressionAuQuota(Journey journey, List<JourneyStep> etapes) {
+        List<JourneyStep> candidates = etapes.stream()
+                .filter(JourneyStep::estOuverte)
+                .filter(step -> step.getType() == JourneyStepType.TRAIN_SKILL)
+                .filter(step -> step.getLot() == null
+                        || step.getLot().getStatus() == JourneyLotStatus.OPEN)
+                .filter(step -> step.getSkill() != null
+                        && step.getSkill().getSection() != null
+                        && step.getSkill().getSection().isProduction())
+                .toList();
+        if (candidates.isEmpty()) return false;
+        Set<UUID> auQuota = readService.etapesAuQuota(journey.getUser().getId(), candidates);
+        if (auQuota.isEmpty()) return false;
+        Instant maintenant = Instant.now();
+        int closes = 0;
+        for (JourneyStep step : candidates) {
+            if (auQuota.contains(step.getId())
+                    && step.clore(JourneyStepResolution.QUOTA_REACHED, null, maintenant)) {
+                stepManager.save(step);
+                closes++;
+            }
+        }
+        if (closes == 0) return false;
+        log.info("Parcours {} : {} etape(s) d'expression deja au quota close(s) a la lecture (D-71)",
+                journey.getId(), closes);
         return true;
     }
 

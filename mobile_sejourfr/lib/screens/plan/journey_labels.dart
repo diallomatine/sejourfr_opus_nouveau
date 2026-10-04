@@ -691,7 +691,7 @@ String _tacheLabel(SkillTaskCode taskCode) =>
 
 /// **L'étape que le cycle propose APRÈS celle qu'on regarde.**
 ///
-/// Sert la fin d'une étape d'expression : les cinq sujets faits, l'écran nomme
+/// Sert la fin d'une étape d'expression : tous ses sujets faits, l'écran nomme
 /// la suivante au lieu de renvoyer le candidat au Plan pour qu'il la cherche.
 ///
 /// 🛑 **On ne propose jamais l'étape qu'on vient de finir.** Le serveur ne clôt

@@ -138,10 +138,10 @@ export function competenceEyebrow(skill: SkillDto): string {
 }
 
 /**
- * « 5 petits sujets · ≈ 4 min chacun ».
+ * « 3 petits sujets · ≈ 4 min chacun ».
  *
- * 🛑 **« chacun », et c'est tout l'enjeu** : les 5 sujets d'une étape font une
- * quinzaine de minutes, pas cinq. Annoncer « ≈ 5 min » comme durée de séance
+ * 🛑 **« chacun », et c'est tout l'enjeu** : les sujets d'une étape font plusieurs
+ * fois cette durée. Annoncer « ≈ 5 min » comme durée de séance
  * serait faux (arbitrage du 2026-09-12).
  *
  * La minute vient de `estimatedMinutes`, **servi** par `ExerciseDuration`. On
@@ -214,7 +214,7 @@ export function progressionVersObjectif(objectif: string | null | undefined): st
  * recommander ici. On rend alors `null` et **la carte disparaît** — retomber sur
  * « la première case libre » recommanderait autre chose que le Plan.
  *
- * 🛑 **Rien n'est compté ici** : les compteurs d'étape (« 2/5 exercices
+ * 🛑 **Rien n'est compté ici** : les compteurs d'étape (« 2/3 exercices
  * réussis ») arrivent servis.
  */
 export interface ExpressionRecommendation {

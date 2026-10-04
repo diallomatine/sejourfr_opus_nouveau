@@ -24,7 +24,7 @@ import java.util.UUID;
 /**
  * Une micro-competence d'une tache TCF (8 par tache). C'est le grain
  * intermediaire du module : au-dessus vivent les 6 taches (enum
- * {@link SkillTaskCode}, pas de table), en dessous les 5 petits sujets
+ * {@link SkillTaskCode}, pas de table), en dessous les 15 petits sujets
  * ({@link SkillPrompt}).
  *
  * <p>{@link #section} est denormalisee depuis {@link #taskCode} et verrouillee
@@ -90,7 +90,7 @@ public class Skill {
      * deux endroits.
      *
      * <p>A ne pas confondre non plus avec {@code SkillPrompt.uniqueCriterion},
-     * qui est le critere precis d'UN petit sujet : celui-ci couvre les 5.
+     * qui est le critere precis d'UN petit sujet : celui-ci les couvre tous.
      */
     @Column(name = "general_criterion", nullable = false, columnDefinition = "text")
     private String generalCriterion;

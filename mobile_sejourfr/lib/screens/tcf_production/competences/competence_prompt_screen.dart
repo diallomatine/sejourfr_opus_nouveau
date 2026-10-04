@@ -77,7 +77,7 @@ class CompetencePromptScreen extends ConsumerWidget {
   final String skillId;
   final String promptId;
 
-  /// Ouvert **depuis le Plan** : le repère devient « Sujet 1/5 » et le retour
+  /// Ouvert **depuis le Plan** : le repère devient « Sujet 1/3 » et le retour
   /// ramène à l'étape, pas à la fiche des 15.
   final bool planStep;
 
@@ -788,7 +788,7 @@ class _SkillProgressBar extends ConsumerWidget {
   final Color accent;
 
   /// Ouvert depuis le Plan : la barre suit le **même périmètre** que le repère
-  /// (« 3 / 5 »), jamais la compétence entière. Deux chiffres côte à côte ne
+  /// (« 2 / 3 »), jamais la compétence entière. Deux chiffres côte à côte ne
   /// peuvent pas compter deux choses différentes.
   final bool planStep;
 
@@ -861,13 +861,13 @@ class _PromptMetaRow extends ConsumerWidget {
   final SkillPromptDto prompt;
   final String skillId;
 
-  /// Ouvert depuis le Plan : le repère compte **dans l'étape** (« 1/5 »), pas
+  /// Ouvert depuis le Plan : le repère compte **dans l'étape** (« 1/3 »), pas
   /// dans la compétence (« 1/15 »).
   final bool planStep;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // 🛑 Le périmètre est **servi** (`stepPromptIds`) : on ne rejoue pas « les 5
+    // 🛑 Le périmètre est **servi** (`stepPromptIds`) : on ne rejoue pas « les N
     // premiers par rang ». Le Plan est déjà chargé — aucun appel de plus — et
     // un repli silencieux sur le compteur de compétence est le cas normal.
     final etape = planStep

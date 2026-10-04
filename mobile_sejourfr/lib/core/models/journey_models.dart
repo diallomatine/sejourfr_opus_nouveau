@@ -522,7 +522,7 @@ class JourneyStep {
   ///
   /// 🛑 **Même cause que [exercise] (A24)** : les priorités du Plan sont une vue
   /// bornée que la file dépasse. Une étape EO absente de ces listes ouvrait la
-  /// fiche des 15 sujets au lieu de ses 5 (bug du 2026-10-04). Ce sont
+  /// fiche des 15 sujets au lieu de ceux de l'étape (bug du 2026-10-04). Ce sont
   /// exactement les sujets qui closent l'étape — `planStepFor` les lit, rien ne
   /// les recompose. Miroir web : `JourneyStepDto.stepPromptIds`.
   final List<String> stepPromptIds;

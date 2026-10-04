@@ -280,7 +280,7 @@ export function recommendedExerciseHref(
  * « Réviser → Compétences » ouvrent le **même** écran.
  *
  * `planStep` y ajoute le marqueur `?etape=1` : arrivé **depuis le Plan**,
- * l'écran se limite aux sujets de l'étape et compte « 2/5 » au lieu de
+ * l'écran se limite aux sujets de l'étape et compte « 2/3 » au lieu de
  * « 1/15 » (cf. `lib/plan-step.ts`). Sans le marqueur, comportement
  * strictement inchangé.
  */

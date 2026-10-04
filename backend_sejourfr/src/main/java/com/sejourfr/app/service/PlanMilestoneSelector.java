@@ -36,7 +36,7 @@ import java.util.UUID;
  *
  * <h2>On escalade, on ne reporte pas</h2>
  * <pre>
- *   Etape (5 sujets) -&gt; Verification ciblee (1 tache, ~4 min)
+ *   Etape (3 sujets) -&gt; Verification ciblee (1 tache, ~4 min)
  *          |   c'est elle qui debloque SOLID
  *   Epreuve transferee -&gt; Examen blanc d'epreuve (EE ou EO, 3 taches)
  *          |

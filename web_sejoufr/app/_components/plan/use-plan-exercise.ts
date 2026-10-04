@@ -61,9 +61,9 @@ export function usePlanExercise() {
             track("PLAN_EXERCISE_STARTED", {exerciseKind: exercise.kind});
             /* 🛑 **Un petit sujet ciblé ouvre la FICHE DE SA COMPÉTENCE**,
                jamais le sujet directement (demande du propriétaire,
-               2026-09-20) : c'est là que le candidat voit ses cinq sujets et
+               2026-09-20) : c'est là que le candidat voit ses sujets et
                lesquels sont faits. L'écran s'ouvre à l'échelle de l'**étape**
-               (« x/5 »), pas de la compétence entière (« x/15 »).
+               (« x/3 »), pas de la compétence entière (« x/15 »).
 
                ⚠️ **Révoque** le saut direct au sujet : les lignes du cycle et
                la carte « À faire maintenant » passaient par ici, pendant que la
@@ -75,7 +75,7 @@ export function usePlanExercise() {
                 return;
             }
             /* 🛑 **La VÉRIFICATION garde son lancement direct** : son sujet est
-               une tâche de production qui ne fait pas partie des cinq de la
+               une tâche de production qui ne fait pas partie des sujets de la
                fiche — l'y envoyer laisserait le candidat sans moyen de la
                faire. */
             if (exercise.kind === "REASSESSMENT") {
@@ -164,7 +164,7 @@ export function usePlanExercise() {
      *
      * 🛑 Un item de **nature production** (un petit sujet ciblé, une
      * vérification en situation) ouvre la **fiche de sa compétence**, pas le
-     * sujet : le candidat y voit ses cinq sujets et lesquels sont faits, et il
+     * sujet : le candidat y voit ses sujets et lesquels sont faits, et il
      * choisit. C'est exactement ce que font déjà les lignes de « Mes
      * priorités » — la séance s'aligne dessus au lieu de le court-circuiter.
      *

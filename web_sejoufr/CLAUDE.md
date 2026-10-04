@@ -1085,7 +1085,7 @@ valent `done | verify | doing | now | todo`, et `PathStep` / `SfPathStep` porten
 un `pill` **composé par l'appelant** à partir d'un libellé **servi**
 (`PlanSkillStepState`) — le kit ne compose aucune phrase et n'en déduit aucune
 d'un compteur. `verify` (« Série terminée · À vérifier ») est ambre et **n'est
-pas** `done` : une série de 5 petits sujets finie n'est pas une compétence
+pas** `done` : une série de petits sujets finie n'est pas une compétence
 acquise. `NowCard` / `SfNowCard` ont un `variant` `verify` pour la même raison —
 quand la série se termine, le nom de la compétence ne change pas, et sans accent
 propre la carte se lirait « rien n'a bougé ». → `docs/regles/plan.md`
@@ -2051,7 +2051,7 @@ jalon → *Mon profil TCF* → *Compléter mon profil* → *Mon chemin vers l'ob
 - 🛑 **Une ligne de séance de nature PRODUCTION ouvre la FICHE de la compétence,
   pas le sujet** (`usePlanExercise.startItem`, 2026-08-21) : `MICRO_TRAINING` et
   `REASSESSMENT` poussent vers `planSkillHref(exercise, {planStep: true})`, où le
-  candidat voit ses cinq sujets et lesquels sont faits — exactement ce que font
+  candidat voit ses sujets et lesquels sont faits — exactement ce que font
   déjà les lignes de « Mes priorités ». Les autres natures sont **inchangées** :
   une série ciblée démarre son `TRAINING`, un jalon ouvre son examen blanc, et le
   bouton principal de la carte de priorité continue d'appeler `start`.
@@ -2363,24 +2363,29 @@ reste l'écran normal d'un lien profond ou d'un visiteur.
   la réévaluation et le micro-exercice fourni par `recommendedExercise`.
   `/statistiques` reste l'historique chiffré et est accessible par « Voir ma
   progression », mais n'a plus d'entrée principale dans `AppSidebar`.
-- **Une ÉTAPE, ce sont les 5 premiers sujets de la compétence, pas ses 15.**
+- 🛑 **Une ÉTAPE EE/EO, ce sont les 3 premiers sujets de la compétence, pas ses 15**
+  (D-71, 2026-10-04 ; 5 avant). Le nombre est **servi** (`stepPromptCount`,
+  `progress.quota`) : aucun « 3 » ni « 5 » en dur dans le code, les libellés
+  (`planStepSectionText`, `planStepDoneText`, « N petits sujets · ≈ x min chacun »)
+  reçoivent le nombre servi. Les « x/3 » qui subsistent dans l'historique de ce
+  fichier se lisent « x/N ».
   `LearningPlanPriorityDto` porte **deux** jeux de compteurs :
   `promptCount`/`attemptedCount`/`validatedCount` = la **compétence entière**
   (ce que lisent les cartes « compétences observées », inchangées), et
   `stepPromptCount`/`stepAttemptedCount`/`stepValidatedCount`/`stepCompleted` =
   l'**étape**. L'anneau d'une étape (`PathStep` → `SkillRing`) lit le second
-  couple — « 2/5 », jamais « 2/15 ». Ne pas les mélanger : c'est le seul piège
+  couple — « 2/3 », jamais « 2/15 ». Ne pas les mélanger : c'est le seul piège
   de cet écran. `stepCompleted` est **servi**, plus déduit d'un
   `attemptedCount >= promptCount` local.
 - **L'étape SUIT le candidat jusque dans la fiche de compétence** (2026-08-15).
   Une compétence ouverte **depuis le Plan** n'affiche plus que les **sujets de
-  l'étape** et compte « 2/5 » ; par « Réviser → épreuve → Compétences », la
+  l'étape** et compte « 2/3 » ; par « Réviser → épreuve → Compétences », la
   fiche complète (les 15 sujets, « x/15 ») est **strictement inchangée**. Deux
   vues d'une même compétence selon la porte d'entrée : c'est **assumé**
   (décision propriétaire, prise sur maquette).
   - **Le périmètre est servi** : `LearningPlanPriorityDto.stepPromptIds`
     (jamais `null`, éventuellement vide, `length === stepPromptCount`). On ne
-    rejoue **jamais** la règle « les 5 premiers par rang d'affichage », qui vit
+    rejoue **jamais** la règle « les N premiers par rang d'affichage », qui vit
     côté serveur.
   - **Aucun identifiant ne voyage dans l'URL** : un simple marqueur `?etape=1`
     (`lib/plan-step.ts` — `PLAN_STEP_PARAM`, `withPlanStep`, `isPlanStep`,
@@ -2396,7 +2401,7 @@ reste l'écran normal d'un lien profond ou d'un visiteur.
     au `peekCached()` »** : le marqueur d'URL survit à un rechargement, le cache
     mémoire non. Un simple **F5** (ou un lien profond) faisait donc retomber
     l'écran sur la fiche des 15 sujets, sans pilule d'étape, avec « 1/15 » à la
-    place de « 2/5 » — et son retour partait dans `/entrainement/tcf/…` alors
+    place de « 2/3 » — et son retour partait dans `/entrainement/tcf/…` alors
     que le candidat venait du Plan. `CompetenceDetail` branche le Plan sur
     `useCachedData(learningPlanApi.cacheKey, () => learningPlanApi.getCached())` :
     cache chaud ⇒ peint sans un appel, cache froid ⇒ **un** appel, et le
@@ -2447,7 +2452,7 @@ reste l'écran normal d'un lien profond ou d'un visiteur.
     (`stepCompleted`) ⇒ un encart « Étape terminée » + « Revenir à mon plan ».
     « Vérifier ma progression » vit **sur le Plan**, qui seul connaît la
     deuxième condition (moteur de maîtrise prêt) : une étape peut donc afficher
-    « 5/5 » sans que la vérification s'ouvre — **c'est voulu**, ne pas
+    « 3/3 » sans que la vérification s'ouvre — **c'est voulu**, ne pas
     l'expliquer par un message ni contourner la règle.
   - **L'écran d'étape porte le bouton d'action** (2026-08-15) : un `s.primary`
     plein, sous la progression et au-dessus de la liste — pendant de la
@@ -2473,7 +2478,7 @@ reste l'écran normal d'un lien profond ou d'un visiteur.
   croit à un bug. Terminée **sans** être toute validée ⇒ une seconde ligne
   discrète « N validés sur M » (rien quand tout est validé). Libellés gelés,
   miroir mot pour mot de `_StepDoneLines` côté mobile. Un compte gratuit plafonne
-  à 2/5 (2 sujets ouverts par compétence) : `stepCompleted` reste faux et le CTA
+  à 0 sujet ouvert (D-18) : `stepCompleted` reste faux et le CTA
   reste « Débloquer cette étape » — rien ne laisse croire l'étape finissable.
 - **L'état de maîtrise remplace le compteur sur une carte de compétence**
   (décision propriétaire) : `SkillDto.masteryState` (« Priorité » / « À
@@ -2506,18 +2511,18 @@ reste l'écran normal d'un lien profond ou d'un visiteur.
   reste **désigné**.
 - **La carte d'une ÉTAPE ne nomme plus l'exercice** (décision propriétaire,
   2026-08-15). `PathStep` garde son numéro, son badge d'état, le titre de la
-  compétence, l'anneau « x/5 », les lignes d'état (« Réévaluée à ta prochaine
+  compétence, l'anneau « x/3 », les lignes d'état (« Réévaluée à ta prochaine
   production. », « N validés sur M ») et le code de compétence ; l'encart
   `.stepTask` qui nommait le micro-sujet est **supprimé** (styles compris), et
   **« Continuer cette étape » ouvre l'écran d'étape** —
-  `competenceHref(priority, {planStep: true})`, donc les 5 sujets. Motif : un
+  `competenceHref(priority, {planStep: true})`, donc les sujets de l'étape. Motif : un
   seul endroit nomme l'exercice — « À faire maintenant » (`TodayCard`,
   **inchangée**, qui garde titre + lancement direct) — et le candidat voit enfin
-  *lesquels* sont ses 5 sujets avant de s'y remettre.
+  *lesquels* sont ses sujets d'étape avant de s'y remettre.
   🛑 **Exception, la VÉRIFICATION** : `recommendedExercise.kind ===
   "REASSESSMENT"` ⇒ la carte garde **exactement** son comportement d'origine
   (badge « Vérification », CTA « Vérifier ma progression »,
-  `recommendedExerciseHref`). Le candidat vient de terminer ces 5 sujets : l'y
+  `recommendedExerciseHref`). Le candidat vient de terminer ces sujets : l'y
   renvoyer serait un cul-de-sac. `locked` ⇒ « Débloquer cette étape »,
   inchangé.
   ⚠️ Le CTA « Continuer cette étape » **n'émet plus**
@@ -2534,7 +2539,7 @@ reste l'écran normal d'un lien profond ou d'un visiteur.
   - **À la place du numéro, une coche, et la pastille passe au vert**
     (`.stepMarkDone` / `.stepCardDone`, tokens `--color-green` uniquement) —
     c'est la demande du propriétaire, au mot près. Carte sobre : badge
-    « Terminée », titre, `code · épreuve`, anneau « 5/5 ». **Aucun bouton
+    « Terminée », titre, `code · épreuve`, anneau « 3/3 ». **Aucun bouton
     d'action** — le DTO ne porte **ni `recommendedExercise` ni `locked`**, il n'y
     a plus rien à y faire et ce n'est pas une porte commerciale. Ne pas en
     inventer.
@@ -2548,7 +2553,7 @@ reste l'écran normal d'un lien profond ou d'un visiteur.
   - **Ordre et borne viennent du serveur** (plus ancienne → plus récente, 5 max) :
     on ne trie ni ne reborne rien. Aucun appel réseau de plus.
   - **Une étape franchie s'ouvre** sur l'écran d'étape (`competenceHref(step,
-    {planStep: true})`, donc ses 5 sujets) : `planStepFor` (`lib/plan-step.ts`)
+    {planStep: true})`, donc ses sujets d'étape) : `planStepFor` (`lib/plan-step.ts`)
     cherche désormais **dans les priorités PUIS dans `completedSteps`** et rend un
     **`PlanStepScope`** — le seul contrat dont l'écran d'étape a besoin. Sur une
     étape franchie, `stepCompleted` vaut **`false`** et `recommendedExercise`
@@ -2929,7 +2934,7 @@ est acquis. Ne pas réinverser.
   403 que `handleStartFailure` route.
 - **Priorités** : une **liste**, et 🛑 **la ligne ENTIÈRE ouvre la fiche de la
   compétence** (`planSkillHref`, `{planStep: true}` — on arrive du parcours, donc
-  la fiche s'ouvre scopée aux 5 sujets de l'étape ; une compétence absente du
+  la fiche s'ouvre scopée aux sujets de l'étape ; une compétence absente du
   parcours retombe silencieusement sur la fiche complète). Une ligne du **repli**
   (un point relevé, sans compétence) n'a rien à ouvrir : elle reste inerte, sans
   chevron. ⚠️ **Seul le rang 1 porte son détail**, servi **ouvert** — c'est la
@@ -3709,7 +3714,7 @@ passer d'un onglet ou d'une tâche à l'autre ne coûte **aucun appel de plus**
 affiche déjà. La grille des examens blancs ouvre sur `ExamTrail`
 (« Parcours examens blancs · 1/10 »), qui porte aussi le niveau estimé.
 
-**Une ligne de compétence** porte un `SkillRing` « 2/5 » + l'état en clair
+**Une ligne de compétence** porte un `SkillRing` « 2/3 » + l'état en clair
 (« 2 réussis · 3 restants ») ; **une carte de sujet** porte sa contrainte et sa
 tâche — le palier a quitté la carte, il est annoncé une fois par le badge de
 l'en-tête.

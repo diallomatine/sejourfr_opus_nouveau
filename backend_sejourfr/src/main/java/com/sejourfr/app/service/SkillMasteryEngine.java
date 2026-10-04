@@ -245,7 +245,7 @@ public class SkillMasteryEngine {
      * <p>⚠️ <b>Ce signal ne suffit pas a basculer l'etape.</b>
      * {@code LearningPlanService} lui ajoute une seconde condition, qu'il est le
      * seul a pouvoir voir : l'etape doit etre <b>terminee</b>
-     * ({@code LearningPlanStep.Progress.completed()}, ses 5 sujets traites).
+     * ({@code LearningPlanStep.Progress.completed()}, ses sujets traites).
      * Sans elle, un candidat validant 2 des 5 sujets de son etape se voyait
      * proposer « verifier ma progression » avec un anneau a 2/5 — deux messages
      * contradictoires sur la meme carte. Corollaire <b>voulu</b> : un compte

@@ -38,8 +38,8 @@ class SkillProgressCounterIT extends AbstractIntegrationTest {
     @Autowired private EntityManager entityManager;
 
     @Test
-    @DisplayName("15 sujets publies : l'etape en designe 5, dans l'ordre du catalogue")
-    void lEtapeDesigneLesCinqPremiersSujetsDansLOrdreDuCatalogue() {
+    @DisplayName("15 sujets publies : l'etape en designe 3 (D-71), dans l'ordre du catalogue")
+    void lEtapeDesigneLesTroisPremiersSujetsDansLOrdreDuCatalogue() {
         User user = data.user();
         Skill skill = data.skill();
         List<SkillPrompt> publies = new ArrayList<>();
@@ -49,29 +49,28 @@ class SkillProgressCounterIT extends AbstractIntegrationTest {
 
         LearningPlanStep.Progress step = step(user, skill);
 
-        assertThat(step.promptCount()).isEqualTo(LearningPlanStep.PROMPTS_PAR_ETAPE);
+        assertThat(step.promptCount()).isEqualTo(3);
         assertThat(step.promptIds()).containsExactly(
-                publies.get(0).getId(), publies.get(1).getId(), publies.get(2).getId(),
-                publies.get(3).getId(), publies.get(4).getId());
+                publies.get(0).getId(), publies.get(1).getId(), publies.get(2).getId());
     }
 
     /**
-     * Une competence qui publie moins de cinq sujets a une etape plus courte :
-     * le perimetre vaut ce qui existe, aucun identifiant n'est invente.
+     * Une competence qui publie moins de sujets que la taille d'etape a une
+     * etape plus courte : le perimetre vaut ce qui existe, aucun identifiant
+     * n'est invente.
      */
     @Test
-    @DisplayName("Moins de 5 sujets actifs : etape plus courte, rien d'invente")
-    void uneCompetenceDeTroisSujetsALeperimetreDeCeQuiExiste() {
+    @DisplayName("Moins de 3 sujets actifs : etape plus courte, rien d'invente")
+    void uneCompetenceDeDeuxSujetsALeperimetreDeCeQuiExiste() {
         User user = data.user();
         Skill skill = data.skill();
-        List<SkillPrompt> publies = List.of(
-                data.skillPrompt(skill), data.skillPrompt(skill), data.skillPrompt(skill));
+        List<SkillPrompt> publies = List.of(data.skillPrompt(skill), data.skillPrompt(skill));
 
         LearningPlanStep.Progress step = step(user, skill);
 
         assertThat(step.promptIds()).containsExactly(
-                publies.get(0).getId(), publies.get(1).getId(), publies.get(2).getId());
-        assertThat(step.promptCount()).isEqualTo(3);
+                publies.get(0).getId(), publies.get(1).getId());
+        assertThat(step.promptCount()).isEqualTo(2);
     }
 
     @Test

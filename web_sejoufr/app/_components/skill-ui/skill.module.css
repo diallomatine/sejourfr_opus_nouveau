@@ -497,7 +497,7 @@
 
 /* Bouton d'action d'une étape ouverte depuis le Plan : il démarre le sujet
    désigné par le serveur, juste sous la progression et au-dessus de la liste
-   des 5 sujets. Pendant de la `FixedActionBar` du mobile — le web n'a pas de
+   des sujets de l'étape. Pendant de la `FixedActionBar` du mobile — le web n'a pas de
    barre fixe, l'action vit donc dans le flux, à l'endroit où on la cherche. */
 .stepCta {
   display: flex;
@@ -3485,7 +3485,7 @@
   }
 }
 
-/* « 3 / 5 sujets travaillés » + les points d'avancement de la maquette.
+/* « 2 / 3 sujets travaillés » + les points d'avancement de la maquette.
    C'est la **première ligne** de la carte depuis que le sur-titre et le nom de
    la compétence en sont partis (l'en-tête de l'écran les porte) : pas de filet
    orphelin au-dessus, pas de marge qui traîne. */

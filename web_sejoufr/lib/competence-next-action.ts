@@ -19,7 +19,7 @@
 import type {SkillCriterionStatus} from "./types";
 
 /** Ce que la carte de fin propose. `SUJET_SUIVANT` est le défaut de travail. */
-/** `LISTE` ramène à la liste des sujets (les 5 de l'étape quand on vient du Plan). */
+/** `LISTE` ramène à la liste des sujets (ceux de l'étape quand on vient du Plan). */
 export type CompetenceNextKind = "REESSAYER" | "SUJET_SUIVANT" | "LISTE";
 
 export interface CompetenceNextAction {

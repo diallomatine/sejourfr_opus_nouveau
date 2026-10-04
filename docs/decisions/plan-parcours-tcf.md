@@ -3545,3 +3545,67 @@ cycle (D-64 / D-69) ; le civique.
 **Si l'arbitrage changeait** : ne plus appeler `completerLesBlocsVides` (lecture et
 actualisation) ; les étapes déjà posées restent des étapes valides.
 
+
+## D-71 — Une étape EE/EO, ce sont 3 petits sujets (2026-10-04)
+
+**Décision du propriétaire** (2026-10-04) : dans le Plan, une étape de compétence EE ou EO se
+travaille sur **3 petits sujets au lieu de 5**. On propose les 3 premiers sujets (même règle de
+sélection), et quand ils sont faits selon le critère d'achèvement existant, l'étape est validée
+et le parcours passe à la suivante.
+
+**Ce qui est révoqué.** La taille « **5** premiers sujets actifs » arbitrée le 2026-08-11
+(`LearningPlanStep.PROMPTS_PAR_ETAPE = 5`), reprise par D-5/D-16 (« le quota d'expression
+**est** `PROMPTS_PAR_ETAPE` ») et par A151 (« une étape d'expression s'ouvre sur ses 5
+sujets »). **Seul le chiffre change** : A151, D-5 et D-16 restent vrais avec « 3 ».
+
+**Ce qui ne change pas.**
+- **L'autorité unique** : `LearningPlanStep.PROMPTS_PAR_ETAPE` (désormais `3`), seule
+  déclaration du chiffre. Tout en dérive : `LearningPlanStep.scope`, `SkillProgressCounter`
+  (`stepPromptIds`/`stepPromptCount`/`stepAttemptedCount`/`stepValidatedCount`/`stepCompleted`
+  de `/api/me/plan`), `JourneyReadService` (`progress.quota`, `stepPromptIds`,
+  `stepValidatedCount`, `stepCompleted` du cycle, et `etapesAuQuota` qui clôt l'étape),
+  `RecommendedExerciseSelector` (borné aux sujets de l'étape), la bascule vers la vérification
+  en situation (`readyForReassessment` **et** `step.completed()`), `PlanStepStateResolver`,
+  `completedSteps`. Aucune autre copie n'existait.
+- **Le critère d'achèvement** : `LearningPlanStep.Progress.completed()` — **tous les sujets de
+  l'étape TRAITÉS** (dernière tentative de statut `TREATED`, `VALIDATED` ou `TO_REINFORCE`,
+  c'est-à-dire tout sauf `TODO`), **pas forcément validés**. Côté cycle, la clôture
+  `QUOTA_REACHED` lit la même chose (`progress.done >= progress.quota`).
+- **La sélection** : sujets **actifs**, `display_order` croissant ; une compétence qui en publie
+  moins a une étape plus courte.
+- **Le freemium** : depuis D-18 un compte gratuit n'a **aucun** sujet ouvert (l'ancien plafond
+  « 2 sujets sur 5 », `FREE_PROMPTS_PER_SKILL`, n'existe plus) ; le verrou servi (`locked`) est
+  inchangé, aucune étape d'expression n'est finissable sans abonnement.
+  `readiness-targeted-subjects: 2` reste ≤ 3, donc atteignable dans une étape.
+- **Les fronts** : ils lisaient déjà le nombre servi (`stepPromptCount`, `progress.quota`) ;
+  seuls des commentaires de règle citaient « 5 ». Aucun contrat de DTO ne change.
+
+**Les étapes en cours — sans migration, sans réécrire l'historique.**
+- `/api/me/plan` (Plan dérivé) : tout se relit à la lecture ; une étape à 2 sujets traités sur
+  les 3 premiers affiche « 2/3 », une étape dont les 3 premiers sont traités affiche
+  `stepCompleted = true` dès la lecture suivante. Un sujet traité au rang 4 ou 5 (dans
+  l'ancienne étape) ne compte plus pour l'étape — il reste compté pour la compétence (« x/15 »).
+- Cycle persisté (`journey_step`) : la clôture d'écriture n'arrive qu'à l'**analyse** d'un
+  petit sujet (`JourneyService.onTrainingProgress`). Pour qu'une étape déjà à 3/3 ne reste pas
+  `journey.current` en affichant « 3/3 », **`JourneyService.lire` la clôt `QUOTA_REACHED` à la
+  lecture suivante** (`cloreLesEtapesDExpressionAuQuota`, même autorité
+  `JourneyReadService.etapesAuQuota`), dans le **cycle en cours** et un lot **ouvert**
+  seulement — même périmètre que la réparation D-65. Une étape à 2/3 reste ouverte et se clôt
+  à l'analyse du 3ᵉ sujet (ou à la lecture qui suit, si l'analyse a échoué).
+- Rien n'est réécrit : les étapes déjà closes (`QUOTA_REACHED` à 5/5 compris) et les cycles
+  historisés restent tels quels.
+- ⚠️ Conséquence à connaître : le compteur d'une étape d'expression n'est **pas** borné au
+  cycle (il lit la dernière tentative par sujet, quelle que soit sa date). Une étape **neuve**
+  sur une compétence dont les 3 premiers sujets avaient déjà été traités se clôt donc à sa
+  première lecture — avec 5 sujets, elle se clôturait à la soumission suivante. C'est la même
+  règle d'achèvement, appliquée plus tôt.
+
+**Verrous.** `SkillProgressCounterTest.uneEtapeCeSontTroisSujets` (le chiffre),
+`SkillProgressCounterTest`/`SkillProgressCounterIT` (périmètre et achèvement à 3),
+`RecommendedExerciseSelectorTest.leChoixNeSortJamaisDesTroisSujetsDeLEtape`,
+`LearningPlanControllerIT` (compteurs servis à 3),
+`JourneyProgressionIT.uneEtapeDExpressionAuQuotaSeClotALaLecture` (clôture à la lecture).
+
+**Si l'arbitrage changeait** : modifier `PROMPTS_PAR_ETAPE` et le test qui le verrouille ;
+rien à migrer, les fronts suivent le nombre servi. Le filet de lecture peut rester : il ne
+clôt que des étapes déjà au quota.

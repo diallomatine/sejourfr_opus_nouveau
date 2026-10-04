@@ -1,7 +1,6 @@
 import '../../core/models/diagnostic_models.dart';
 import '../../core/widgets/sejour/sejour_kit.dart';
 
-
 /// L'**apparence** d'un état d'étape dans le kit. Elle ne décide rien : l'état
 /// arrive **servi** (`PlanDomainSkill.stepState`), cette table dit seulement
 /// quelle forme lui donner.
@@ -22,7 +21,7 @@ SfStepState planStepKitState(PlanSkillStepState state) => switch (state) {
     };
 
 /// Le libellé d'un état d'étape, **avec sa progression réelle** quand elle
-/// éclaire quelque chose : « Série terminée · 5/5 », « En cours · 2/5 ».
+/// éclaire quelque chose : « Série terminée · 3/3 », « En cours · 2/3 ».
 ///
 /// 🛑 Le libellé vient de l'enum **servi** ; seuls les **nombres** s'y ajoutent,
 /// et ce sont ceux que le serveur a comptés. Aucun état n'est déduit ici.

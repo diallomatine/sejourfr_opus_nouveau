@@ -108,17 +108,19 @@ Future<void> openRecommendedExercise(
 
   final promptId = exercise.skillPromptId;
   // 🛑 **On vient du PLAN** : le sujet — et le repli sur la fiche — s'ouvrent à
-  // l'échelle de l'ÉTAPE (« 1/5 »), pas de la compétence entière (« 1/15 »).
+  // l'échelle de l'ÉTAPE (« 1/3 »), pas de la compétence entière (« 1/15 »).
   // Le repli le porte aussi : on ne sort pas de l'étape par un chemin de
   // secours. Sans Plan chargé, l'écran retombe silencieusement sur la fiche
   // complète — c'est le repli voulu, pas un manque.
   //
   // Micro-exercice sans sujet : la fiche de la compétence, jamais une adresse
   // fabriquée avec un identifiant nul.
-  pousserOuAller(context, promptId == null
-      ? competenceDetailPath(module, exercise.skillId, planStep: true)
-      : competencePromptPath(module, exercise.skillId, promptId,
-          planStep: true));
+  pousserOuAller(
+      context,
+      promptId == null
+          ? competenceDetailPath(module, exercise.skillId, planStep: true)
+          : competencePromptPath(module, exercise.skillId, promptId,
+              planStep: true));
 }
 
 Future<void> _openReassessment(

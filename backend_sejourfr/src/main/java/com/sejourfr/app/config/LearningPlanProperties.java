@@ -331,9 +331,8 @@ public class LearningPlanProperties {
          *
          * <p><b>Ce seuil ne decide pas de la bascule</b> : {@code
          * LearningPlanService} exige en plus une etape <b>terminee</b>
-         * ({@code LearningPlanStep.Progress.completed()}, les 5 sujets). Un
-         * compte gratuit, plafonne a {@code
-         * SkillAccessService.FREE_PROMPTS_PER_SKILL} (2) sujets, ne bascule donc
+         * ({@code LearningPlanStep.Progress.completed()}, les 3 sujets). Un
+         * compte gratuit, qui n'a aucun sujet ouvert (D-18), ne bascule donc
          * jamais : la verification de progression est <b>premium par arbitrage
          * produit</b> (2026-08-14), pas par effet de ce nombre. Le monter ou le
          * descendre ne changerait rien a ce verrou.

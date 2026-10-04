@@ -4,9 +4,9 @@ import '../../core/models/skill_models.dart';
 
 /// **Une compétence ouverte depuis le Plan reste dans son étape.**
 ///
-/// Une étape du Plan, ce sont les 5 premiers sujets actifs d'une compétence
+/// Une étape du Plan, ce sont les premiers sujets actifs d'une compétence (leur nombre est servi)
 /// (`stepPromptIds`, servis par le serveur). La carte d'étape affiche déjà
-/// « 2/5 » ; sans marqueur, ouvrir la compétence retombait sur la fiche
+/// « 2/3 » ; sans marqueur, ouvrir la compétence retombait sur la fiche
 /// générique et son « 1/15 », donc le candidat perdait de vue ce qu'il lui
 /// reste à faire pour finir son étape.
 ///
@@ -14,7 +14,7 @@ import '../../core/models/skill_models.dart';
 /// par « Réviser → épreuve → Compétences », la fiche complète (les 15 sujets,
 /// « x/15 ») ne bouge pas d'un pixel.
 ///
-/// 🛑 **Rien n'est recalculé ici** : ni « les 5 premiers par ordre
+/// 🛑 **Rien n'est recalculé ici** : ni « les N premiers par ordre
 /// d'affichage », ni un statut de sujet, ni un compteur. Le serveur sert le
 /// périmètre et les compteurs, ce fichier ne fait que les retrouver.
 ///
@@ -100,7 +100,7 @@ class PlanStepScope {
 
 /// L'étape du Plan qui porte cette compétence — priorité, **étape du cycle** et
 /// **étape franchie** comprises. Une étape franchie garde son périmètre : ouvrir
-/// une carte cochée doit mener aux mêmes 5 sujets, pas à la fiche des 15.
+/// une carte cochée doit mener aux mêmes sujets d'étape, pas à la fiche des 15.
 ///
 /// 🛑 **Le cycle est lu aussi** (bug du 2026-10-04) : les priorités
 /// (`currentPriority` + `nextPriorities`) sont une **vue bornée**, que la file
@@ -150,12 +150,12 @@ PlanStepScope? planStepFor(
   return null;
 }
 
-/// **Où en est ce sujet DANS l'étape** — « 1 / 5 », jamais « 1 / 15 ».
+/// **Où en est ce sujet DANS l'étape** — « 1 / 3 », jamais « 1 / 15 ».
 ///
 /// 🛑 **Aucun périmètre n'est recalculé ici** : le rang est la position du sujet
 /// dans `stepPromptIds`, la liste **ordonnée et servie** par le serveur
 /// (`LearningPlanStep.scope`, rang d'affichage croissant). Un front qui
-/// reprendrait « les 5 premiers sujets actifs » de son côté désignerait tôt ou
+/// reprendrait « les N premiers sujets actifs » de son côté désignerait tôt ou
 /// tard une autre étape que le Plan.
 ///
 /// `null` dès qu'on n'est pas dans une étape, ou que le sujet n'en fait pas
@@ -240,7 +240,7 @@ const String kPlanStepDoneCta = 'Revenir à mon plan';
 const String kPlanStepStartCta = 'Commencer le prochain sujet';
 const String kPlanStepRetryCta = 'Retravailler ce sujet';
 
-/// « Cette étape, ce sont les 5 premiers sujets de cette compétence. » — le
+/// « Cette étape, ce sont les {total} premiers sujets de cette compétence. » — le
 /// nombre vient du serveur, il n'est jamais écrit en dur (une compétence qui
 /// publie moins de sujets a une étape plus courte).
 String planStepSectionText(int total) => total > 1

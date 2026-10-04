@@ -21,7 +21,7 @@ import java.util.UUID;
  *
  * <p><b>Ce que le front lit pour dire « pourquoi »</b> : {@code exercise.kind()}
  * donne la nature de l'action, {@link #stepAttemptedCount()} /
- * {@link #stepPromptCount()} l'avancement de l'etape (« 3 sujets sur 5 »),
+ * {@link #stepPromptCount()} l'avancement de l'etape (« 2 sujets sur 3 »),
  * {@link #readyForReassessment()} le passage a la verification,
  * {@link #masteryState()} l'etat agrege, et {@link #level()} le palier travaille
  * en comprehension — a rapprocher de {@code PlanDomainDto.blockingLevel()} pour
@@ -65,7 +65,7 @@ import java.util.UUID;
  * @param masteryState         etat agrege de la competence, {@code null} sur un
  *                             jalon comme sur une competence jamais observee
  * @param stepPromptCount      sujets de l'etape ; {@code 0} en comprehension,
- *                             qui n'a pas d'etape a cinq sujets
+ *                             qui n'a pas d'etape a petits sujets
  * @param readyForReassessment le moteur juge la competence prete a etre
  *                             verifiee <b>et</b> l'etape est terminee
  * @param locked               ce candidat ne peut pas lancer cette action. Elle

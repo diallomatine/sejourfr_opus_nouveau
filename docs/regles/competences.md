@@ -304,7 +304,7 @@ préparation offerte), jamais par un score.
   tentative comme sur `analyse` et `retry`, même philosophie que
   `AttemptService.enforceMockExamSlotAccess`. Résolution en **une seule
   requête** — l'abonnement, et rien d'autre : un écran, c'est 24 compétences ×
-  5 sujets, et il n'y a plus de lot ouvert à composer. ⚠️ Le compteur
+  15 sujets, et il n'y a plus de lot ouvert à composer. ⚠️ Le compteur
   `SkillAnalysisQuotaDto.freeAnalysesUsed` reste servi (c'est un fait), mais
   `freeAnalysesTotal` vaut désormais **0** et `remaining` vaut 0 pour un compte
   gratuit, −1 pour un abonné : la **forme** du contrat ne change pas.
@@ -371,5 +371,12 @@ préparation offerte), jamais par un score.
   la transcription qu'on relit.
 - `SkillPromptDto` porte `skillPromptCount` / `skillDescription` /
   `skillGeneralCriterion` / `skillTargetLevel` **exprès** : l'écran de production
-  affiche le fil d'Ariane « Sujet i/5 », l'encart d'explication et le palier
+  affiche le fil d'Ariane « Sujet i/15 » (« Sujet i/3 » quand on vient d'une
+  étape du Plan, compteur servi par l'étape), l'encart d'explication et le palier
   **sans second appel** à `GET /api/skills/{skillId}`.
+- 🛑 **Depuis le Plan, une compétence se travaille par ÉTAPE de 3 petits sujets**
+  (D-71, 2026-10-04, décision du propriétaire ; 5 auparavant) : les 3 premiers
+  sujets actifs par `display_order`, étape terminée quand ils sont tous
+  **traités** (pas forcément validés). Autorité unique :
+  `LearningPlanStep.PROMPTS_PAR_ETAPE`. Le catalogue (Réviser → Compétences)
+  garde ses 15 sujets. Règle complète : `docs/regles/plan.md`.

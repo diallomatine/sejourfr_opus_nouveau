@@ -122,7 +122,7 @@ export function CompetencePrompt({config}: {config: ProductionConfig}) {
 
   const base = `${config.base}/tache/${n}/competences`;
   /* Le marqueur d'étape se propage : venu du Plan, le candidat doit retrouver
-     l'étape (les 5 sujets, « 2/5 ») en remontant, pas la fiche des 15 — c'est
+     l'étape (ses sujets, « 2/3 ») en remontant, pas la fiche des 15 — c'est
      ce que fait naturellement le « retour » du mobile, qui dépile. */
   const step = isPlanStep(searchParams);
   const skillHref = withPlanStep(`${base}/${skillId}`, step);
@@ -195,7 +195,7 @@ export function CompetencePrompt({config}: {config: ProductionConfig}) {
     };
   }, [status, promptId]);
 
-  // Progression de la compétence (« 2/5 »). Aucun DTO ne la porte pour un sujet
+  // Progression de la compétence (« 2/3 »). Aucun DTO ne la porte pour un sujet
   // isolé : on la dérive de la liste des compétences de l'épreuve, déjà chargée
   // par l'écran d'où l'on vient — donc **sans appel réseau** dans le cas normal.
   // Non bloquant : la barre apparaît quand elle arrive, l'écran s'affiche sans elle.
@@ -306,14 +306,14 @@ export function CompetencePrompt({config}: {config: ProductionConfig}) {
   if (status === "loading") return <div className={ds.gate} />;
   if (!user) return <ModuleDetailGate next={`${base}/${skillId}/${promptId}`} />;
 
-  /* « Sujet 1/5 » quand on travaille une ÉTAPE, « Sujet 1/15 » sur la
+  /* « Sujet 1/3 » quand on travaille une ÉTAPE, « Sujet 1/15 » sur la
      compétence entière. Le rang se lit dans la liste servie ; sans étape (ou
      sujet hors périmètre), on retombe sur le compteur de compétence. */
   const position = planStepPosition(scope, promptId);
   const total = position?.total ?? prompt?.skillPromptCount ?? 0;
   const rank = position?.rank ?? prompt?.displayOrder ?? 0;
   /* La barre de progression suit le MÊME périmètre que le repère : dans une
-     étape, « 3 / 5 » (compteurs servis), sinon la compétence entière
+     étape, « 2 / 3 » (compteurs servis), sinon la compétence entière
      (« 3 / 15 »). Les deux chiffres côte à côte ne peuvent pas compter deux
      choses différentes. */
   const progress = scope

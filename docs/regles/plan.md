@@ -13,13 +13,21 @@
 
 ---
 
-- **Une étape du Plan = les 5 premiers sujets actifs de sa compétence**, par
-  `display_order` croissant (`LearningPlanStep.PROMPTS_PAR_ETAPE`, arbitré le
-  2026-08-11). **Dérivé, jamais persisté** : aucune table, aucune migration, le
-  périmètre se relit du rang d'affichage — mêmes 5 sujets pour tout le monde,
-  ils ne bougent jamais. Avant, une étape exigeait les **15** sujets (« 2/15 »),
-  que personne n'allait finir. Une compétence publiant moins de 5 sujets a une
-  étape plus courte : le périmètre vaut ce qui existe, **aucun dénominateur
+- 🛑 **Une étape EE/EO du Plan = les 3 premiers sujets actifs de sa compétence**
+  (**D-71, 2026-10-04, décision du propriétaire** ; c'était **5** depuis
+  l'arbitrage du 2026-08-11), par `display_order` croissant.
+  **Autorité unique : `LearningPlanStep.PROMPTS_PAR_ETAPE`** — tous les compteurs
+  servis (`stepPromptCount`, `stepPromptIds`, `progress.quota`) en dérivent,
+  aucun front n'en tient de copie (libellés composés avec le nombre servi).
+  Verrou : `SkillProgressCounterTest.uneEtapeCeSontTroisSujets`. Seule la
+  **taille** a changé : même sélection, même critère d'achèvement (tous les
+  sujets de l'étape **traités**). ⚠️ Les mentions « 5 sujets », « x/5 », « 5/5 »
+  qui subsistent plus bas dans ce fichier sont **historiques** : lire « la
+  taille d'étape » (3 aujourd'hui). **Dérivé, jamais persisté** : aucune table,
+  aucune migration, le périmètre se relit du rang d'affichage — mêmes sujets
+  pour tout le monde, ils ne bougent jamais. Avant, une étape exigeait les
+  **15** sujets (« 2/15 »), que personne n'allait finir. Une compétence publiant
+  moins de 3 sujets a une étape plus courte : le périmètre vaut ce qui existe, **aucun dénominateur
   n'est inventé**. « Tous distincts » est **acquis par construction**
   (`latestObservedBySkill` ne garde qu'une observation par compétence) : **ne
   jamais construire de mécanisme d'unicité inter-étapes**, il serait mort-né.
@@ -27,9 +35,9 @@
   `LearningPlanPriorityDto` porte les deux : `promptCount`/`attemptedCount`/
   `validatedCount` = la **compétence** (15 sujets, sémantique de `SkillDto`,
   inchangée) ; `stepPromptCount`/`stepAttemptedCount`/`stepValidatedCount`/
-  `stepCompleted` = l'**étape** (5 sujets). C'est le second jeu que les fronts
-  affichent sur l'anneau d'une étape. Détourner le premier à 5 ferait dire
-  « /5 » au Plan et « /15 » à la fiche de compétence pour une même compétence.
+  `stepCompleted` = l'**étape** (3 sujets). C'est le second jeu que les fronts
+  affichent sur l'anneau d'une étape. Détourner le premier à 3 ferait dire
+  « /3 » au Plan et « /15 » à la fiche de compétence pour une même compétence.
   `LearningPlanSkillDto` (compétences observées) **n'est pas une étape** et ne
   porte que les compteurs de compétence. Un seul calcul dans
   `SkillProgressCounter` (+ `SkillProgressTally`, `SkillStatusResolver`), **2
@@ -42,10 +50,10 @@
   ne peuvent plus diverger. **Zéro requête ajoutée** : les sujets étaient déjà
   chargés pour les compteurs. Motif : ouvrir une compétence **depuis le Plan**
   affichait « 1/15 » (la fiche générique), l'étape se perdait à la navigation.
-  Les fronts servent désormais un écran **scopé aux 5 sujets** quand on vient du
+  Les fronts servent désormais un écran **scopé aux sujets de l'étape** quand on vient du
   Plan, et la fiche complète (« x/15 ») par le chemin Réviser → Compétences —
   deux vues assumées pour une même compétence. Ils **ne réimplémentent pas**
-  « les 5 premiers par ordre d'affichage » : deux copies désigneraient deux
+  « les N premiers par ordre d'affichage » : deux copies désigneraient deux
   étapes différentes.
 - 🛑 **Le périmètre est AUSSI servi sur l'étape du CYCLE** (2026-10-04) :
   `JourneyStepDto.stepPromptIds` (+ `stepValidatedCount`, `stepCompleted`),
@@ -108,7 +116,7 @@
   `readyForReassessment` **et** `step.completed()`.
   Conséquence sur le freemium : `SkillAccessService` ouvrant la compétence de la
   priorité n°1, celle-ci **se déplace** avec l'enchaînement. Sans effet réel pour
-  un compte gratuit, qui plafonne à 2 sujets sur 5, ne termine jamais une étape
+  un compte gratuit, qui n'a aucun sujet ouvert (D-18), ne termine jamais une étape
   et n'obtient donc jamais cette preuve par cette voie.
 - **Une étape franchie RESTE dans le parcours, cochée** —
   `LearningPlanDto.completedSteps` (`LearningPlanCompletedStepDto`, **jamais
@@ -121,8 +129,8 @@
   l'affaire de l'écran Progression.
 - **Achèvement d'une étape, dérivé serveur** (`LearningPlanStep.Progress
   .completed()`, jamais persisté, jamais recalculé par un front — philosophie
-  `SkillStatusResolver` / `SituationDansNiveau`) : terminée quand ses 5 sujets
-  ont été **traités** (`status.isAttempted()`, tout sauf `TODO`). **Terminée ≠
+  `SkillStatusResolver` / `SituationDansNiveau`) : terminée quand ses sujets
+  (3 depuis D-71) ont **tous** été **traités** (`status.isAttempted()`, tout sauf `TODO`). **Terminée ≠
   tout validé** — `stepValidatedCount` reste l'information distincte. Une étape
   sans sujet actif n'est jamais terminée. ⚠️ **Une étape terminée ne disparaît
   pas du Plan** : les priorités ne changent qu'à l'arrivée d'une nouvelle
@@ -136,12 +144,12 @@
   dérivé par `SkillStatusResolver`, chargement en lot (2 requêtes quel que soit
   le nombre de compétences). Avant, les deux appelants prenaient le sujet de rang
   1 et le resservaient indéfiniment. **Le périmètre est celui de l'ÉTAPE** : le
-  choix se fait parmi les 5 premiers sujets actifs (`LearningPlanStep.scope`),
+  choix se fait parmi les 3 premiers sujets actifs (`LearningPlanStep.scope`),
   jamais sur les 15 — sinon « Continuer cette étape » enverrait hors étape et
-  l'anneau « x/5 » ne bougerait pas. Les **4 branches sont intactes**, seul
+  l'anneau « x/3 » ne bougerait pas. Les **4 branches sont intactes**, seul
   l'ensemble sur lequel elles s'appliquent est réduit, et la borne vaut pour les
   **deux** appelants : le diagnostic désigne la compétence de la priorité n°1,
-  il doit pointer dans les mêmes 5. `estimatedMinutes` est **dérivé du sujet**
+  il doit pointer dans les mêmes sujets. `estimatedMinutes` est **dérivé du sujet**
   (EO : temps de parole conseillé × 3 pour lecture/préparation ; EE : milieu de
   la fourchette de mots à 12 mots/minute ; repli 5/4 min si la donnée manque).
 - **Plan source de vérité serveur** : `GET /api/me/plan` renvoie les états
@@ -207,7 +215,7 @@
     `LearningPlanPriorityDto`, `LearningPlanSkillDto`, `PlanSeanceItemDto` et
     `PlanRecommendedExerciseDto`.
   - **Visible ≠ finissable** : les compteurs d'étape sont servis en entier, mais
-    un compte gratuit plafonne à 2/5 (cf. § Freemium).
+    un compte gratuit n'a aucun sujet ouvert depuis D-18 (cf. § Freemium).
 - **Un encart de priorité est RÉTRACTABLE dès qu'il y en a plus d'un**
   (2026-09-13, demande du propriétaire). Fermé, il montre **2 compétences** ;
   l'ouverture rend **toutes** les autres. Une priorité **seule** ne se replie
@@ -338,8 +346,8 @@
   dédié.
 - **La bascule vers la vérification exige DEUX conditions, pas une** (2026-08-14) :
   le signal du moteur (`SkillMastery.readyForReassessment`) **et**
-  `LearningPlanStep.Progress.completed()` — l'**étape terminée**, ses **5** sujets
-  traités. `LearningPlanService` combine les deux **une seule fois** et sert ce
+  `LearningPlanStep.Progress.completed()` — l'**étape terminée**, ses **3** sujets
+  traités (5 avant D-71). `LearningPlanService` combine les deux **une seule fois** et sert ce
   booléen à la fois à `LearningPlanPriorityDto.readyForReassessment` et au choix
   de l'exercice : le DTO ne peut pas dire « prêt » pendant que la carte propose
   un micro-sujet. Motif mesuré en base : un candidat ayant validé 2 des 5 sujets
@@ -373,7 +381,7 @@
 - **JALONS — on ESCALADE, on ne reporte pas** (`PlanMilestoneSelector`, 3ᵉ et
   dernier sélecteur d'exercice, jumeau de `RecommendedExerciseSelector` /
   `ReassessmentExerciseSelector` — **autorité unique**, deux copies auraient fini
-  par désigner deux jalons). Échelle : étape (5 sujets) → **vérification ciblée**
+  par désigner deux jalons). Échelle : étape (3 sujets) → **vérification ciblée**
   (débloque `SOLID`) → **examen blanc d'épreuve** (EE ou EO, 3 tâches) → **examen
   blanc TCF complet**. Attendre « les 3 étapes finies » était inatteignable (un
   gratuit plafonne à 2/5) et aurait figé tout le monde en `CONSOLIDATING`.
@@ -2096,7 +2104,7 @@ dessous.
 
 | Famille | Quota | Autorité **lue** |
 |---|---|---|
-| EE / EO | les **5 sujets de l'étape** traités | `LearningPlanStep.Progress.completed()` |
+| EE / EO | les **3 sujets de l'étape** traités (D-71 ; 5 avant le 2026-10-04) | `LearningPlanStep.Progress.completed()` |
 | CO / CE | **2 séries réussies** — ⚠️ **le filet des 4 séries terminées est SUPPRIMÉ** (2026-09-20) | `trainSeriesQuota` (config v3) + `JourneySerieVerdict` |
 
 🛑 **D-16 (2026-09-18) révoque la ligne CO/CE précédente**, verbatim : « CO / CE — **2 séries
@@ -2127,8 +2135,18 @@ mot pour mot l'ancienne règle de D-5. Un retour arrière est donc bien une vari
 d'environnement, jamais une migration.
 
 🛑 **Aucune nouvelle valeur pour l'expression** : le quota **est**
-`LearningPlanStep.PROMPTS_PAR_ETAPE`, déjà servi aux deux fronts dans `progress.quota`. Le
-déclarer en configuration en ferait la 2ᵉ copie d'un chiffre déjà affiché.
+`LearningPlanStep.PROMPTS_PAR_ETAPE` (**3** depuis D-71), déjà servi aux deux fronts dans
+`progress.quota`. Le déclarer en configuration en ferait la 2ᵉ copie d'un chiffre déjà affiché.
+
+🛑 **Clôture d'une étape d'expression : à l'écriture ET à la lecture** (D-71, 2026-10-04).
+L'écriture (`JourneyService.onTrainingProgress`) clôt `QUOTA_REACHED` à l'arrivée de
+l'**analyse** d'un petit sujet. La lecture (`JourneyService.lire` →
+`cloreLesEtapesDExpressionAuQuota`) clôt aussi, dans le **cycle en cours** et lot **ouvert**,
+toute étape d'expression encore ouverte dont les sujets sont déjà tous traités — même autorité
+(`JourneyReadService.etapesAuQuota`). Motif : au passage de 5 à 3, une étape ouverte qui
+avait déjà ses 3 premiers sujets faits aurait affiché « 3/3 » tout en restant
+`journey.current` jusqu'à une soumission de plus. Aucun cycle historisé ni aucune clôture
+existante n'est touché. Verrou : `JourneyProgressionIT.uneEtapeDExpressionAuQuotaSeClotALaLecture`.
 
 🛑 **L'unité est SERVIE** (`progress.unit` : `PROMPT` / `SERIES`). Les compétences de
 compréhension n'ont **ni tâche ni petit sujet** — la déduire de la nullité de `taskCode`

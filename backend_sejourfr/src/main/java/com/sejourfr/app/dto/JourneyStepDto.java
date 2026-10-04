@@ -190,7 +190,7 @@ public record JourneyStepDto(
          * {@code LearningPlanDto.currentPriority} + {@code nextPriorities} +
          * {@code completedSteps} : une <b>vue bornee</b>, que la file depasse.
          * Une etape EO du cycle absente de ces listes ouvrait la fiche des 15
-         * sujets (« Tous · 15 ») au lieu de ses 5 (bug du 2026-10-04). Le
+         * sujets (« Tous · 15 ») au lieu de ceux de l'etape (bug du 2026-10-04). Le
          * perimetre est donc servi sur l'etape elle-meme, depuis le <b>meme</b>
          * compteur que {@link #progress()} et que la cloture
          * ({@code etapesAuQuota}) : l'ecran montre exactement les sujets qui

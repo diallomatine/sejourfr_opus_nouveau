@@ -77,7 +77,7 @@ class CompetenceResultScreen extends ConsumerStatefulWidget {
   final TcfProductionModule module;
   final String attemptId;
 
-  /// Ouvert **depuis le Plan** : le sujet suivant reste DANS les 5 de l'étape,
+  /// Ouvert **depuis le Plan** : le sujet suivant reste DANS les sujets de l'étape,
   /// et les retours ramènent à l'étape plutôt qu'à la fiche des 15.
   final bool planStep;
 

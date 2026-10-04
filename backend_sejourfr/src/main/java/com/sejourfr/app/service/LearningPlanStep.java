@@ -14,16 +14,24 @@ import java.util.UUID;
  * <b>actifs</b>, par rang d'affichage croissant. Personne n'allait au bout de 15
  * sujets, et « 2/15 » faisait paraitre l'etape suivante inatteignable.
  *
+ * <p><b>Taille : 3 sujets depuis le 2026-10-04 (D-71, decision du
+ * proprietaire)</b>, 5 auparavant (arbitrage du 2026-08-11). Seule la taille a
+ * change : meme selection (rang d'affichage croissant, sujets actifs), meme
+ * critere d'achevement ({@link Progress#completed()}, tous les sujets
+ * <b>traites</b>). Ce chiffre n'existe qu'ici : tous les compteurs servis
+ * ({@code stepPromptCount}, {@code progress.quota}, {@code stepPromptIds}) en
+ * derivent, les fronts n'en ont aucune copie.
+ *
  * <p><b>Derive, jamais persiste.</b> Aucune table, aucune colonne, aucune
  * migration : le perimetre se relit a chaque appel depuis le rang d'affichage.
- * Ce sont les memes cinq sujets pour tous les candidats et ils ne bougent
+ * Ce sont les memes sujets pour tous les candidats et ils ne bougent
  * jamais — meme philosophie que {@link SkillStatusResolver}, qui derive le
  * statut d'un sujet sans le stocker.
  *
  * <p><b>Pas de mecanisme d'unicite entre etapes</b> : il serait mort-ne.
  * {@code LearningPlanPriorityResolver.latestObservedBySkill} ne garde qu'une
  * observation par competence, donc deux etapes ne designent jamais la meme
- * competence, et les cinq sujets d'une etape sont distincts par leur rang.
+ * competence, et les sujets d'une etape sont distincts par leur rang.
  */
 public final class LearningPlanStep {
 
@@ -31,10 +39,10 @@ public final class LearningPlanStep {
      * Sujets d'une etape du Plan. <b>A ne pas confondre avec</b>
      * {@code SkillAccessService.FREE_PROMPTS_PER_SKILL} (2) : celui-la dit ce
      * qu'un compte gratuit peut jouer, celui-ci ce qu'il faut faire pour
-     * terminer l'etape. Consequence assumee : un compte gratuit plafonne a 2/5
-     * et aucune etape n'est finissable sans abonnement.
+     * terminer l'etape. Depuis D-18 (2026-09-18) un compte gratuit n'a plus
+     * aucun sujet ouvert : aucune etape n'est finissable sans abonnement.
      */
-    public static final int PROMPTS_PAR_ETAPE = 5;
+    public static final int PROMPTS_PAR_ETAPE = 3;
 
     private LearningPlanStep() {
     }
@@ -59,15 +67,15 @@ public final class LearningPlanStep {
      *
      * <p><b>Distincte des compteurs de competence</b>, qui portent sur les 15
      * sujets et gardent la semantique de {@code SkillDto} : le Plan afficherait
-     * « /5 » et la fiche de competence « /15 » pour une meme competence si l'on
+     * « /3 » et la fiche de competence « /15 » pour une meme competence si l'on
      * detournait les seconds.
      *
      * <p>Le perimetre voyage sous forme d'<b>identifiants de sujets</b>
      * ({@link #promptIds()}), parce qu'un front qui ouvre une competence depuis
-     * le Plan doit afficher l'etape — les memes cinq sujets, dans le meme ordre —
+     * le Plan doit afficher l'etape — les memes sujets, dans le meme ordre —
      * et non la fiche generique. Le denominateur est <b>la taille de cette
      * liste</b> ({@link #promptCount()}) et rien d'autre : impossible d'annoncer
-     * « 5 » puis d'en servir 3.
+     * « 3 » puis d'en servir 2.
      *
      * @param promptIds sujets de l'etape, par rang d'affichage croissant.
      */
@@ -101,8 +109,8 @@ public final class LearningPlanStep {
          * signal du moteur de maitrise ne suffit pas, l'etape doit etre finie.
          * Le perimetre est ici l'<b>editorial</b> — les
          * {@value #PROMPTS_PAR_ETAPE} sujets, ceux que les fronts affichent —
-         * et non ce que l'acces du candidat lui ouvre. Un compte gratuit,
-         * plafonne a 2 sujets sur 5, ne bascule donc jamais : c'est un
+         * et non ce que l'acces du candidat lui ouvre. Un compte gratuit, qui
+         * n'a aucun sujet ouvert (D-18), ne bascule donc jamais : c'est un
          * <b>arbitrage produit</b> (la verification est premium), pas une
          * propriete du moteur. Ne pas le « reparer » en comptant les sujets
          * ouverts.

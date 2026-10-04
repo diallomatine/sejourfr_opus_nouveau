@@ -46,7 +46,7 @@ class ConsigneCard extends StatelessWidget {
 
   final int? maxLines;
 
-  /// Repère de progression du prototype (`.step`, « Sujet 2/5 »). Absent quand
+  /// Repère de progression du prototype (`.step`, « Sujet 2/3 »). Absent quand
   /// l'écran ne sait pas où il se situe — on n'invente pas de rang.
   final String? step;
 
@@ -113,7 +113,8 @@ class ConsigneCard extends StatelessWidget {
             consigne,
             maxLines: maxLines,
             overflow: maxLines == null ? null : TextOverflow.ellipsis,
-            style: AppFonts.ui(size: 14.5, weight: FontWeight.w500, height: 1.5),
+            style:
+                AppFonts.ui(size: 14.5, weight: FontWeight.w500, height: 1.5),
           ),
           if (contexte != null && contexte!.isNotEmpty) ...[
             const SizedBox(height: 15),
