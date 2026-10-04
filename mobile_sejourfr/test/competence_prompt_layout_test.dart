@@ -8,6 +8,7 @@ import 'package:sejourfr_mobile/core/widgets/fixed_action_bar.dart';
 import 'package:sejourfr_mobile/screens/tcf_production/competences/competence_prompt_screen.dart';
 import 'package:sejourfr_mobile/screens/tcf_production/competences/widgets/skill_answer_card.dart';
 import 'package:sejourfr_mobile/screens/tcf_production/competences/widgets/skill_recorder_panel.dart';
+import 'package:sejourfr_mobile/screens/tcf_production/competences/widgets/prompt_guidance.dart';
 import 'package:sejourfr_mobile/screens/tcf_production/tcf_production_module.dart';
 
 import 'support/skill_fixtures.dart';
@@ -126,12 +127,12 @@ void main() {
         }));
         await _pumpPrompt(tester, prompt: prompt);
 
-        expect(find.text("Ce qu'il faut faire"), findsOneWidget,
+        expect(find.text(kSkillChecklistLabel), findsOneWidget,
             reason: '$section : pas de check-list');
         expect(find.text('Saluez votre voisine'), findsOneWidget);
         // Le panneau de situation porte son intitulé en petites capitales
         // depuis qu'il a pris la forme du mini-sujet de la maquette.
-        expect(find.text('SITUATION'), findsOneWidget,
+        expect(find.text(kSkillSituationTitle), findsOneWidget,
             reason: '\$section : pas de situation');
         expect(find.text('Ta réponse'), findsOneWidget);
         expect(find.text('Vouvoiement'), findsOneWidget,
@@ -276,7 +277,7 @@ void main() {
       await _pumpPrompt(tester, prompt: prompt);
 
       // La carte retombe sur la consigne au lieu de disparaître.
-      expect(find.text("Ce qu'il faut faire"), findsOneWidget);
+      expect(find.text(kSkillChecklistLabel), findsOneWidget);
       expect(find.textContaining('saluez-la et dites qui vous êtes'),
           findsOneWidget);
       // Le champ garde un texte grisé neutre, et le pied ne montre que le

@@ -230,7 +230,7 @@ void main() {
         ),
       );
 
-      expect(find.text("Ce qu'il faut faire"), findsOneWidget);
+      expect(find.text(kSkillChecklistLabel), findsOneWidget);
       expect(find.text('Saluez votre voisine'), findsOneWidget);
       expect(find.text('Dites qui vous êtes'), findsOneWidget);
       expect(find.byIcon(LucideIcons.circleCheck), findsNWidgets(2));
@@ -251,7 +251,7 @@ void main() {
       );
 
       // Jamais de carte vide : le candidat doit toujours savoir quoi faire.
-      expect(find.text("Ce qu'il faut faire"), findsOneWidget);
+      expect(find.text(kSkillChecklistLabel), findsOneWidget);
       expect(find.text('La consigne complète.'), findsOneWidget);
       expect(find.byIcon(LucideIcons.circleCheck), findsNothing);
     });

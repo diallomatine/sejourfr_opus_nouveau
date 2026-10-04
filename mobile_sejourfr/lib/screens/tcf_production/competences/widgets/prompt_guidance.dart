@@ -107,26 +107,42 @@ class SkillGuidanceCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Le filet d'accent est un fond coloré qui dépasse de 3 px à gauche :
+    // Flutter refuse de peindre une bordure de couleurs différentes avec un
+    // rayon (assertion « not uniform »).
+    if (lead) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.only(left: 3),
+        decoration: BoxDecoration(
+          color: accent,
+          borderRadius: BorderRadius.circular(22),
+          boxShadow: AppShadows.card,
+        ),
+        child: _body(const BorderRadius.horizontal(
+          left: Radius.circular(19),
+          right: Radius.circular(22),
+        )),
+      );
+    }
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(22),
+        boxShadow: AppShadows.card,
+      ),
+      child: _body(BorderRadius.circular(22), border: true),
+    );
+  }
+
+  Widget _body(BorderRadius radius, {bool border = false}) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(13),
       decoration: BoxDecoration(
         color: AppColors.white,
-        borderRadius: lead
-            ? const BorderRadius.horizontal(
-                left: Radius.circular(12),
-                right: Radius.circular(22),
-              )
-            : BorderRadius.circular(22),
-        border: lead
-            ? Border(
-                left: BorderSide(color: accent, width: 3),
-                top: const BorderSide(color: AppColors.line),
-                right: const BorderSide(color: AppColors.line),
-                bottom: const BorderSide(color: AppColors.line),
-              )
-            : Border.all(color: AppColors.line),
-        boxShadow: AppShadows.card,
+        borderRadius: radius,
+        border: border ? Border.all(color: AppColors.line) : null,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
