@@ -41,6 +41,7 @@
 | D-34 | suivi | `IMAGE_TRANSPARENTE` : refuser sur des pixels réellement transparents, jamais sur la seule présence d'un canal alpha | Seuil « alpha < 255 » ; seuil toléré (≥ 250) ; proportion de pixels. WEBP : drapeau VP8X ; données d'alpha ; dépendance (TwelveMonkeys) | **Un seul pixel d'alpha < 255 refuse** (règle simple, identique à `WebPPictureHasTransparency` de libwebp ; une RGBA opaque passe). PNG : décodage complet pixel par pixel (palette `tRNS` comprise), plafonné à **16 Mpx** (bombe de décompression). WEBP, **sans dépendance** : on lit les **données** d'alpha, pas le drapeau. Bloc `ALPH` brut non filtré lu octet par octet ; `ALPH` compressé ou filtré, ou indice VP8L `alpha_is_used` = transparence (libwebp ne les écrit que si un pixel l'est) ; drapeau VP8X sans `ALPH` = opaque. Un verdict invérifiable (PNG illisible, > 16 Mpx, WEBP tronqué ou animé) rend `IMAGE_ILLISIBLE` avec un message dédié, jamais une acceptation silencieuse (l'ancien code acceptait un PNG indécodable). Aucun code d'erreur ajouté : l'admin n'a rien à changer. | `ImageUploadSupport` (`transparence()` : `AUCUNE` / `PRESENTE` / `INVERIFIABLE`), `CoImageImportValidator`, `ImagesDeTest`, `ImageUploadSupportTest`, `CoImageImportValidatorTest`, `docs/pipeline-audio-co.md` |
 | D-35 | suivi | La signature des octets (D-13) a-t-elle cassé un envoi de SVG ? | Ajouter un reniflage `<svg` ; constater | **Aucun chemin SVG n'existait en fichier** : `ImageUploadSupport` n'a jamais admis que jpeg/png/webp (liste blanche d'avant D-13), et `/api/admin/media/upload` (`LocalFileStorageService`, hors `ImageUploadSupport`, non touché) n'admet que `image/png,image/jpeg,image/webp` depuis l'origine. Le SVG ne vit qu'en **`inline_svg`** (texte : brouillons générés, `QuestionWriteRequest`), sans contrôle d'octets. Pas de reniflage ajouté : ce serait ouvrir un format, pas réparer. Tests : SVG déclaré refusé, SVG déguisé en PNG refusé, remplacement d'une CO_IMAGE SVG par un PNG (URL posée, `inline_svg` vidé). À noter : `/api/admin/media/upload` ne lit **pas** la signature (D-13 disait « partout ») ; hors périmètre, laissé tel quel. | `ImageUploadSupportTest`, `LocalFileStorageServiceTest`, `QuestionImageServiceTest` |
 | D-36 | suivi | V088 et V089 sont numérotées sous des versions déjà appliquées (V8xx, V901) sur la base locale et en prod | Renuméroter (V9xx) ; activer `outOfOrder` | **Ni renumérotation ni changement de config** : `out-of-order: true` est déjà posé dans `application.yaml` (dev **et** prod, qui ne surchargent que `locations`) et dans `application-test.yaml` (Zonky) ; V083 à V087 sont déjà passées ainsi après V901. Renuméroter vers le haut aurait déplacé du DDL après le contenu sur base neuve. Constaté sur `sejourfr_db` : V088 (rang 396) et V089 (rang 397) appliquées avec succès le 2026-10-04 à 22:27:31 (boot IDE du propriétaire), colonne `external_id varchar(64)` + index `uq_audio_draft_external_id`, 0 question `is_active` avec `status <> 'ACTIVE'`. Base neuve : couverte par les IT Zonky (`QuestionStatusAlignementIT`, `AudioQuestionDraftManagerIT`, `CoImageImportServiceIT`). | `docs/migrations-flyway.md` |
+| D-37 | suivi | Nginx prod plafonnait le corps des requêtes à 20M (`client_max_body_size 20M` sur `api.sejourfr.fr`), sous les 110MB de `max-request-size` : un lot de 20 images de 5 Mo aurait été refusé en 413 avant d'atteindre Spring | Relever le plafond du bloc serveur entier ; location dédiée | **Location dédiée** `/api/admin/question-imports/` dans le bloc `api.sejourfr.fr`, avec `client_max_body_size 110M` (= 110 MiB, comme le `110MB` de Spring), `client_body_timeout`, `proxy_send_timeout` et `proxy_read_timeout` à 300s. Le reste de l'API garde 20M. La sauvegarde est faite avant modification ; `nginx -t` passe, puis `systemctl reload nginx`. Vérifié : `/api/public/app-config` répond 200, la route d'import répond 401 (elle atteint donc le backend). Backend non déployé. | serveur `82.223.165.43` : `/etc/nginx/sites-available/sejourfr.fr` |
 
 ---
 
@@ -127,3 +128,20 @@
 - Une ancienne `CO_IMAGE` en SVG s'affiche comme avant.
 - Une question STRUCTURE contenant le choix « a » affiche bien son texte sur le web.
 - Désactiver puis réactiver une question dans l'admin : le statut repasse `ACTIVE` et la question est de nouveau tirée.
+
+### Nginx en prod (D-37)
+
+- **Fichier modifié :** `/etc/nginx/sites-available/sejourfr.fr`, sur le serveur `82.223.165.43`, lié depuis `sites-enabled`.
+- **Valeur appliquée :** dans le bloc `server_name api.sejourfr.fr`, `location /api/admin/question-imports/` reçoit :
+  - `client_max_body_size 110M` ;
+  - `client_body_timeout 300s`, `proxy_send_timeout 300s`, `proxy_read_timeout 300s` ;
+  - `proxy_pass http://localhost:9090`, sans URI, pour que le chemin soit transmis intact.
+
+  Le reste de l'API reste à 20M.
+- **Sauvegarde :** `/root/nginx-backups/sejourfr.fr.2026-10-04-avant-import-co-image`.
+- **Retour arrière :**
+  ```bash
+  ssh root@82.223.165.43 'cp -p /root/nginx-backups/sejourfr.fr.2026-10-04-avant-import-co-image /etc/nginx/sites-available/sejourfr.fr && nginx -t && systemctl reload nginx'
+  ```
+- **Rappel :** le backend n'est pas déployé. La route ne servira qu'après le déploiement, et V088/V089 s'appliqueront au premier démarrage (`out-of-order: true`, D-36).
+
