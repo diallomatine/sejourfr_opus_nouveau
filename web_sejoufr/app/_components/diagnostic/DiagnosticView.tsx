@@ -609,7 +609,6 @@ function GuestDiagnostic({onStartTcf}: {onStartTcf: () => void}) {
           error={error}
           submitLabel="Terminer et analyser"
           promptSlot={<ExercisePrompt exercise={oral} kind="oral" />}
-          criteriaSlot={null}
           maxDurationSec={oral.durationMaxSeconds}
           onSubmit={(audio, durationSec) => void keepOral(audio, durationSec)}
         />
@@ -1371,7 +1370,6 @@ function ConnectedDiagnostic({onStartTcf}: {onStartTcf: () => void}) {
           error={error}
           submitLabel="Analyser mes deux réponses"
           promptSlot={<ExercisePrompt exercise={exercise} kind="oral" />}
-          criteriaSlot={null}
           maxDurationSec={exercise.durationMaxSeconds}
           onSubmit={(audio) => void submitOral(exercise, audio)}
         />
@@ -1498,7 +1496,6 @@ function WrittenExercise({
         error={error}
         submitLabel={submitLabel}
         promptSlot={<ExercisePrompt exercise={exercise} kind="written" />}
-        criteriaSlot={null}
         answerCard={{
           title: DIAGNOSTIC_WRITTEN_EDITOR_TITLE,
           icon: <PenLine size={16} strokeWidth={2.2} />,

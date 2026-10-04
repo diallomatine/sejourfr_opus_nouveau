@@ -16,7 +16,6 @@ import {
 import s from "@/app/_components/skill-ui/skill.module.css";
 import {type ProductionVoice} from "./config";
 import {EoTranscriptNotice} from "./EoTranscriptNotice";
-import {ProductionCriteriaCard} from "./ProductionCriteriaCard";
 import {ProductionSplit} from "./ProductionExamRunner";
 import {RecordingLevelMeter} from "./RecordingLevelMeter";
 import styles from "./production.module.css";
@@ -173,7 +172,6 @@ export function EoRecordingForm({
   exerciseTitle,
   headerSlot,
   promptSlot,
-  criteriaSlot,
   answerCard,
   footerSlot,
   footerAlwaysVisible = false,
@@ -207,10 +205,6 @@ export function EoRecordingForm({
    *  situation, chips de format). Absent = carte historique. Même prop, même
    *  contenu qu'à l'écrit : le guidage d'un petit sujet. */
   promptSlot?: ReactNode;
-  /** Remplace la carte de nos 4 critères. `null` la retire — les
-   *  micro-exercices « Compétences » n'évaluent QU'UN critère et affichent le
-   *  leur ici, juste au-dessus de l'enregistreur. */
-  criteriaSlot?: ReactNode;
   /** Présente l'enregistreur en carte (icône + titre, suggestion de démarrage,
    *  pied astuce / durée). Absent = panneau d'enregistrement historique. */
   answerCard?: RecorderCard;
@@ -749,8 +743,6 @@ export function EoRecordingForm({
           </>
         }
       >
-        {criteriaSlot === undefined ? <ProductionCriteriaCard /> : criteriaSlot}
-
         {/* En carte, l'avertissement passe SOUS l'enregistreur : il reste dit, il
           ne repousse plus le micro sous la ligne de flottaison. */}
         {!answerCard && <EoTranscriptNotice voice={voice} />}

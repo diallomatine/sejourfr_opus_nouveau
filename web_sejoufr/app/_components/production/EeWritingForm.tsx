@@ -7,7 +7,6 @@ import {countEeWords, isEeWordCountWithinBounds} from "@/lib/ee-word-bounds";
 import {SkillAccent} from "@/app/_components/skill-ui/SkillLayout";
 import s from "@/app/_components/skill-ui/skill.module.css";
 import {type ProductionVoice} from "./config";
-import {ProductionCriteriaCard} from "./ProductionCriteriaCard";
 import {ProductionSplit} from "./ProductionExamRunner";
 
 const DRAFT_PREFIX = "sejourfr.ee.draft.";
@@ -71,7 +70,6 @@ export function EeWritingForm({
   exerciseTitle,
   headerSlot,
   promptSlot,
-  criteriaSlot,
   answerCard,
   footerSlot,
   lengthAdvisory = false,
@@ -103,10 +101,6 @@ export function EeWritingForm({
    *  « Compétences » y posent leur guidage : ce qu'il faut faire, la situation,
    *  les contraintes — un écran qui fait faire au lieu d'expliquer. */
   promptSlot?: ReactNode;
-  /** Remplace la carte de nos 4 critères. `null` la retire — les
-   *  micro-exercices « Compétences » n'évaluent QU'UN critère et affichent le
-   *  leur ici, juste au-dessus de la zone de saisie. */
-  criteriaSlot?: ReactNode;
   /** Présente la zone de saisie en carte (icône + titre, amorce grisée, pied
    *  astuce / compteur). Absent = en-tête « Votre rédaction » historique. */
   answerCard?: AnswerCard;
@@ -271,8 +265,6 @@ export function EeWritingForm({
           </>
         }
       >
-        {criteriaSlot === undefined ? <ProductionCriteriaCard /> : criteriaSlot}
-
         {answerCard ? (
           <section className={s.answerCard}>
             <div className={s.answerHead}>

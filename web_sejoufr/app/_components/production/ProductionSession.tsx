@@ -669,7 +669,6 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
                   sendError={sendError}
                   submitLabel={submitLabel}
                   promptSlot={<ExamConsigneCard task={currentTask} epreuve={config.epreuve} />}
-                  criteriaSlot={null}
                   split
                   examMode
                   maxDurationSec={null}
@@ -708,7 +707,6 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
                     )}
                   </ExamConsigneCard>
                 }
-                criteriaSlot={null}
                 rangeInPrompt
                 split
                 autoSubmitSignal={autoSubmitSignal}

@@ -16,8 +16,8 @@
 }
 
 /* ---------- Cartes génériques ----------
-   Conservées pour les blocs de l'écran de résultat (`ProductionCriteriaCard`,
-   `ProductionFeedbackView`), qui gardent leur mise en forme : leur ordre et
+   Conservées pour les blocs de l'écran de résultat
+   (`ProductionFeedbackView`), qui gardent leur mise en forme : leur ordre et
    leurs règles de lecture sont des décisions de notation, pas de maquette. */
 .card {
   background: white;

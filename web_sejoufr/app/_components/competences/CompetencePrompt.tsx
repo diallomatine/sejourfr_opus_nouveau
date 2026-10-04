@@ -503,7 +503,6 @@ export function CompetencePrompt({config}: {config: ProductionConfig}) {
                   error={submitError}
                   submitLabel="Valider et comparer"
                   promptSlot={promptSlot}
-                  criteriaSlot={null}
                   answerCard={{
                     title: "Ta réponse",
                     icon: <Mic size={16} strokeWidth={2.2} />,
@@ -528,7 +527,6 @@ export function CompetencePrompt({config}: {config: ProductionConfig}) {
                   error={submitError}
                   submitLabel="Valider et comparer"
                   promptSlot={promptSlot}
-                  criteriaSlot={null}
                   answerCard={{
                     title: "Ta réponse",
                     icon: <PenLine size={16} strokeWidth={2.2} />,

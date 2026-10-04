@@ -12,7 +12,7 @@ import {
   productionExamStepLabel,
   productionPrivacyText,
 } from "@/lib/production-exam-copy";
-import {ProductionCriteriaList} from "./ProductionCriteriaCard";
+import {ProductionCriteriaList} from "./ProductionCriteriaList";
 import skill from "@/app/_components/skill-ui/skill.module.css";
 import x from "./exam.module.css";
 
