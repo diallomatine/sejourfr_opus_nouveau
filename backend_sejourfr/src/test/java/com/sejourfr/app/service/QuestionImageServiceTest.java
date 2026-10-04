@@ -78,6 +78,29 @@ class QuestionImageServiceTest {
     }
 
     @Test
+    void replaceImageOnInlineSvgQuestion_acceptsRealPngAndDropsTheSvg() {
+        // Chemin de remplacement d'une ancienne CO_IMAGE en SVG inline : la
+        // signature des octets (D-13) n'y touche que le fichier envoye.
+        UUID questionId = UUID.randomUUID();
+        Question question = new Question();
+        Media svg = new Media();
+        svg.setType(MediaType.IMAGE);
+        svg.setInlineSvg("<svg xmlns=\"http://www.w3.org/2000/svg\"/>");
+        question.setMedia(svg);
+
+        when(questionManager.findById(questionId)).thenReturn(Optional.of(question));
+        when(r2Client.uploadImage(anyString(), any(), eq("image/png")))
+                .thenReturn(new R2UploadResult("questions/images/new.png", "https://r2/new.png"));
+        when(mapper.toDto(question)).thenReturn(dummyDto());
+
+        service.replaceImage(questionId, pngFile());
+
+        assertThat(svg.getUrl()).isEqualTo("https://r2/new.png");
+        assertThat(svg.getInlineSvg()).isNull();
+        verify(r2Client, never()).deleteObject(anyString());
+    }
+
+    @Test
     void replaceImageReusesExistingMediaAndDeletesOldObject() {
         UUID questionId = UUID.randomUUID();
         Question question = new Question();

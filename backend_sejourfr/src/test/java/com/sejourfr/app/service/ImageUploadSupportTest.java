@@ -7,6 +7,10 @@ import com.sejourfr.app.support.ImagesDeTest;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockMultipartFile;
 
+import static com.sejourfr.app.service.ImageUploadSupport.Transparence.AUCUNE;
+import static com.sejourfr.app.service.ImageUploadSupport.Transparence.INVERIFIABLE;
+import static com.sejourfr.app.service.ImageUploadSupport.Transparence.PRESENTE;
+import static com.sejourfr.app.service.ImageUploadSupport.transparence;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -77,6 +81,21 @@ class ImageUploadSupportTest {
     }
 
     @Test
+    void svg_jamais_accepte_en_fichier_avant_comme_apres_la_signature() {
+        byte[] svg = "<?xml version=\"1.0\"?><svg xmlns=\"http://www.w3.org/2000/svg\"/>"
+                .getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        assertThatThrownBy(() -> ImageUploadSupport.validate(
+                new MockMultipartFile("img", "f.svg", "image/svg+xml", svg)))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("Format non supporte");
+        assertThatThrownBy(() -> ImageUploadSupport.validate(
+                new MockMultipartFile("img", "f.png", "image/png", svg)))
+                .as("un SVG deguise en PNG")
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("n'est pas une image");
+    }
+
+    @Test
     void nullContentType_rejected() {
         MockMultipartFile file = new MockMultipartFile("img", "f.bin", null, PNG);
         assertThatThrownBy(() -> ImageUploadSupport.validate(file))
@@ -141,19 +160,58 @@ class ImageUploadSupportTest {
     // --- transparence -----------------------------------------------------
 
     @Test
-    void transparence_png_lue_sur_les_pixels() {
-        assertThat(ImageUploadSupport.aDeLaTransparence(ImagesDeTest.png(40, 30), FormatImage.PNG)).isFalse();
-        assertThat(ImageUploadSupport.aDeLaTransparence(ImagesDeTest.pngRgba(40, 30, false), FormatImage.PNG))
-                .as("une PNG RGBA entierement opaque passe").isFalse();
-        assertThat(ImageUploadSupport.aDeLaTransparence(ImagesDeTest.pngRgba(40, 30, true), FormatImage.PNG)).isTrue();
+    void transparence_png_lue_sur_les_pixels_pas_sur_le_canal() {
+        assertThat(transparence(ImagesDeTest.png(40, 30), FormatImage.PNG))
+                .as("PNG RGB sans canal alpha").isEqualTo(AUCUNE);
+        assertThat(transparence(ImagesDeTest.pngRgba(40, 30, false), FormatImage.PNG))
+                .as("une PNG RGBA entierement opaque passe").isEqualTo(AUCUNE);
+        assertThat(transparence(ImagesDeTest.pngRgbaUnPixel(40, 30, 255), FormatImage.PNG))
+                .as("canal alpha present, tous les pixels a 255").isEqualTo(AUCUNE);
+        assertThat(transparence(ImagesDeTest.pngRgba(40, 30, true), FormatImage.PNG)).isEqualTo(PRESENTE);
+        assertThat(transparence(ImagesDeTest.pngRgbaUnPixel(40, 30, 0), FormatImage.PNG))
+                .as("un seul pixel totalement transparent").isEqualTo(PRESENTE);
+        assertThat(transparence(ImagesDeTest.pngRgbaUnPixel(40, 30, 254), FormatImage.PNG))
+                .as("seuil : un seul pixel d'alpha 254 suffit").isEqualTo(PRESENTE);
+        assertThat(transparence(ImagesDeTest.pngPaletteAvecTrns(40, 30), FormatImage.PNG))
+                .as("palette avec entree transparente (tRNS)").isEqualTo(PRESENTE);
     }
 
     @Test
-    void transparence_webp_lue_sur_l_entete() {
-        assertThat(ImageUploadSupport.aDeLaTransparence(ImagesDeTest.webpVp8x(40, 30, true), FormatImage.WEBP)).isTrue();
-        assertThat(ImageUploadSupport.aDeLaTransparence(ImagesDeTest.webpVp8x(40, 30, false), FormatImage.WEBP)).isFalse();
-        assertThat(ImageUploadSupport.aDeLaTransparence(ImagesDeTest.webpVp8l(40, 30, true), FormatImage.WEBP)).isTrue();
-        assertThat(ImageUploadSupport.aDeLaTransparence(ImagesDeTest.webpVp8(40, 30), FormatImage.WEBP)).isFalse();
-        assertThat(ImageUploadSupport.aDeLaTransparence(JPEG, FormatImage.JPEG)).isFalse();
+    void transparence_png_illisible_ou_trop_grande_est_inverifiable() {
+        byte[] tronque = java.util.Arrays.copyOf(ImagesDeTest.pngRgba(40, 30, false), 60);
+        assertThat(transparence(tronque, FormatImage.PNG)).isEqualTo(INVERIFIABLE);
+        // 4001 x 4000 > 16 Mpx : refuse avant tout decodage (bombe de decompression).
+        assertThat(transparence(ImagesDeTest.pngNoirEtBlanc(4001, 4000), FormatImage.PNG)).isEqualTo(INVERIFIABLE);
+    }
+
+    @Test
+    void transparence_webp_lue_sur_les_donnees_d_alpha_pas_sur_le_drapeau() {
+        assertThat(transparence(ImagesDeTest.webpVp8(40, 30), FormatImage.WEBP)).isEqualTo(AUCUNE);
+        assertThat(transparence(ImagesDeTest.webpVp8x(40, 30, false), FormatImage.WEBP)).isEqualTo(AUCUNE);
+        assertThat(transparence(ImagesDeTest.webpVp8xDrapeauSansAlph(40, 30), FormatImage.WEBP))
+                .as("drapeau alpha sans bloc ALPH : aucune donnee d'alpha").isEqualTo(AUCUNE);
+        assertThat(transparence(ImagesDeTest.webpVp8x(40, 30, true), FormatImage.WEBP))
+                .as("bloc ALPH compresse").isEqualTo(PRESENTE);
+        assertThat(transparence(ImagesDeTest.webpVp8l(40, 30, true), FormatImage.WEBP)).isEqualTo(PRESENTE);
+        assertThat(transparence(ImagesDeTest.webpVp8l(40, 30, false), FormatImage.WEBP)).isEqualTo(AUCUNE);
+        assertThat(transparence(ImagesDeTest.webpVp8xVp8l(40, 30, true), FormatImage.WEBP)).isEqualTo(PRESENTE);
+        assertThat(transparence(ImagesDeTest.webpVp8xVp8l(40, 30, false), FormatImage.WEBP)).isEqualTo(AUCUNE);
+    }
+
+    @Test
+    void transparence_webp_alph_brut_lu_pixel_par_pixel() {
+        byte[] plan = new byte[40 * 30];
+        java.util.Arrays.fill(plan, (byte) 0xFF);
+        assertThat(transparence(ImagesDeTest.webpVp8xAlphBrut(40, 30, plan), FormatImage.WEBP))
+                .as("plan alpha brut entierement opaque").isEqualTo(AUCUNE);
+        plan[123] = (byte) 0xFE;
+        assertThat(transparence(ImagesDeTest.webpVp8xAlphBrut(40, 30, plan), FormatImage.WEBP)).isEqualTo(PRESENTE);
+    }
+
+    @Test
+    void transparence_webp_tronque_et_jpeg() {
+        byte[] tronque = java.util.Arrays.copyOf(ImagesDeTest.webpVp8x(40, 30, true), 34);
+        assertThat(transparence(tronque, FormatImage.WEBP)).isEqualTo(INVERIFIABLE);
+        assertThat(transparence(JPEG, FormatImage.JPEG)).isEqualTo(AUCUNE);
     }
 }

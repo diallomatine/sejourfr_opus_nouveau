@@ -76,8 +76,14 @@ lot écrit ces brouillons depuis un manifeste JSON + des images ; il ne crée **
   d'image d'une question ou d'un brouillon, import), le type est **lu sur les octets**
   (signature) et doit égaler le type déclaré. Dimensions, ratio, largeur et opacité ne sont
   opposés qu'à l'import : le remplacement unitaire de la console reste libre de son cadrage.
-  Le JDK ne lit pas le WEBP : ses dimensions et son drapeau alpha sont lus dans l'en-tête
-  RIFF (VP8, VP8L, VP8X), sans dépendance.
+  **Opacité** : le critère est le **pixel**, jamais la présence d'un canal alpha — une
+  PNG RGBA entièrement opaque passe ; un seul pixel d'alpha < 255 refuse
+  (`IMAGE_TRANSPARENTE`). PNG : décodage complet (≤ 16 Mpx, au-delà `IMAGE_ILLISIBLE`).
+  Le JDK ne lit pas le WEBP : dimensions et alpha sont lus dans les blocs RIFF, sans
+  dépendance — un bloc `ALPH` brut est lu octet par octet, un `ALPH` compressé ou un
+  indice alpha VP8L valent transparence (libwebp ne les écrit que si un pixel l'est), un
+  drapeau alpha VP8X sans bloc `ALPH` ne compte pas. Un SVG n'est jamais un fichier
+  uploadable (ni ici, ni par `/api/admin/media/upload`) : il ne vit qu'en `inline_svg`.
 - **Taille** : 20 questions par lot au plus (`max-questions`), 5 Mo par image ;
   `spring.servlet.multipart.max-request-size` est à 110 Mo pour tenir un lot entier.
 - **Lot d'essai** : `docs/question-audio/lot-test/` (3 questions A2, images de placeholder

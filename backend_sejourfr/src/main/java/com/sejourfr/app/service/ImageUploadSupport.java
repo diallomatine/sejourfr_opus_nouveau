@@ -24,15 +24,16 @@ import java.util.Optional;
  *       REEL lu sur les octets (signature) qui doit etre celui declare. Un
  *       fichier renomme ou un Content-Type menteur est refuse.</li>
  *   <li><b>Import seulement</b> : dimensions, ratio, largeur minimale et
- *       opacite, lus ici ({@link #lireDimensions}, {@link #aDeLaTransparence})
+ *       opacite, lus ici ({@link #lireDimensions}, {@link #transparence})
  *       mais opposes par le validateur d'import selon la charte
  *       {@code charte-images-co-v1.json}. Le remplacement d'image unitaire de
  *       la console reste libre de son cadrage.</li>
  * </ul>
  *
- * <p>Aucune dependance : JPEG et PNG passent par {@code ImageIO} du JDK, en
- * lecture d'en-tete seulement et sans cache disque. Le JDK ne sait pas lire le
- * WEBP : ses dimensions sont lues dans l'en-tete RIFF (VP8, VP8L, VP8X).
+ * <p>Aucune dependance : JPEG et PNG passent par {@code ImageIO} du JDK, sans
+ * cache disque (dimensions : en-tete seul ; opacite d'un PNG : decodage complet,
+ * borne par {@link #MAX_PIXELS_OPACITE}). Le JDK ne sait pas lire le WEBP : ses
+ * dimensions et son alpha sont lus dans les blocs RIFF (VP8, VP8L, VP8X, ALPH).
  */
 public final class ImageUploadSupport {
 
@@ -118,17 +119,46 @@ public final class ImageUploadSupport {
         }
     }
 
+    /** Verdict du controle d'opacite de la charte. */
+    public enum Transparence {
+        /** Tous les pixels sont pleinement opaques (alpha = 255), ou le format n'a pas d'alpha. */
+        AUCUNE,
+        /** Au moins un pixel a un alpha inferieur a 255. */
+        PRESENTE,
+        /** Les pixels n'ont pas pu etre lus (fichier corrompu, image trop grande, WEBP anime). */
+        INVERIFIABLE
+    }
+
     /**
-     * L'image porte-t-elle de la transparence ? PNG : au moins un pixel dont
-     * l'alpha n'est pas plein (une PNG RGBA entierement opaque passe). WEBP : le
-     * drapeau alpha de l'en-tete (VP8X) ou l'indice d'alpha (VP8L), le JDK ne
-     * sachant pas decoder les pixels. JPEG : jamais.
+     * Plafond de pixels decodes pour le controle d'opacite d'un PNG : le decodage
+     * complet tient en memoire (4 octets par pixel, 64 Mo au plafond). Un PNG de
+     * 5 Mo peut decrire une image bien plus grande (bombe de decompression).
      */
-    public static boolean aDeLaTransparence(byte[] bytes, FormatImage format) {
+    public static final long MAX_PIXELS_OPACITE = 16_000_000L;
+
+    /**
+     * L'image porte-t-elle de la transparence REELLE ? Le critere est le pixel,
+     * jamais la simple presence d'un canal alpha : une PNG RGBA entierement
+     * opaque passe. Seuil : un seul pixel d'alpha inferieur a 255 suffit.
+     *
+     * <ul>
+     *   <li><b>PNG</b> : decodage complet par {@code ImageIO}, chaque pixel lu
+     *       (palette avec {@code tRNS} comprise).</li>
+     *   <li><b>WEBP</b> : le JDK ne decode pas ses pixels. On lit les DONNEES
+     *       d'alpha, pas le drapeau du VP8X : un bloc {@code ALPH} non compresse
+     *       et non filtre est lu octet par octet ; un bloc {@code ALPH}
+     *       compresse ou filtre vaut transparence ; un VP8L vaut ce que dit son
+     *       indice {@code alpha_is_used}. libwebp n'ecrit l'un et l'autre que si
+     *       un pixel est reellement transparent ({@code WebPPictureHasTransparency}).
+     *       Un drapeau alpha sans bloc {@code ALPH} ne compte pas.</li>
+     *   <li><b>JPEG</b> : jamais.</li>
+     * </ul>
+     */
+    public static Transparence transparence(byte[] bytes, FormatImage format) {
         return switch (format) {
-            case JPEG -> false;
-            case WEBP -> alphaWebp(bytes);
-            case PNG -> alphaPng(bytes);
+            case JPEG -> Transparence.AUCUNE;
+            case WEBP -> transparenceWebp(bytes);
+            case PNG -> transparencePng(bytes);
         };
     }
 
@@ -168,30 +198,66 @@ public final class ImageUploadSupport {
         return Optional.empty();
     }
 
-    private static boolean alphaWebp(byte[] b) {
-        if (b.length < 30) return false;
-        if (ascii(b, 12, "VP8X")) return (b[20] & 0x10) != 0;
-        if (ascii(b, 12, "VP8L")) return (b[24] & 0x10) != 0;
-        return false;
+    private static Transparence transparenceWebp(byte[] b) {
+        if (b == null || b.length < 20) return Transparence.INVERIFIABLE;
+        int pos = 12;
+        while (pos + 8 <= b.length) {
+            long taille = le32(b, pos + 4);
+            int debut = pos + 8;
+            if (taille > b.length - debut) return Transparence.INVERIFIABLE;
+            int n = (int) taille;
+            if (ascii(b, pos, "ALPH")) return alphaWebpBrut(b, debut, n);
+            if (ascii(b, pos, "VP8L")) {
+                if (n < 5 || (b[debut] & 0xFF) != 0x2F) return Transparence.INVERIFIABLE;
+                return (b[debut + 4] & 0x10) != 0 ? Transparence.PRESENTE : Transparence.AUCUNE;
+            }
+            // Le bloc ALPH precede toujours le VP8 : l'atteindre sans lui = opaque.
+            if (ascii(b, pos, "VP8 ")) return Transparence.AUCUNE;
+            if (ascii(b, pos, "ANMF")) return Transparence.INVERIFIABLE;
+            pos = debut + n + (n & 1);
+        }
+        return Transparence.INVERIFIABLE;
     }
 
-    private static boolean alphaPng(byte[] bytes) {
+    /**
+     * Bloc {@code ALPH} : un octet d'en-tete (compression sur les bits 0-1,
+     * filtrage sur les bits 2-3), puis le plan alpha. Seul le plan brut non
+     * filtre se lit sans decodeur.
+     */
+    private static Transparence alphaWebpBrut(byte[] b, int debut, int taille) {
+        if (taille < 1) return Transparence.INVERIFIABLE;
+        int entete = b[debut] & 0xFF;
+        boolean brut = (entete & 0x03) == 0 && (entete & 0x0C) == 0;
+        if (!brut) return Transparence.PRESENTE;
+        if (taille == 1) return Transparence.INVERIFIABLE;
+        for (int i = debut + 1; i < debut + taille; i++) {
+            if ((b[i] & 0xFF) != 0xFF) return Transparence.PRESENTE;
+        }
+        return Transparence.AUCUNE;
+    }
+
+    private static Transparence transparencePng(byte[] bytes) {
+        Optional<Dimensions> d = lireDimensions(bytes, FormatImage.PNG);
+        if (d.isEmpty() || (long) d.get().largeur() * d.get().hauteur() > MAX_PIXELS_OPACITE) {
+            return Transparence.INVERIFIABLE;
+        }
         BufferedImage image;
         try {
             image = ImageIO.read(new MemoryCacheImageInputStream(new ByteArrayInputStream(bytes)));
         } catch (IOException | RuntimeException e) {
-            return false;
+            return Transparence.INVERIFIABLE;
         }
-        if (image == null || !image.getColorModel().hasAlpha()) return false;
+        if (image == null) return Transparence.INVERIFIABLE;
+        if (!image.getColorModel().hasAlpha()) return Transparence.AUCUNE;
         int largeur = image.getWidth();
         int[] ligne = new int[largeur];
         for (int y = 0; y < image.getHeight(); y++) {
             image.getRGB(0, y, largeur, 1, ligne, 0, largeur);
             for (int argb : ligne) {
-                if ((argb >>> 24) != 0xFF) return true;
+                if ((argb >>> 24) != 0xFF) return Transparence.PRESENTE;
             }
         }
-        return false;
+        return Transparence.AUCUNE;
     }
 
     private static boolean ascii(byte[] b, int offset, String attendu) {
@@ -204,6 +270,10 @@ public final class ImageUploadSupport {
 
     private static int le16(byte[] b, int i) {
         return (b[i] & 0xFF) | (b[i + 1] & 0xFF) << 8;
+    }
+
+    private static long le32(byte[] b, int i) {
+        return (b[i] & 0xFFL) | (b[i + 1] & 0xFFL) << 8 | (b[i + 2] & 0xFFL) << 16 | (b[i + 3] & 0xFFL) << 24;
     }
 
     private static int le24(byte[] b, int i) {

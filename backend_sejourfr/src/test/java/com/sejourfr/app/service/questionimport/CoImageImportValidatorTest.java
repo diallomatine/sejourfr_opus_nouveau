@@ -204,7 +204,12 @@ class CoImageImportValidatorTest {
         assertThat(codesImage(ImagesDeTest.png(808, 600))).as("4:3 a 1 % pres").isEmpty();
         assertThat(codesImage(ImagesDeTest.pngRgba(800, 600, true))).containsExactly(IMAGE_TRANSPARENTE);
         assertThat(codesImage(ImagesDeTest.pngRgba(800, 600, false))).isEmpty();
+        assertThat(codesImage(ImagesDeTest.pngRgbaUnPixel(800, 600, 254))).containsExactly(IMAGE_TRANSPARENTE);
         assertThat(codesImage(ImagesDeTest.webpVp8x(1200, 900, true))).containsExactly(IMAGE_TRANSPARENTE);
+        assertThat(codesImage(ImagesDeTest.webpVp8xDrapeauSansAlph(1200, 900)))
+                .as("drapeau alpha sans donnee d'alpha : accepte").isEmpty();
+        assertThat(codesImage(java.util.Arrays.copyOf(ImagesDeTest.webpVp8x(1200, 900, true), 38)))
+                .as("opacite invérifiable").containsExactly(IMAGE_ILLISIBLE);
         byte[] tronque = java.util.Arrays.copyOf(ImagesDeTest.webpVp8x(1200, 900, false), 24);
         assertThat(codesImage(tronque)).containsExactly(IMAGE_ILLISIBLE);
     }

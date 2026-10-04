@@ -337,9 +337,16 @@ public class CoImageImportValidator {
             erreurs.add(err(IMAGE_RATIO, "image", "Ratio " + d.largeur() + "×" + d.hauteur()
                     + " hors charte (attendu " + charte.ratioLargeur() + ":" + charte.ratioHauteur() + ")."));
         }
-        if (charte.fondOpaque() && ImageUploadSupport.aDeLaTransparence(image.octets(), format)) {
-            erreurs.add(err(IMAGE_TRANSPARENTE, "image",
-                    "L'image contient de la transparence : la charte exige un fond blanc opaque."));
+        if (charte.fondOpaque()) {
+            switch (ImageUploadSupport.transparence(image.octets(), format)) {
+                case PRESENTE -> erreurs.add(err(IMAGE_TRANSPARENTE, "image",
+                        "Au moins un pixel de l'image est transparent : la charte exige un fond blanc"
+                                + " opaque (aplatir l'image sur du blanc avant export)."));
+                case INVERIFIABLE -> erreurs.add(err(IMAGE_ILLISIBLE, "image",
+                        "Opacité de l'image invérifiable (fichier corrompu, image animée ou de plus de "
+                                + ImageUploadSupport.MAX_PIXELS_OPACITE / 1_000_000 + " Mpx)."));
+                case AUCUNE -> { }
+            }
         }
         return d;
     }

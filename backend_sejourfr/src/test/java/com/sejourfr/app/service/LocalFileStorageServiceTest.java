@@ -74,6 +74,15 @@ class LocalFileStorageServiceTest {
     }
 
     @Test
+    void storeRejectsSvgByDefault() {
+        MockMultipartFile svg = new MockMultipartFile("file", "x.svg", "image/svg+xml",
+                "<svg xmlns=\"http://www.w3.org/2000/svg\"/>".getBytes());
+        assertThatThrownBy(() -> service.store(svg))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("non autorise");
+    }
+
+    @Test
     void storeRejectsNullContentType() {
         MockMultipartFile noType = new MockMultipartFile("file", "x.png", null, new byte[]{1});
         assertThatThrownBy(() -> service.store(noType))
