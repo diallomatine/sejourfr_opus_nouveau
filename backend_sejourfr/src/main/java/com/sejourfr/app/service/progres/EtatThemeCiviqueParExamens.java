@@ -73,17 +73,33 @@ public class EtatThemeCiviqueParExamens {
     }
 
     /**
+     * Une mesure de thème par examen blanc : son état, et l'examen qui l'a
+     * donnée (un examen de thème, ou l'examen global dont la part fait foi).
+     */
+    public record Mesure(CivicThemeState etat, UUID examenId) {}
+
+    /**
      * Les thèmes mesurés par un examen blanc, avec leur état. Un thème absent
      * de la carte n'a été mesuré par <b>aucun</b> examen — inconnu, jamais
      * faible.
+     */
+    public Map<UUID, CivicThemeState> etats(UUID userId, List<UUID> themeIds) {
+        Map<UUID, CivicThemeState> out = new LinkedHashMap<>();
+        mesures(userId, themeIds).forEach((themeId, mesure) -> out.put(themeId, mesure.etat()));
+        return out;
+    }
+
+    /**
+     * Les mêmes mesures, avec l'examen qui a donné chacune — ce que le cycle
+     * civique suivant journalise comme source de ses priorités (2026-10-05).
      *
      * <p>Coût constant : une requête pour les examens de thème, une pour les
      * examens globaux, et une pour leurs parts seulement si un thème en a
      * besoin.
      */
-    public Map<UUID, CivicThemeState> etats(UUID userId, List<UUID> themeIds) {
+    public Map<UUID, Mesure> mesures(UUID userId, List<UUID> themeIds) {
         if (themeIds == null || themeIds.isEmpty()) return Map.of();
-        Map<UUID, CivicThemeState> out = new LinkedHashMap<>();
+        Map<UUID, Mesure> out = new LinkedHashMap<>();
 
         // Du plus récent au plus ancien : le premier examen rencontré d'un
         // thème est son dernier.
@@ -93,7 +109,7 @@ public class EtatThemeCiviqueParExamens {
             UUID themeId = examen.getLotThemeId();
             if (out.containsKey(themeId)) continue;
             CivicThemeState etat = etatDExamen(examen, CivicExamFormat.QUESTIONS_THEME);
-            if (etat != null) out.put(themeId, etat);
+            if (etat != null) out.put(themeId, new Mesure(etat, examen.getId()));
         }
         if (out.size() == themeIds.size()) return out;
 
@@ -112,7 +128,8 @@ public class EtatThemeCiviqueParExamens {
                 // Un thème non posé par cet examen n'y a pas été mesuré : on
                 // remonte au précédent, on ne lit jamais « 0 / 0 » comme raté.
                 if (part == null || part.posees() <= 0) continue;
-                out.put(themeId, civicThemeResolver.etat(part.bonnes(), part.posees()));
+                out.put(themeId, new Mesure(
+                        civicThemeResolver.etat(part.bonnes(), part.posees()), global.getId()));
                 break;
             }
         }

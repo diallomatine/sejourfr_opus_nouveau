@@ -52,7 +52,9 @@ import java.util.stream.Collectors;
  *       d'entrainement ouvertes du cycle en attente ;</li>
  *   <li><b>civique</b> : il n'y a pas de cycle en attente (D-36, les priorites
  *       sont derivees) ; l'amorce du cycle suivant lit l'ordre du plan derive
- *       et retient au plus trois unites officielles par thematique
+ *       ({@code CivicPlanService.ordrePourLeCycleSuivant} : le diagnostic, sinon
+ *       les examens blancs, A177) et retient au plus trois unites officielles
+ *       par thematique
  *       ({@link #unitesRetenues}, <b>la meme fonction</b> que l'amorce). Le
  *       nombre servi est donc celui que l'actualisation poserait maintenant.</li>
  * </ul>
@@ -78,7 +80,7 @@ public class JourneyCycleSuivant {
     public int prioritesIdentifiees(Journey courant) {
         UUID userId = courant.getUser().getId();
         if (courant.getModule() == Module.CIVIQUE) {
-            return unitesRetenues(civicPlanService.ordrePourLeCycle(userId)).stream()
+            return unitesRetenues(civicPlanService.ordrePourLeCycleSuivant(userId)).stream()
                     .mapToInt(retenue -> retenue.unites().size())
                     .sum();
         }

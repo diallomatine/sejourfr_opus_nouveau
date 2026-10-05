@@ -604,13 +604,12 @@ public class JourneyService {
      * ({@code CivicPlanService.ordrePourLeCycle}, D-36). Le cycle projette cet
      * ordre sur les <b>unites officielles</b> (D-48) et s'arrete la.
      *
-     * <p>⚠️ <b>Le 3e cas de la spec n'est pas servi, et c'est remonte</b> :
-     * « examen de theme passe sans diagnostic ⇒ ce theme peuple ». Il est
-     * <b>inatteignable</b> aujourd'hui, parce que {@code CivicPlanService} ne
-     * construit aucun plan sans diagnostic termine : sans plan, il n'existe
-     * aucune cible a poser, donc rien avec quoi « peupler ». Ce cas retombe
-     * volontairement sur « les cinq a evaluer » — et R1 fermera l'etape du
-     * theme deja passe quand son examen sera journalise.
+     * <p>⚠️ <b>Le 3e cas de la spec</b> — « examen de theme passe sans
+     * diagnostic ⇒ ce theme peuple » — est servi au <b>cycle suivant</b>
+     * depuis le 2026-10-05 ({@link #amorcerCycleCivique},
+     * {@code CivicPlanService.ordrePourLeCycleSuivant}, A177). Le PREMIER cycle
+     * reste un cycle d'examens (D-69 ter) : un examen passe avant lui ne le
+     * peuple pas.
      */
     /**
      * L'amorce civique, <b>reutilisable</b> : {@code JourneyCycleService} s'en
@@ -618,7 +617,11 @@ public class JourneyService {
      * de cycle en attente civique (les priorites sont derivees, D-36).
      */
     void amorcerCycleCivique(Journey journey, User user) {
-        amorcerCivique(journey, user);
+        // 🛑 L'ordre du CYCLE SUIVANT (2026-10-05) : sans diagnostic, les
+        // examens blancs du cycle precedent fournissent les priorites des
+        // themes sous le seuil solide. L'amorce d'un PREMIER cycle, elle, reste
+        // `amorcerCivique` (D-69 ter : un cycle d'examens).
+        peuplerLeCycleCivique(journey, civicPlanService.ordrePourLeCycleSuivant(user.getId()));
     }
 
     private void amorcerCivique(Journey journey, User user) {
@@ -690,7 +693,8 @@ public class JourneyService {
             lot.setJourney(journey);
             lot.poserBloc(thematique);
             lot.setStatus(JourneyLotStatus.OPEN);
-            lot.setSourceAssessmentId(ordre.sourceAssessmentId());
+            UUID source = ordre.sourcePour(thematique.getId());
+            lot.setSourceAssessmentId(source);
             JourneyLot enregistre = lotManager.save(lot);
 
             int rang = 1;
@@ -702,7 +706,7 @@ public class JourneyService {
                 step.poserBloc(thematique);
                 step.poserUnite(unite);
                 step.setSeverityRank(rang++);
-                step.setSourceAssessmentId(ordre.sourceAssessmentId());
+                step.setSourceAssessmentId(source);
                 ajouter(journey, step);
             }
 
@@ -725,7 +729,7 @@ public class JourneyService {
             checkpoint.setType(JourneyStepType.SECTION_EXAM);
             checkpoint.setPurpose(JourneyStepPurpose.REASSESS);
             checkpoint.poserBloc(thematique);
-            checkpoint.setSourceAssessmentId(ordre.sourceAssessmentId());
+            checkpoint.setSourceAssessmentId(source);
             ajouter(journey, checkpoint);
         }
     }

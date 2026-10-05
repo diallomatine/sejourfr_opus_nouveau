@@ -52,6 +52,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.function.Function;
+import java.util.function.Predicate;
 
 /**
  * <b>Le plan civique</b> (L10, {@code 20_} §5 et §6) : ce qu'il reste a
@@ -174,6 +176,70 @@ public class CivicPlanService {
     }
 
     /**
+     * <b>L'ordre du CYCLE SUIVANT</b> — ce que « Actualiser mon plan » pose, et
+     * ce que le nombre servi sous ce bouton annonce (D-67, 2026-10-05).
+     *
+     * <h3>🛑 Le défaut qu'il ferme, mesuré en base</h3>
+     * <p>Un compte sans diagnostic civique passe le cycle d'examens (D-69 ter :
+     * un examen blanc par thème, 4/20, 5/20, 10/20…), actualise, et reçoit un
+     * cycle de… cinq examens blancs. {@link #ordrePourLeCycle} ne bâtit rien
+     * sans diagnostic terminé (le « 3e cas » d'A65, resté inatteignable) : les
+     * examens du cycle d'examens n'avaient donc <b>aucun</b> effet sur le cycle
+     * suivant. Or le diagnostic n'est plus proposé (D-69) : le cycle d'examens
+     * EST la mesure.
+     *
+     * <h3>La règle</h3>
+     * <ul>
+     *   <li><b>diagnostic civique terminé</b> ⇒ inchangé :
+     *       {@link #ordrePourLeCycle} ;</li>
+     *   <li><b>sinon</b>, les thèmes <b>mesurés par un examen blanc</b> sous le
+     *       seuil solide (FAIBLE, À RENFORCER) sont classés par le <b>même</b>
+     *       moteur que le plan dérivé (Leitner sur toutes les réponses, examens
+     *       compris ; état du thème = celui de son dernier examen,
+     *       {@link EtatThemeCiviqueParExamens}) ;</li>
+     *   <li>un thème <b>SOLIDE</b> à son examen (objectif atteint) ou <b>jamais
+     *       mesuré</b> ne reçoit aucune priorité : il garde son examen blanc —
+     *       le pendant civique de D-70 (« objectif atteint ou niveau inconnu ⇒
+     *       un examen blanc »). 🛑 {@code null} = inconnu, jamais faible.</li>
+     * </ul>
+     * <p>Chaque thème retenu est journalisé avec <b>l'examen qui l'a mesuré</b>
+     * ({@link OrdreDuPlan#sourcePour}).
+     *
+     * <p>⚠️ <b>Seule l'actualisation le lit</b> : le premier cycle (D-69 ter)
+     * reste un cycle d'examens — un examen passé avant lui ne le peuple pas.
+     */
+    @Transactional(readOnly = true)
+    public OrdreDuPlan ordrePourLeCycleSuivant(UUID userId) {
+        Optional<CivicDiagnosticResultDto> diagnostic = dernierDiagnostic(userId);
+        if (diagnostic.isPresent()) return ordre(calculer(userId, diagnostic));
+
+        List<Theme> themes = themeManager.findByModuleOrderedByDisplayOrder(Module.CIVIQUE);
+        Map<UUID, EtatThemeCiviqueParExamens.Mesure> mesures = etatThemeParExamens.mesures(
+                userId, themes.stream().map(Theme::getId).toList());
+        List<Theme> aTravailler = themes.stream()
+                .filter(theme -> aTravaillerApresExamen(mesures.get(theme.getId())))
+                .toList();
+        if (aTravailler.isEmpty()) return OrdreDuPlan.VIDE;
+
+        Classement classement = classer(userId, aTravailler,
+                theme -> mesures.get(theme.getId()).etat(),
+                // Au grain theme, « pointe » est un signal du DIAGNOSTIC ; ici
+                // c'est l'etat du theme (FAIBLE / A RENFORCER) qui le porte.
+                theme -> false,
+                Instant.now());
+        Map<UUID, UUID> sources = new LinkedHashMap<>();
+        aTravailler.forEach(theme -> sources.put(theme.getId(), mesures.get(theme.getId()).examenId()));
+        return new OrdreDuPlan(null, proposables(classement.cibles()), Map.copyOf(sources));
+    }
+
+    /** Un thème mesuré par examen sous le seuil solide : il a des points à travailler. */
+    private static boolean aTravaillerApresExamen(EtatThemeCiviqueParExamens.Mesure mesure) {
+        return mesure != null
+                && (mesure.etat() == CivicThemeState.FAIBLE
+                        || mesure.etat() == CivicThemeState.A_RENFORCER);
+    }
+
+    /**
      * <b>Le meme ordre, mais celui du diagnostic NOMME</b> — ce que le cycle
      * lit quand une evaluation {@code CIVIC_DIAGNOSTIC} vient de se terminer.
      *
@@ -234,11 +300,27 @@ public class CivicPlanService {
      *                           le lot du cycle journalise comme sa source.
      * @param cibles             dans l'ordre du plan, sans plafond.
      */
-    public record OrdreDuPlan(UUID sourceAssessmentId, List<CivicPlanDto.Cible> cibles) {
+    public record OrdreDuPlan(
+            UUID sourceAssessmentId,
+            List<CivicPlanDto.Cible> cibles,
+            Map<UUID, UUID> sourceParTheme) {
         static final OrdreDuPlan VIDE = new OrdreDuPlan(null, List.of());
+
+        /** L'ordre d'UN diagnostic : une seule source pour tous les thèmes. */
+        public OrdreDuPlan(UUID sourceAssessmentId, List<CivicPlanDto.Cible> cibles) {
+            this(sourceAssessmentId, cibles, Map.of());
+        }
 
         public boolean estVide() {
             return cibles.isEmpty();
+        }
+
+        /**
+         * L'évaluation qui a produit les priorités de ce thème : l'examen qui
+         * l'a mesuré (cycle suivant sans diagnostic), sinon le diagnostic.
+         */
+        public UUID sourcePour(UUID themeId) {
+            return sourceParTheme.getOrDefault(themeId, sourceAssessmentId);
         }
     }
 
@@ -273,9 +355,35 @@ public class CivicPlanService {
             return Calcul.indisponible(mention, maintenant);
         }
         CivicDiagnosticResultDto resultat = diagnostic.get();
-
-        Map<UUID, long[]> taggage = planManager.taggageParTheme();
         List<Theme> themes = themeManager.findByModuleOrderedByDisplayOrder(Module.CIVIQUE);
+        Classement classement = classer(userId, themes,
+                theme -> etatDuTheme(resultat, theme.getId()),
+                theme -> resultat.priorites().stream()
+                        .anyMatch(p -> p.themeId().equals(theme.getId())),
+                maintenant);
+        return new Calcul(true, mention, resultat, classement.cibles(), List.copyOf(themes),
+                classement.reponsesParCible(), classement.taggage(), maintenant);
+    }
+
+    /** Les cibles classées, leurs réponses, et le tagging qui a décidé du grain. */
+    private record Classement(
+            List<CivicPlanDto.Cible> cibles,
+            Map<UUID, List<CivicReponse>> reponsesParCible,
+            Map<UUID, long[]> taggage) {}
+
+    /**
+     * <b>LE classement des cibles</b> — une seule version, deux mesures possibles
+     * de l'état d'un thème : le diagnostic ({@link #calculer}) ou le dernier
+     * examen blanc ({@link #ordrePourLeCycleSuivant}). Une seconde copie « pour
+     * les examens » aurait fini par classer autrement (D-36).
+     */
+    private Classement classer(
+            UUID userId,
+            List<Theme> themes,
+            Function<Theme, CivicThemeState> etatDe,
+            Predicate<Theme> pointe,
+            Instant maintenant) {
+        Map<UUID, long[]> taggage = planManager.taggageParTheme();
         List<CivicReponse> reponses = planManager.reponses(userId);
         boolean abonne = subscriptionService.hasCivique(userId);
         // 🛑 Charges UNE fois, pas une fois par theme. Ce sont des lectures de
@@ -295,9 +403,8 @@ public class CivicPlanService {
         // memes reponses, plutot que de persister un snapshot.
         Map<UUID, List<CivicReponse>> reponsesParCible = new HashMap<>();
         for (Theme theme : themes) {
-            CivicThemeState etatDuTheme = etatDuTheme(resultat, theme.getId());
-            boolean pointeParLeDiagnostic = resultat.priorites().stream()
-                    .anyMatch(p -> p.themeId().equals(theme.getId()));
+            CivicThemeState etatDuTheme = etatDe.apply(theme);
+            boolean pointeParLeDiagnostic = pointe.test(theme);
 
             if (grainDuTheme(taggage.get(theme.getId())) == CivicPlanGrain.NOTION) {
                 List<CivicPlanDto.Cible> duTheme = ciblesNotions(theme, etatDuTheme,
@@ -322,8 +429,7 @@ public class CivicPlanService {
         // rate passe devant ce qui n'a jamais ete touche.
         cibles.sort(ORDRE_DU_PLAN);
 
-        return new Calcul(true, mention, resultat, List.copyOf(cibles), List.copyOf(themes),
-                reponsesParCible, taggage, maintenant);
+        return new Classement(List.copyOf(cibles), reponsesParCible, taggage);
     }
 
     /**

@@ -2589,7 +2589,13 @@ plafond d'écran recyclé (invariant racine) : le Plan et « Débloquer mon plan
 tout.
 - TCF : un lot par épreuve et par évaluation, ≤ 3 (`JourneyLotBuilder`), un seul lot ouvert par
   épreuve dans le cycle en attente (index unique) ⇒ ≤ 3 par épreuve **par construction**.
-- Civique : `JourneyCycleSuivant.unitesRetenues`, la fonction de l'amorce.
+- Civique : `JourneyCycleSuivant.unitesRetenues`, la fonction de l'amorce, sur
+  `CivicPlanService.ordrePourLeCycleSuivant` (2026-10-05, A177) : le diagnostic civique s'il
+  existe, **sinon les examens blancs** — chaque thème mesuré par examen sous le seuil solide
+  (`FAIBLE` / `À_RENFORCER`) reçoit ≤ 3 unités, points ratés d'abord ; un thème solide ou jamais
+  mesuré garde son seul examen blanc (pendant civique de D-70). Avant, sans diagnostic, le cycle
+  suivant d'un cycle d'examens n'était fait **que** d'examens. Verrouillé par
+  `ActualisationCiviqueApresExamensIT`.
 - Servi : `cycle.prioritesCycleSuivant` (`JourneyCycleSuivant.prioritesIdentifiees`) — TCF : les
   étapes d'entraînement ouvertes du cycle en attente ; civique : ce que l'actualisation poserait
   maintenant. `null` en consultation d'un cycle clos.
@@ -2643,7 +2649,8 @@ exclues) reçoit, dans l'ordre du TCF :
 - Conséquence assumée : le cycle « vide » promu (`UP_TO_DATE`) n'existe plus en TCF au rang ≥ 2 ;
   un cycle en cours dont des blocs étaient vides **s'allonge** à la lecture suivante (barre
   « N étapes sur M »).
-- Civique : **non concerné** (blocs par thématique, amorce civique distincte).
+- Civique : **non concerné** (blocs par thématique, amorce civique distincte) — sa règle
+  équivalente vit dans l'amorce du cycle suivant (A177, § « Le budget du cycle suivant »).
 
 ### Le quota d'une étape de compréhension (D-16, révoque D-5 sur ce point)
 

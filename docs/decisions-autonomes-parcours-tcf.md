@@ -3173,3 +3173,42 @@ s'affiche sur son parcours. Côté TCF, les deux états de porte sont **supprim�
 état jamais servi ne se garde pas « au cas où ») ; les clients installés reçoivent `ACTIVE`, qu'ils
 connaissent. `planDisponible` reste servi (toujours vrai) : c'est lui que les clients installés
 lisent pour ouvrir le Plan.
+
+# 2026-10-05 — Le cycle civique suivant se nourrit des examens blancs (A177)
+
+### A177 — Sans diagnostic, les examens blancs du cycle précédent désignent les unités à travailler
+
+**Le constat (base locale, compte gratuit, mobile).** Cycle d'examens civique (D-69 ter) passé
+en entier — 19, 4, 5, 10 et 17 sur 20 —, « Actualiser mon plan », et le cycle suivant ne portait
+que **cinq examens blancs**. Cause : `CivicPlanService.ordrePourLeCycle` ne bâtit rien sans
+**diagnostic civique terminé** (le « 3ᵉ cas » d'A65, resté inatteignable), et le diagnostic n'est
+plus proposé depuis D-69 — pour la quasi-totalité des comptes, les examens n'avaient donc
+**aucun** effet sur la suite. Le contenu n'y était pour rien : 97,6 à 100 % des questions de
+connaissance sont taguées par thème, et 46 notions sur 60 portent une unité officielle.
+
+**La décision.** `CivicPlanService.ordrePourLeCycleSuivant`, lu par l'actualisation
+(`JourneyService.amorcerCycleCivique`) **et** par le nombre servi sous le bouton
+(`JourneyCycleSuivant.prioritesIdentifiees`, D-67) :
+- diagnostic civique terminé ⇒ **inchangé** (`ordrePourLeCycle`) ;
+- sinon, les thèmes **mesurés par un examen blanc** (`EtatThemeCiviqueParExamens`, la même
+  autorité que l'Accueil) et **sous le seuil solide** (`FAIBLE`, `À_RENFORCER`) sont classés par
+  **le même** moteur que le plan dérivé (`CivicPlanService.classer`, extrait de `calculer` — une
+  seule version du classement), l'état du thème étant celui de son dernier examen ; ≤ 3 unités
+  par thème (D-67), les points ratés d'abord ;
+- un thème **solide** à son examen (objectif atteint) ou **jamais mesuré** n'en reçoit aucune :
+  il garde son examen blanc — le pendant civique de D-70. `null` = inconnu, jamais faible.
+- Le lot et ses étapes journalisent **l'examen qui a mesuré le thème** (`OrdreDuPlan.sourcePour`).
+
+**Ce qui ne bouge pas.** Le premier cycle reste un cycle d'examens (D-69 ter : un examen passé
+avant lui ne le peuple pas — l'amorce de création lit toujours `ordrePourLeCycle`).
+`CivicPlanDto.disponible` garde son sens (A176) : l'écran du plan dérivé n'est pas touché.
+Verrouillé par `ActualisationCiviqueApresExamensIT`.
+
+**Si l'arbitrage était autre** (« tous les thèmes reçoivent des unités, même réussis ») : retirer
+le filtre `aTravaillerApresExamen` — le classement mettrait alors des notions jamais vues dans
+les thèmes réussis.
+
+**Comptes existants.** Rien n'est réécrit : un cycle civique déjà promu « cinq examens » le
+reste. Il suffit, à la fin de ce cycle (ou via un nouvel examen puis « Actualiser »), de
+réactualiser ; en local, le cycle `b7be9c00` de `lamine17@gmail.com` peut aussi être historisé à
+la main pour rejouer l'actualisation.
