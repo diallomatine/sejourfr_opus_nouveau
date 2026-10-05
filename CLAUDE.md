@@ -174,7 +174,9 @@ Ce qui suit est résident parce que ça se viole depuis une tâche qui n'en avai
   condition. Le cliquer archive le cycle `INTERROMPU` (V078). → `docs/regles/plan.md`
 - **Le cycle suivant retient ≤ 3 priorités par épreuve / thème** (D-67) : budget de
   COMPOSITION documenté, pas un plafond d'écran — le calcul reste complet ; le nombre
-  retenu est servi (`cycle.prioritesCycleSuivant`).
+  retenu est servi (`cycle.prioritesCycleSuivant`). 🛑 **En CO/CE, un seul palier par cycle**
+  (D-72, 2026-10-05) : le plus bas encore à acquérir sur l'épreuve, puis son examen blanc ;
+  niveau inconnu ⇒ examen seul. Autorité : `JourneyPalierDuCycle` / `TcfDomaine.palierAAcquerir`.
 - 🛑 **`NON FRAGILE` ≠ `PLUS RIEN À APPRENDRE`**, et **le palier se lit sur le DOMAINE**, pas
   sur le plancher global. Une épreuve sans fragilité mais sous l'objectif a un palier entier à
   acquérir. Un domaine plus avancé que les autres ne **redescend** pas (règle conservée) et ne
