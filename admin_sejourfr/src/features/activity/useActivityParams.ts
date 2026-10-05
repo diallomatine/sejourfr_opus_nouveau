@@ -3,7 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { readPeriod, writePeriod, type PeriodId, type PeriodPatch } from "../../lib/period";
 import type { ActivityQuery } from "../../types/api";
 
-export const ACTIVITY_PERIODS: readonly PeriodId[] = ["today", "yesterday", "7d", "30d", "custom"];
+export const ACTIVITY_PERIODS: readonly PeriodId[] = ["today", "yesterday", "7d", "30d", "month", "custom"];
 
 export interface ActivityPatch extends PeriodPatch {
   includeInternal?: boolean;
@@ -18,9 +18,9 @@ export function useActivityParams() {
   const [params, setParams] = useSearchParams();
 
   const state = useMemo(() => {
-    const { period, from, to, range } = readPeriod(params, ACTIVITY_PERIODS);
+    const { period, from, to, month, range } = readPeriod(params, ACTIVITY_PERIODS);
     const query: ActivityQuery = { range, includeInternal: params.get("internal") === "1" };
-    return { period, from, to, query };
+    return { period, from, to, month, query };
   }, [params]);
 
   const update = useCallback(

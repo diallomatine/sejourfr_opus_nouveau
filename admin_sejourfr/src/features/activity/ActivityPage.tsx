@@ -16,7 +16,7 @@ import styles from "./activity.module.css";
  * aucun nom ni email. Les bornes affichées sont celles SERVIES.
  */
 export function ActivityPage() {
-  const { period, from, to, query, update } = useActivityParams();
+  const { period, from, to, month, query, update } = useActivityParams();
   const { data, error, isPending, isPlaceholderData } = useActivity(query);
 
   return (
@@ -39,6 +39,7 @@ export function ActivityPage() {
             period={period}
             from={from}
             to={to}
+            month={month}
             servedFrom={data?.window.from ?? null}
             servedTo={data?.window.to ?? null}
             onChange={update}

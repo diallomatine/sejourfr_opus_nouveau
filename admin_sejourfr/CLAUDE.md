@@ -369,7 +369,7 @@ seule, agrégats seulement (aucun nom ni email, CNIL). Plan :
 `docs/admin/activites/plan-technique-activite.md` § 5 ; décisions :
 `docs/admin/activites/decisions-implementation.md` § « Admin ».
 
-- **Blocs** : filtres (période Aujourd'hui / Hier / 7 j / 30 j / Personnalisé +
+- **Blocs** : filtres (période Aujourd'hui / Hier / 7 j / 30 j / Mois (sélecteur de mois) / Personnalisé +
   « Inclure internes ») → direct « En ligne maintenant » → 2 KPI (actifs uniques ;
   comptes connectés + « N connexions · dont M inscriptions ») → répartition par
   plateforme (+ connexions par méthode) → évolution journalière (masquée sur un seul
@@ -377,7 +377,7 @@ seule, agrégats seulement (aucun nom ni email, CNIL). Plan :
 - **Deux appels** : `useActivity` (`["adminActivity", query]`) pour la période,
   `useActivityLive` (`["adminActivityLive", includeInternal]`, `refetchInterval`
   30 s, pas de relecture onglet caché). **État dans l'URL** (`useActivityParams` :
-  `?period&from&to&internal`, mêmes clés que Suivi, `month` non offert ⇒ ignoré).
+  `?period&from&to&month&internal`, mêmes clés que Suivi, « Mois » compris).
 - 🛑 **Tout est servi** : libellés de plateforme et de méthode, `displayed` (« Non
   déclarée » seulement avec internes), lignes « Total », « Autres écrans suivis »,
   « Écrans non déclarés », tendances. Le front n'additionne **aucun unique** et ne
