@@ -3609,3 +3609,74 @@ sujets »). **Seul le chiffre change** : A151, D-5 et D-16 restent vrais avec «
 **Si l'arbitrage changeait** : modifier `PROMPTS_PAR_ETAPE` et le test qui le verrouille ;
 rien à migrer, les fronts suivent le nombre servi. Le filet de lecture peut rester : il ne
 clôt que des étapes déjà au quota.
+
+
+## D-72 — En CO et en CE, un cycle ne travaille qu'UN palier : le plus bas à acquérir (2026-10-05)
+
+**Décision du propriétaire (2026-10-05, confirmée).** Pour les épreuves TCF **CO et CE
+seulement** (ni EE/EO, ni civique), chaque **nouveau** cycle — celui que compose « Actualiser
+mon plan » — ne travaille **qu'un seul palier CECRL** : le **plus bas pas encore acquis** dans
+l'épreuve, suivi de l'examen blanc de l'épreuve.
+
+**Motif du propriétaire.** Une série ou un examen de compréhension dure environ 20 minutes :
+travailler A2 + B1 + B2 dans le même cycle le rend trop long.
+
+**Exemples (objectif B2).**
+
+| Niveau mesuré | Cycle suivant (avant) | Cycle suivant (D-72) |
+|---|---|---|
+| A1 | A2 + B1 + B2 + examen | **A2** + examen |
+| A2 | B1 + B2 + examen | **B1** + examen |
+| B1 | B2 + examen | B2 + examen (inchangé) |
+| B2 atteint | examen blanc seul (entretien) | inchangé |
+
+**Précisions confirmées.**
+1. **Niveau inconnu** (épreuve jamais évaluée, `null`) ⇒ comportement d'avant : l'examen blanc
+   seul. `null` = inconnu, jamais le plus bas.
+2. **Examen raté** (cycle d'A2 travaillé, l'examen redonne A1) ⇒ le cycle suivant retravaille
+   l'A2 : le palier se **recalcule** sur le niveau mesuré à chaque composition.
+3. **Le budget D-67 (≤ 3 priorités par épreuve) tient À L'INTÉRIEUR du palier.** D-72 borne
+   les **paliers**, pas ce budget ; le moteur calcule toujours toutes les priorités vraies
+   (Plan, « Débloquer mon plan » inchangés) — c'est une règle de **composition du cycle**, pas
+   un plafond d'affichage.
+
+**Ce que la décision RÉVISE.**
+- **D-70** (2026-10-03), sur un point : un bloc CO/CE vide mesuré sous l'objectif recevait
+  « la compétence de compréhension de **chaque** palier strictement au-dessus du niveau et
+  jusqu'à l'objectif (A1 → A2, B1, B2) ». Il reçoit désormais **le seul plus bas** de ces
+  paliers. Le reste de D-70 tient (aucun bloc vide, examen seul si niveau inconnu, objectif
+  atteint ou expression ; lecture qui répare ; rang ≥ 2).
+- **R2 / D-67** pour le CO et le CE : le lot d'une évaluation retenait les 3 fragilités les plus
+  graves **tous paliers confondus** (constat de prod D-70 : CE-A2, CE-B1, CE-B2). Il ne retient
+  plus que celles **du palier du cycle**, filtrées **avant** la coupe à 3. Une épreuve dont
+  l'examen ne désigne aucune fragilité à ce palier n'a pas de lot : D-70 complète le bloc.
+- **D-67, le nombre servi** : `cycle.prioritesCycleSuivant` ne comptait que les entraînements
+  ouverts du cycle en attente — le complément D-70 posé à l'actualisation n'y était pas (un
+  cycle d'examens fini à A1 en CO annonçait N et en posait N + 3). Il compte maintenant
+  **exactement** ce que l'actualisation pose (A179).
+
+**Où la règle vit.**
+- Le palier : `TcfDomaine.palierAAcquerir` (la table, désormais lue aussi par
+  `PlanDomainTargetLevelResolver.suivant` — une seule copie) et
+  `JourneyLotBuilder.palierDuCycle` (CO/CE seulement, niveau du **domaine**, lecture Plan D-2).
+- La composition : `JourneyLotBuilder` (lot d'une évaluation, `versLObjectif` de D-70),
+  `JourneyService.retenirLePalierDuCycle` (relecture à l'actualisation),
+  `JourneyPalierDuCycle` (lecture partagée par l'actualisation, la réparation D-70 et le nombre
+  annoncé `JourneyCycleSuivant.prioritesIdentifiees`).
+
+**Ce qui ne change pas.** EE/EO ; le civique (A177) ; le premier cycle (cycle d'examens D-69,
+sans compétence) ; le freemium (A178 : les étapes du cycle suivant restent servies `locked` sans
+accès au module, aucune règle d'accès ne lit le palier) ; aucun DTO, aucun front.
+
+**Cycles existants.** Rien n'est réécrit : un cycle **en cours** composé avant la règle garde
+ses étapes. Le cycle **en attente** est relu à la prochaine « Actualiser mon plan » (les étapes
+hors palier y sont écartées `SUPERSEDED`, jamais montrées).
+
+**Verrouillé par** `JourneyLotBuilderTest` (D-72 / D-70 : palier unique, budget dans le palier,
+niveau inconnu, objectif atteint, expression) et `ActualisationApresExamensIT` (A1 ⇒ A2,
+A2 ⇒ B1, B1 ⇒ B2, `null` ⇒ examen seul, examen raté ⇒ même palier, attente composée avant la
+règle, niveau monté depuis la mise en attente, EE inchangée, N annoncé = N posé).
+
+**Si l'arbitrage changeait** : faire rendre `null` à `JourneyLotBuilder.palierDuCycle` (ou
+retirer son filtre) suffit à revenir à « tous les paliers jusqu'à l'objectif » ; la relecture à
+l'actualisation devient alors sans effet.

@@ -87,8 +87,8 @@ public class JourneyCycleService {
      *
      * <p><b>Cas vide</b> : s'il n'y a rien en attente, un cycle neuf est
      * ouvert. 🛑 <b>D-70 (2026-10-03)</b> : aucun de ses blocs ne reste vide —
-     * une comprehension mesuree sous l'objectif recoit les paliers qui l'en
-     * separent, toute autre epreuve son examen blanc
+     * une comprehension mesuree sous l'objectif recoit son palier a acquerir
+     * (un seul depuis D-72), toute autre epreuve son examen blanc
      * ({@code JourneyService.completerLesBlocsVides}). Un bloc vide se lisait
      * « termine » sans qu'on y ait rien fait.
      */
@@ -106,6 +106,10 @@ public class JourneyCycleService {
         promu.setEntryLevel(sortie);
         promu.setTargetLevel(enCours.getTargetLevel());
         Journey suivant = journeyManager.saveEtFlush(promu);
+        // D-72 — en CO/CE, le cycle ne travaille qu'un palier, le plus bas a
+        // acquerir, relu maintenant : ce qui en sort est ecarte, et un bloc
+        // ainsi vide est recompose par D-70 juste en dessous.
+        journeyService.retenirLePalierDuCycle(suivant);
         // R12 — chaque bloc finit par son examen, y compris ceux qu'aucune
         // priorite n'a peuples. Le cycle promu ne portait jusqu'ici que des
         // lots : il lui manquait ses « Évaluer mon niveau ».

@@ -4,8 +4,13 @@ import com.sejourfr.app.dto.CivicPlanDto;
 import com.sejourfr.app.entity.CivicNotion;
 import com.sejourfr.app.entity.CivicOfficialUnit;
 import com.sejourfr.app.entity.Journey;
+import com.sejourfr.app.entity.JourneyStep;
 import com.sejourfr.app.entity.Theme;
+import com.sejourfr.app.dto.TcfDomainProfileDto;
+import com.sejourfr.app.enums.EpreuveType;
 import com.sejourfr.app.enums.JourneyStatus;
+import com.sejourfr.app.enums.JourneyStepResolution;
+import com.sejourfr.app.enums.JourneyStepType;
 import com.sejourfr.app.enums.Module;
 import com.sejourfr.app.manager.CivicNotionManager;
 import com.sejourfr.app.manager.JourneyManager;
@@ -69,6 +74,9 @@ public class JourneyCycleSuivant {
     private final CivicNotionManager notionManager;
     private final ThemeManager themeManager;
     private final TcfJourneyConfig config;
+    // 🛑 La MEME lecture que l'actualisation (D-72, D-70) : le nombre annonce est
+    // ce qui sera pose, ni plus ni moins.
+    private final JourneyPalierDuCycle palierDuCycle;
 
     /** Une thematique et les unites officielles que le cycle y retient, dans l'ordre. */
     public record ThematiqueRetenue(Theme thematique, List<CivicOfficialUnit> unites) {}
@@ -84,9 +92,59 @@ public class JourneyCycleSuivant {
                     .mapToInt(retenue -> retenue.unites().size())
                     .sum();
         }
-        return journeyManager.find(userId, courant.getModule(), JourneyStatus.EN_ATTENTE)
-                .map(attente -> stepManager.compterEntrainementsOuverts(attente.getId()))
-                .orElse(0);
+        return entrainementsTcf(courant);
+    }
+
+    /**
+     * <b>TCF — les etapes d'entrainement que l'actualisation POSERA</b>, epreuve
+     * par epreuve, avec les MEMES fonctions qu'elle :
+     * <ol>
+     *   <li>les entrainements ouverts du cycle en attente que le palier du cycle
+     *       garde (D-72 : tout hors CO/CE ; en CO/CE, le seul palier a acquerir —
+     *       {@code JourneyService.retenirLePalierDuCycle}) ;</li>
+     *   <li>s'il n'en reste aucun en CO/CE, le bloc sera vide et D-70 le
+     *       completera ({@code JourneyService.completerLesBlocsVides}) : on compte
+     *       ce complement.</li>
+     * </ol>
+     * Avant D-72, le complement D-70 n'etait pas compte : un cycle d'examens fini
+     * a A1 en CO annoncait N priorites et en posait N + 3.
+     */
+    private int entrainementsTcf(Journey courant) {
+        UUID userId = courant.getUser().getId();
+        List<JourneyStep> attente = journeyManager
+                .find(userId, courant.getModule(), JourneyStatus.EN_ATTENTE)
+                .map(cycle -> stepManager.findAll(cycle.getId()))
+                .orElse(List.of());
+        JourneyPalierDuCycle.Lecture lecture = palierDuCycle.lire(userId, courant.getTargetLevel());
+        int total = 0;
+        for (EpreuveType epreuve : TcfDomainProfileDto.ORDRE) {
+            long gardees = attente.stream()
+                    .filter(step -> step.getType() == JourneyStepType.TRAIN_SKILL)
+                    .filter(JourneyStep::estOuverte)
+                    .filter(step -> step.getExamType() == epreuve)
+                    .filter(lecture::garde)
+                    .count();
+            if (gardees > 0) {
+                total += (int) gardees;
+            } else if (lecture.palier(epreuve) != null
+                    && !porteUneEtapeGardee(attente, epreuve)) {
+                total += palierDuCycle.complement(lecture, epreuve).entrainements();
+            }
+        }
+        return total;
+    }
+
+    /**
+     * Le bloc garde-t-il une etape apres la relecture du palier ? Seules les
+     * etapes CLOSES (hors {@code SUPERSEDED}) d'un lot qui reste ouvert le
+     * peuvent encore — un cycle en attente n'en porte normalement aucune.
+     */
+    private static boolean porteUneEtapeGardee(
+            List<JourneyStep> attente, EpreuveType epreuve) {
+        return attente.stream()
+                .filter(step -> step.getExamType() == epreuve)
+                .filter(step -> step.getResolution() != JourneyStepResolution.SUPERSEDED)
+                .anyMatch(step -> !step.estOuverte());
     }
 
     /**

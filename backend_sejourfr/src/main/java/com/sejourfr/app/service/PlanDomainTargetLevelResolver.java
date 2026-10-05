@@ -6,6 +6,7 @@ import com.sejourfr.app.enums.PlanDomainPriority;
 import com.sejourfr.app.enums.SkillSection;
 import com.sejourfr.app.enums.TargetLevel;
 import com.sejourfr.app.progression.service.ProgressionPlanBridge;
+import com.sejourfr.app.util.TcfDomaine;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -61,10 +62,6 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class PlanDomainTargetLevelResolver {
 
-    /** Les paliers, du plus bas au plus haut : l'ordre <b>est</b> la regle. */
-    private static final List<TargetLevel> PALIERS =
-            List.of(TargetLevel.A2, TargetLevel.B1, TargetLevel.B2);
-
     private final ProgressionPlanBridge bridge;
 
     /**
@@ -113,13 +110,9 @@ public class PlanDomainTargetLevelResolver {
         if (objectif == null) return null;
         if (niveau == null) return TargetLevel.A2.ordinal() <= objectif.ordinal()
                 ? TargetLevel.A2 : objectif;
-        if (niveau.ordinal() >= niveau(objectif).ordinal()) return null;
-        for (TargetLevel palier : PALIERS) {
-            if (niveau(palier).ordinal() > niveau.ordinal()) {
-                return palier.ordinal() > objectif.ordinal() ? objectif : palier;
-            }
-        }
-        return null;
+        // 🛑 La table vit chez son autorite (D-72) : le palier unique d'un cycle
+        // de comprehension la lit aussi, et deux copies divergeraient.
+        return TcfDomaine.palierAAcquerir(niveau, objectif);
     }
 
     /**
@@ -158,10 +151,5 @@ public class PlanDomainTargetLevelResolver {
             if (palier != null) paliers.put(section, palier);
         }
         return paliers;
-    }
-
-    /** Le {@link NiveauCecrl} homonyme d'un palier — la table vit dans l'enum. */
-    private static NiveauCecrl niveau(TargetLevel palier) {
-        return NiveauCecrl.valueOf(palier.name());
     }
 }

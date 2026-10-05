@@ -17,18 +17,6 @@ import java.util.UUID;
 public interface JourneyStepRepository extends JpaRepository<JourneyStep, UUID> {
 
     /**
-     * Les etapes d'entrainement <b>encore ouvertes</b> d'un cycle — les
-     * priorites que le cycle en attente porte deja (D-67).
-     */
-    @Query("""
-            SELECT COUNT(s) FROM JourneyStep s
-            WHERE s.journey.id = :journeyId
-              AND s.type = com.sejourfr.app.enums.JourneyStepType.TRAIN_SKILL
-              AND s.closedAt IS NULL
-            """)
-    long countEntrainementsOuverts(@Param("journeyId") UUID journeyId);
-
-    /**
      * <b>Toutes</b> les etapes du parcours, dans l'ordre de la file, competence
      * chargee.
      *

@@ -52,11 +52,6 @@ public class JourneyStepManager {
         return repository.findOuvertesByLot(lotId);
     }
 
-    /** Les etapes d'entrainement encore ouvertes d'un cycle. Une requete (D-67). */
-    public int compterEntrainementsOuverts(UUID journeyId) {
-        return (int) repository.countEntrainementsOuverts(journeyId);
-    }
-
     /**
      * Les etapes d'entrainement qu'<b>une evaluation</b> a versees au parcours
      * TCF de ce candidat, tous cycles confondus — le plus recent d'abord, puis

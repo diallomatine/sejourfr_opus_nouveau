@@ -24,7 +24,6 @@ import com.sejourfr.app.enums.JourneyStepType;
 import com.sejourfr.app.enums.LearningPlanSkillStatus;
 import com.sejourfr.app.enums.LearningPlanSourceType;
 import com.sejourfr.app.enums.Module;
-import com.sejourfr.app.enums.NiveauCecrl;
 import com.sejourfr.app.enums.TargetLevel;
 import com.sejourfr.app.enums.TargetProcedure;
 import com.sejourfr.app.entity.Attempt;
@@ -35,12 +34,9 @@ import com.sejourfr.app.util.ApresCommit;
 import com.sejourfr.app.manager.JourneyManager;
 import com.sejourfr.app.manager.JourneyStepManager;
 import com.sejourfr.app.manager.LearningPlanObservationManager;
-import com.sejourfr.app.manager.SkillManager;
 import com.sejourfr.app.manager.UserManager;
 import com.sejourfr.app.service.NiveauActuelEpreuveResolver;
-import com.sejourfr.app.service.SkillMasteryEngine;
 import com.sejourfr.app.manager.ThemeManager;
-import com.sejourfr.app.service.SkillMasteryResolver;
 import com.sejourfr.app.service.TcfProfileService;
 import com.sejourfr.app.service.plancivique.CivicPlanService;
 import com.sejourfr.app.util.TcfDomaine;
@@ -133,10 +129,11 @@ public class JourneyService {
     // PROXY, sinon son `REQUIRES_NEW` (et le verrou pessimiste de R14) sauterait.
     private final ObjectProvider<JourneyService> self;
     private final LearningPlanObservationManager observationManager;
-    private final SkillMasteryResolver masteryResolver;
+    // 🛑 Le palier unique de la comprehension (D-72) et le complement d'un bloc
+    // vide (D-70) : la MEME lecture que le nombre annonce du cycle suivant.
+    private final JourneyPalierDuCycle palierDuCycle;
     private final TcfProfileService profileService;
     private final NiveauActuelEpreuveResolver mesureResolver;
-    private final SkillManager skillManager;
     private final UserManager userManager;
     // ⚠️ Cote civique : l'ordre des priorites est LU chez le plan derive (D-36),
     // les unites chez le referentiel (D-48), les thematiques chez `themes`.
@@ -1767,10 +1764,11 @@ public class JourneyService {
      * <p>Pour chaque epreuve sans AUCUNE etape (obsoletes exclues), dans
      * l'ordre du TCF :
      * <ol>
-     *   <li><b>comprehension mesuree sous l'objectif</b> : la competence de
-     *       chaque palier entre le niveau du domaine (lecture Plan, D-2) et
-     *       l'objectif ({@link JourneyLotBuilder#versLObjectif}), puis son
-     *       examen blanc (R3) ;</li>
+     *   <li><b>comprehension mesuree sous l'objectif</b> : la competence du
+     *       <b>seul</b> palier a acquerir au-dessus du niveau du domaine
+     *       (lecture Plan, D-2 ; un palier par cycle depuis D-72,
+     *       {@link JourneyLotBuilder#versLObjectif}), puis son examen blanc
+     *       (R3) ;</li>
      *   <li><b>sinon</b> — expression, objectif atteint, niveau inconnu — un
      *       <b>examen blanc</b> seul : {@code REASSESS} si l'epreuve est mesuree,
      *       {@code INITIAL_ASSESSMENT} sinon (R12).</li>
@@ -1801,25 +1799,18 @@ public class JourneyService {
         Set<EpreuveType> vides = blocsVides(stepManager.findAll(verrouille.getId()));
         if (vides.isEmpty()) return false;
 
-        TargetLevel cible = verrouille.getTargetLevel();
-        TcfLevelProfile profil = profileService.levelProfile(userId);
-        List<LearningPlanObservation> tout = observationManager.findAllByUserWithSkill(userId);
-        Set<UUID> maitrisees = maitriseesCeJour(tout, evaluationFilter.retenir(tout));
-        List<Skill> comprehension = skillManager.findActiveComprehension();
+        JourneyPalierDuCycle.Lecture lecture =
+                palierDuCycle.lire(userId, verrouille.getTargetLevel());
 
         List<JourneyLotBuilder.Lot> lots = new ArrayList<>();
         Map<EpreuveType, Boolean> examensSeuls = new LinkedHashMap<>();
         for (EpreuveType epreuve : TcfDomainProfileDto.ORDRE) {
             if (!vides.contains(epreuve)) continue;
-            NiveauActuelEpreuveResolver.Mesure mesure = mesureResolver.mesure(userId, epreuve);
-            JourneyLotBuilder.Lot lot = mesure.mesuree()
-                    ? lotBuilder.versLObjectif(epreuve, mesure.attemptId(),
-                            niveauDuDomaine(profil, epreuve), cible, comprehension, maitrisees)
-                    : null;
-            if (lot != null) lots.add(lot);
-            else examensSeuls.put(epreuve, mesure.mesuree());
+            JourneyPalierDuCycle.Complement complement = palierDuCycle.complement(lecture, epreuve);
+            if (complement.lot() != null) lots.add(complement.lot());
+            else examensSeuls.put(epreuve, complement.mesuree());
         }
-        creerLots(verrouille, lotBuilder.ordonner(lots, cible, profil));
+        creerLots(verrouille, lotBuilder.ordonner(lots, lecture.cible(), lecture.profil()));
         examensSeuls.forEach((epreuve, mesuree) -> {
             JourneyStep examen = new JourneyStep();
             examen.setJourney(verrouille);
@@ -1836,6 +1827,61 @@ public class JourneyService {
         return true;
     }
 
+    /**
+     * <b>D-72 — le cycle qu'on promeut ne travaille qu'UN palier en CO et en
+     * CE</b> : le plus bas a acquerir, <b>relu maintenant</b> sur le niveau du
+     * domaine (decision du proprietaire, 2026-10-05).
+     *
+     * <p>Le lot en attente a deja ete compose au palier du jour de son examen
+     * ({@link JourneyLotBuilder}) ; cette relecture couvre ce qui a bouge depuis
+     * — le niveau monte entre deux examens, ou un cycle en attente compose avant
+     * la regle. Dans un lot CO/CE ouvert du cycle promu :
+     * <ul>
+     *   <li>une etape d'entrainement hors du palier est ecartee
+     *       ({@code SUPERSEDED} : jamais montree, jamais travaillee) ;</li>
+     *   <li>si plus aucune n'est au palier, le lot entier l'est (examen compris) :
+     *       le bloc redevient vide, et D-70 le recompose (le palier, puis
+     *       l'examen).</li>
+     * </ul>
+     *
+     * <p>🛑 Expression, niveau inconnu, objectif atteint : rien ne change. Un
+     * cycle <b>en cours</b> n'est jamais reecrit — seule l'actualisation appelle
+     * cette methode.
+     */
+    void retenirLePalierDuCycle(Journey promu) {
+        if (promu.getModule() != Module.TCF) return;
+        UUID userId = promu.getUser().getId();
+        JourneyPalierDuCycle.Lecture lecture = palierDuCycle.lire(userId, promu.getTargetLevel());
+        Instant maintenant = Instant.now();
+        for (EpreuveType epreuve : TcfDomainProfileDto.ORDRE) {
+            if (lecture.palier(epreuve) == null) continue;
+            JourneyLot lot = lotManager.findOuvert(promu.getId(), epreuve).orElse(null);
+            if (lot == null) continue;
+            List<JourneyStep> ouvertes = stepManager.findOuvertesDuLot(lot.getId());
+            boolean resteAuPalier = ouvertes.stream()
+                    .anyMatch(step -> step.getType() == JourneyStepType.TRAIN_SKILL
+                            && lecture.garde(step));
+            UUID mesure = palierDuCycle.mesureePar(userId, epreuve);
+            List<JourneyStep> ecartees = ouvertes.stream()
+                    .filter(step -> !resteAuPalier || !lecture.garde(step))
+                    .toList();
+            for (JourneyStep step : ecartees) {
+                if (step.clore(JourneyStepResolution.SUPERSEDED, mesure, maintenant)) {
+                    stepManager.save(step);
+                }
+            }
+            if (!resteAuPalier) {
+                lot.clore(JourneyLotStatus.SUPERSEDED, mesure, maintenant);
+                lotManager.save(lot);
+            }
+            if (!ecartees.isEmpty()) {
+                log.info("Parcours {} : {} — palier {} retenu (D-72), {} etape(s) ecartee(s){}",
+                        promu.getId(), epreuve, lecture.palier(epreuve), ecartees.size(),
+                        resteAuPalier ? "" : ", lot recompose par D-70");
+            }
+        }
+    }
+
     /** Les epreuves dont le cycle ne porte AUCUNE etape (obsoletes exclues). */
     private static Set<EpreuveType> blocsVides(List<JourneyStep> etapes) {
         Set<EpreuveType> vides = new LinkedHashSet<>(TcfDomainProfileDto.ORDRE);
@@ -1844,19 +1890,6 @@ public class JourneyService {
             if (step.getExamType() != null) vides.remove(step.getExamType());
         }
         return vides;
-    }
-
-    /** Le niveau du DOMAINE, lecture Plan (D-2) — celle qui ordonne deja les lots. */
-    private static NiveauCecrl niveauDuDomaine(
-            TcfLevelProfile profil, EpreuveType epreuve) {
-        if (profil == null) return null;
-        return switch (epreuve) {
-            case TCF_CO -> profil.co();
-            case TCF_CE -> profil.ce();
-            case TCF_EE -> profil.ee();
-            case TCF_EO -> profil.eo();
-            default -> null;
-        };
     }
 
     /**
@@ -2029,20 +2062,6 @@ public class JourneyService {
      */
     private Set<UUID> maitriseesCeJour(
             List<LearningPlanObservation> tout, List<LearningPlanObservation> evaluations) {
-        Set<UUID> candidates = new LinkedHashSet<>();
-        for (LearningPlanObservation observation : evaluations) {
-            if (observation.getSkill() != null) candidates.add(observation.getSkill().getId());
-        }
-        if (candidates.isEmpty()) return Set.of();
-        // 🛑 Le moteur recoit TOUT l'historique, pas seulement les evaluations :
-        // un petit sujet reussi compte dans la maitrise (c'est le sens meme du
-        // module Competences), meme s'il ne peut pas creer d'etape.
-        Map<UUID, SkillMasteryEngine.SkillMastery> maitrise =
-                masteryResolver.fromObservations(tout, candidates);
-        Set<UUID> prouvees = new LinkedHashSet<>();
-        maitrise.forEach((skillId, etat) -> {
-            if (etat != null && etat.transferProven()) prouvees.add(skillId);
-        });
-        return prouvees;
+        return palierDuCycle.maitriseesCeJour(tout, evaluations);
     }
 }

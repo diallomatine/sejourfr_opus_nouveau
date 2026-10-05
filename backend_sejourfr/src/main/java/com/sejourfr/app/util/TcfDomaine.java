@@ -79,6 +79,31 @@ public final class TcfDomaine {
     }
 
     /**
+     * <b>Le palier a acquerir</b> : le premier cran du TCF IRN ({@code A2},
+     * {@code B1}, {@code B2}) <b>strictement au-dessus</b> d'un niveau mesure,
+     * dans la limite de l'objectif. On ne saute jamais un palier.
+     *
+     * <p>🛑 <b>Autorite unique</b> de cette table, lue par le palier qu'un
+     * domaine construit ({@code PlanDomainTargetLevelResolver}) et par le palier
+     * unique d'un cycle en comprehension ({@code JourneyLotBuilder}, D-72).
+     *
+     * @param niveau le niveau mesure. 🛑 {@code null} = <b>inconnu</b> : rend
+     *               {@code null}, jamais « A2 par defaut » — c'est a l'appelant
+     *               de dire ce qu'un niveau inconnu lui fait faire.
+     * @return {@code null} quand le niveau est inconnu, l'objectif absent, ou
+     *         l'objectif deja atteint (plus rien a acquerir).
+     */
+    public static TargetLevel palierAAcquerir(NiveauCecrl niveau, TargetLevel objectif) {
+        NiveauCecrl cible = niveau(objectif);
+        if (niveau == null || cible == null) return null;
+        if (niveau.ordinal() >= cible.ordinal()) return null;
+        for (TargetLevel palier : TargetLevel.values()) {
+            if (niveau(palier).ordinal() > niveau.ordinal()) return palier;
+        }
+        return null;
+    }
+
+    /**
      * <b>L'ecart au niveau cible</b> : de combien de crans CECRL cette epreuve
      * est-elle <b>sous</b> l'objectif (R10 bis).
      *

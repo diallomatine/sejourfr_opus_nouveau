@@ -117,8 +117,9 @@ class ActualisationApresExamensIT extends AbstractIntegrationTest {
         Journey attente = journeys.findByUserIdAndModuleAndStatus(
                 user.getId(), Module.TCF, JourneyStatus.EN_ATTENTE).orElseThrow(
                         () -> new AssertionError("l'examen CE a ete ignore pour anciennete"));
-        assertThat(competences(attente, EpreuveType.TCF_CE))
-                .containsExactlyInAnyOrder("CE-A2", "CE-B1", "CE-B2");
+        // D-72 : l'examen (A1 non atteint) designe trois paliers, le cycle
+        // suivant n'en travaille qu'un, le plus bas a acquerir.
+        assertThat(competences(attente, EpreuveType.TCF_CE)).containsExactly("CE-A2");
     }
 
     // =====================================================================
@@ -155,13 +156,17 @@ class ActualisationApresExamensIT extends AbstractIntegrationTest {
         assertThat(fini.state()).isEqualTo(JourneyState.CYCLE_COMPLETED);
         assertThat(fini.nextStep()).isNotNull();
 
+        int annonce = fini.cycle().prioritesCycleSuivant();
+
         JourneyDto suivant = cycleService.actualiser(user.getId(), Module.TCF);
 
         assertThat(suivant.cycle().numero()).isEqualTo(2);
-        assertThat(competencesDuBloc(suivant, EpreuveType.TCF_CO))
-                .containsExactly("CO-A2", "CO-B1", "CO-B2");
-        assertThat(competencesDuBloc(suivant, EpreuveType.TCF_CE))
-                .containsExactlyInAnyOrder("CE-A2", "CE-B1", "CE-B2");
+        // 🛑 D-72 (2026-10-05) : UN palier par cycle en CO/CE, le plus bas a
+        // acquerir — D-70 posait A2, B1 et B2.
+        assertThat(competencesDuBloc(suivant, EpreuveType.TCF_CO)).containsExactly("CO-A2");
+        assertThat(competencesDuBloc(suivant, EpreuveType.TCF_CE)).containsExactly("CE-A2");
+        // Le nombre annonce sous « Actualiser » inclut le complement D-70 du CO.
+        assertThat(annonce).isEqualTo(entrainementsPoses(suivant)).isEqualTo(2);
         // 🛑 Jamais une epreuve « terminee » sans etape realisee dans CE cycle.
         assertThat(suivant.blocs()).noneMatch(b -> b.status() == JourneyBlocStatus.TERMINE);
         assertThat(suivant.blocs()).allSatisfy(b -> assertThat(b.exam())
@@ -184,10 +189,8 @@ class ActualisationApresExamensIT extends AbstractIntegrationTest {
 
         JourneyDto vue = journeyService.lire(user.getId(), Module.TCF);
 
-        assertThat(competencesDuBloc(vue, EpreuveType.TCF_CO))
-                .containsExactly("CO-A2", "CO-B1", "CO-B2");
-        assertThat(competencesDuBloc(vue, EpreuveType.TCF_CE))
-                .containsExactly("CE-A2", "CE-B1", "CE-B2");
+        assertThat(competencesDuBloc(vue, EpreuveType.TCF_CO)).containsExactly("CO-A2");
+        assertThat(competencesDuBloc(vue, EpreuveType.TCF_CE)).containsExactly("CE-A2");
         assertThat(vue.blocs()).noneMatch(b -> b.status() == JourneyBlocStatus.TERMINE);
         // 🛑 Un examen anterieur au cycle ne ferme RIEN (D-69 ter) : l'examen de
         // bloc pose est ouvert.
@@ -220,6 +223,142 @@ class ActualisationApresExamensIT extends AbstractIntegrationTest {
                 .isEqualTo(JourneyStepPurpose.INITIAL_ASSESSMENT);
         assertThat(file).filteredOn(step -> step.getType() == JourneyStepType.TRAIN_SKILL)
                 .allMatch(step -> step.getExamType() == EpreuveType.TCF_EE);
+    }
+
+    // =====================================================================
+    // D-72 — en CO/CE, un cycle ne travaille qu'UN palier : le plus bas a acquerir
+    // =====================================================================
+
+    @Test
+    @DisplayName("D-72 — CO mesuree A2, fragilites B1 et B2 : le cycle suivant ne travaille "
+            + "que le B1, puis l'examen ; CE mesuree B1 sans fragilite : le B2")
+    void unSeulPalierAuDessusDuNiveauMesure() {
+        User user = candidat();
+        journeyService.lire(user.getId(), Module.TCF);
+        Instant fin = Instant.now().plusSeconds(1);
+        Attempt examenCo = examenQcm(user, EpreuveType.TCF_CO, NiveauCecrl.A2, fin);
+        for (Skill competence : comprehension(SkillSection.CO)) {
+            if ("A2".equals(competence.getTargetLevel())) continue;
+            priorite(user, competence, LearningPlanSourceType.TCF_CO, examenCo.getId(), fin);
+        }
+        journeyService.onAssessmentCompleted(user.getId(), new JourneyEvaluation(
+                examenCo.getId(), JourneyAssessmentKind.SECTION_EXAM, EpreuveType.TCF_CO, fin));
+        Attempt examenCe = examenQcm(user, EpreuveType.TCF_CE, NiveauCecrl.B1, fin);
+        journeyService.onAssessmentCompleted(user.getId(), new JourneyEvaluation(
+                examenCe.getId(), JourneyAssessmentKind.SECTION_EXAM, EpreuveType.TCF_CE, fin));
+        cloreLesExamens(enCours(user), EpreuveType.TCF_EO, EpreuveType.TCF_EE);
+
+        int annonce = journeyService.lire(user.getId(), Module.TCF).cycle().prioritesCycleSuivant();
+        JourneyDto suivant = cycleService.actualiser(user.getId(), Module.TCF);
+
+        assertThat(competencesDuBloc(suivant, EpreuveType.TCF_CO)).containsExactly("CO-B1");
+        assertThat(competencesDuBloc(suivant, EpreuveType.TCF_CE)).containsExactly("CE-B2");
+        assertThat(blocDe(suivant, EpreuveType.TCF_CO).exam()).isNotNull();
+        assertThat(blocDe(suivant, EpreuveType.TCF_CE).exam()).isNotNull();
+        assertThat(annonce).isEqualTo(entrainementsPoses(suivant)).isEqualTo(2);
+    }
+
+    @Test
+    @DisplayName("D-72 — niveau INCONNU (CE jamais evaluee) : examen blanc seul, jamais un palier")
+    void unNiveauInconnuNeFabriqueAucunPalier() {
+        User user = candidat();
+        journeyService.lire(user.getId(), Module.TCF);
+        Instant fin = Instant.now().plusSeconds(1);
+        Attempt examenCo = examenQcm(user, EpreuveType.TCF_CO, NiveauCecrl.A1, fin);
+        journeyService.onAssessmentCompleted(user.getId(), new JourneyEvaluation(
+                examenCo.getId(), JourneyAssessmentKind.SECTION_EXAM, EpreuveType.TCF_CO, fin));
+        cloreLesExamens(enCours(user),
+                EpreuveType.TCF_CE, EpreuveType.TCF_EO, EpreuveType.TCF_EE);
+
+        JourneyDto suivant = cycleService.actualiser(user.getId(), Module.TCF);
+
+        assertThat(competencesDuBloc(suivant, EpreuveType.TCF_CO)).containsExactly("CO-A2");
+        assertThat(competencesDuBloc(suivant, EpreuveType.TCF_CE)).isEmpty();
+        assertThat(blocDe(suivant, EpreuveType.TCF_CE).exam().purpose())
+                .isEqualTo(JourneyStepPurpose.INITIAL_ASSESSMENT);
+    }
+
+    @Test
+    @DisplayName("D-72 — examen rate : un cycle d'A2 travaille, l'examen redonne A1 ⇒ le cycle "
+            + "suivant retravaille l'A2")
+    void unExamenRateRedonneLeMemePalier() {
+        User user = candidat();
+        Skill coA2 = palier(SkillSection.CO, "A2");
+        examenQcm(user, EpreuveType.TCF_CO, NiveauCecrl.A1, Instant.now().minusSeconds(7200));
+        data.journey(user, Module.TCF, JourneyStatus.HISTORISE);
+        Journey cycle = data.journey(user, Module.TCF, JourneyStatus.EN_COURS);
+        lot(cycle, EpreuveType.TCF_CO, List.of(coA2));
+        cloreTout(cycle, step -> step.getType() == JourneyStepType.TRAIN_SKILL,
+                JourneyStepResolution.QUOTA_REACHED);
+        for (EpreuveType epreuve : List.of(
+                EpreuveType.TCF_CE, EpreuveType.TCF_EO, EpreuveType.TCF_EE)) {
+            examenFait(cycle, epreuve);
+        }
+
+        Instant fin = Instant.now().plusSeconds(1);
+        Attempt rate = examenQcm(user, EpreuveType.TCF_CO, NiveauCecrl.A1, fin);
+        priorite(user, coA2, LearningPlanSourceType.TCF_CO, rate.getId(), fin);
+        journeyService.onAssessmentCompleted(user.getId(), new JourneyEvaluation(
+                rate.getId(), JourneyAssessmentKind.SECTION_EXAM, EpreuveType.TCF_CO, fin));
+        // R12 a pose « Évaluer mon niveau » sur les epreuves jamais mesurees : hors sujet ici.
+        cloreLesExamens(cycle, EpreuveType.TCF_CE, EpreuveType.TCF_EO, EpreuveType.TCF_EE);
+
+        JourneyDto fini = journeyService.lire(user.getId(), Module.TCF);
+        assertThat(fini.state()).isEqualTo(JourneyState.CYCLE_COMPLETED);
+        int annonce = fini.cycle().prioritesCycleSuivant();
+        JourneyDto suivant = cycleService.actualiser(user.getId(), Module.TCF);
+
+        assertThat(competencesDuBloc(suivant, EpreuveType.TCF_CO)).containsExactly("CO-A2");
+        assertThat(annonce).isEqualTo(entrainementsPoses(suivant));
+    }
+
+    @Test
+    @DisplayName("D-72 — un cycle en attente compose AVANT la regle (A2, B1, B2) est relu a "
+            + "l'actualisation : seul le palier du jour reste ; EE inchangee ; N annonce = N pose")
+    void lActualisationRelitLePalierDuCycleEnAttente() {
+        User user = candidat();
+        examenQcm(user, EpreuveType.TCF_CO, NiveauCecrl.A1, Instant.now().minusSeconds(7200));
+        cycleTermine(user);
+        Journey attente = data.journey(user, Module.TCF, JourneyStatus.EN_ATTENTE);
+        lot(attente, EpreuveType.TCF_CO, comprehension(SkillSection.CO));
+        List<Skill> ee = skillManager.findActiveBySection(SkillSection.EE).subList(0, 3);
+        lot(attente, EpreuveType.TCF_EE, ee);
+
+        int annonce = journeyService.lire(user.getId(), Module.TCF).cycle().prioritesCycleSuivant();
+        JourneyDto suivant = cycleService.actualiser(user.getId(), Module.TCF);
+
+        assertThat(competencesDuBloc(suivant, EpreuveType.TCF_CO)).containsExactly("CO-A2");
+        // 🛑 L'expression n'est pas concernee : ses trois priorites restent.
+        assertThat(competencesDuBloc(suivant, EpreuveType.TCF_EE))
+                .containsExactlyElementsOf(ee.stream().map(Skill::getCode).toList());
+        assertThat(annonce).isEqualTo(entrainementsPoses(suivant)).isEqualTo(4);
+        // Les etapes ecartees ne sont jamais montrees (SUPERSEDED).
+        assertThat(steps.findAllByJourney(attente.getId()))
+                .filteredOn(step -> step.getExamType() == EpreuveType.TCF_CO
+                        && step.getType() == JourneyStepType.TRAIN_SKILL)
+                .filteredOn(step -> step.getResolution() == JourneyStepResolution.SUPERSEDED)
+                .hasSize(2);
+    }
+
+    @Test
+    @DisplayName("D-72 — le niveau a monte depuis la mise en attente (A1 ⇒ A2) : le lot A2 est "
+            + "ecarte en entier et le bloc recompose au B1, examen compris")
+    void unNiveauMonteRecomposeLeBloc() {
+        User user = candidat();
+        examenQcm(user, EpreuveType.TCF_CO, NiveauCecrl.A1, Instant.now().minusSeconds(7200));
+        examenQcm(user, EpreuveType.TCF_CO, NiveauCecrl.A2, Instant.now().minusSeconds(3600));
+        cycleTermine(user);
+        Journey attente = data.journey(user, Module.TCF, JourneyStatus.EN_ATTENTE);
+        JourneyLot perime = lot(attente, EpreuveType.TCF_CO, List.of(palier(SkillSection.CO, "A2")));
+
+        int annonce = journeyService.lire(user.getId(), Module.TCF).cycle().prioritesCycleSuivant();
+        JourneyDto suivant = cycleService.actualiser(user.getId(), Module.TCF);
+
+        assertThat(competencesDuBloc(suivant, EpreuveType.TCF_CO)).containsExactly("CO-B1");
+        assertThat(blocDe(suivant, EpreuveType.TCF_CO).exam()).isNotNull();
+        assertThat(lots.findById(perime.getId()).orElseThrow().getStatus())
+                .isEqualTo(JourneyLotStatus.SUPERSEDED);
+        assertThat(annonce).isEqualTo(entrainementsPoses(suivant)).isEqualTo(1);
     }
 
     // ------------------------------------------------------------- fabriques
@@ -306,6 +445,85 @@ class ActualisationApresExamensIT extends AbstractIntegrationTest {
         examen.setPosition(journey.consommerPosition());
         steps.saveAndFlush(examen);
         journeys.saveAndFlush(journey);
+    }
+
+    private Journey enCours(User user) {
+        return journeys.findByUserIdAndModuleAndStatus(
+                user.getId(), Module.TCF, JourneyStatus.EN_COURS).orElseThrow();
+    }
+
+    /** La competence de comprehension seedee d'un domaine a un palier. */
+    private Skill palier(SkillSection section, String palier) {
+        return comprehension(section).stream()
+                .filter(skill -> palier.equals(skill.getTargetLevel()))
+                .findFirst().orElseThrow();
+    }
+
+    /** Un cycle de rang 2, termine : chaque bloc porte un examen deja fait. */
+    private Journey cycleTermine(User user) {
+        data.journey(user, Module.TCF, JourneyStatus.HISTORISE);
+        Journey cycle = data.journey(user, Module.TCF, JourneyStatus.EN_COURS);
+        for (EpreuveType epreuve : List.of(EpreuveType.TCF_CO, EpreuveType.TCF_CE,
+                EpreuveType.TCF_EO, EpreuveType.TCF_EE)) {
+            examenFait(cycle, epreuve);
+        }
+        return cycle;
+    }
+
+    private void examenFait(Journey journey, EpreuveType epreuve) {
+        JourneyStep examen = new JourneyStep();
+        examen.setJourney(journey);
+        examen.setType(JourneyStepType.SECTION_EXAM);
+        examen.setPurpose(JourneyStepPurpose.REASSESS);
+        examen.setExamType(epreuve);
+        examen.setPosition(journey.consommerPosition());
+        examen.clore(JourneyStepResolution.SATISFIED_BY_ASSESSMENT, UUID.randomUUID(), Instant.now());
+        steps.saveAndFlush(examen);
+        journeys.saveAndFlush(journey);
+    }
+
+    /** Un lot ouvert : ses competences, dans l'ordre, puis son examen. */
+    private JourneyLot lot(Journey journey, EpreuveType epreuve, List<Skill> competences) {
+        JourneyLot lot = new JourneyLot();
+        lot.setJourney(journey);
+        lot.setExamType(epreuve);
+        lot.setStatus(JourneyLotStatus.OPEN);
+        lot.setSourceAssessmentId(UUID.randomUUID());
+        lot = lots.saveAndFlush(lot);
+        for (Skill competence : competences) {
+            JourneyStep step = new JourneyStep();
+            step.setJourney(journey);
+            step.setLot(lot);
+            step.setType(JourneyStepType.TRAIN_SKILL);
+            step.setExamType(epreuve);
+            step.setSkill(competence);
+            step.setPosition(journey.consommerPosition());
+            steps.saveAndFlush(step);
+        }
+        JourneyStep examen = new JourneyStep();
+        examen.setJourney(journey);
+        examen.setLot(lot);
+        examen.setType(JourneyStepType.SECTION_EXAM);
+        examen.setPurpose(JourneyStepPurpose.REASSESS);
+        examen.setExamType(epreuve);
+        examen.setPosition(journey.consommerPosition());
+        steps.saveAndFlush(examen);
+        journeys.saveAndFlush(journey);
+        return lot;
+    }
+
+    private void cloreTout(Journey journey, java.util.function.Predicate<JourneyStep> lesquelles,
+                           JourneyStepResolution motif) {
+        for (JourneyStep step : steps.findAllByJourney(journey.getId())) {
+            if (lesquelles.test(step) && step.clore(motif, UUID.randomUUID(), Instant.now())) {
+                steps.saveAndFlush(step);
+            }
+        }
+    }
+
+    /** Les etapes d'entrainement que le cycle promu porte, tous blocs confondus. */
+    private static int entrainementsPoses(JourneyDto vue) {
+        return vue.blocs().stream().mapToInt(bloc -> bloc.steps().size()).sum();
     }
 
     private static JourneyStep examenSeul(List<JourneyStep> file, EpreuveType epreuve) {

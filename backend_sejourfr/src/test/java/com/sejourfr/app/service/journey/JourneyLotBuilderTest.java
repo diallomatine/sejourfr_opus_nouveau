@@ -250,8 +250,8 @@ class JourneyLotBuilderTest {
     // ------------------------------------------------------------- D-70
 
     @Test
-    @DisplayName("D-70 — CO a A1 sous un objectif B2 : les paliers A2, B1, B2, dans cet ordre")
-    void unDomaineSousLObjectifRecoitSesPaliers() {
+    @DisplayName("D-72 — CO a A1 sous un objectif B2 : le SEUL palier A2 (D-70 posait A2, B1, B2)")
+    void unDomaineSousLObjectifRecoitSonSeulPalier() {
         List<Skill> referentiel = referentielComprehension();
         UUID examen = UUID.randomUUID();
 
@@ -261,25 +261,55 @@ class JourneyLotBuilderTest {
         assertThat(lot.epreuve()).isEqualTo(EpreuveType.TCF_CO);
         assertThat(lot.sourceAssessmentId()).isEqualTo(examen);
         assertThat(lot.priorites().stream().map(p -> p.skill().getCode()))
-                .containsExactly("CO-A2", "CO-B1", "CO-B2");
+                .containsExactly("CO-A2");
     }
 
     @Test
-    @DisplayName("D-70 — seuls les paliers STRICTEMENT au-dessus du niveau et jusqu'a "
-            + "l'objectif ; une competence prouvee aujourd'hui n'y entre pas")
-    void seulsLesPaliersQuiSeparentDeLObjectif() {
+    @DisplayName("D-72 — le palier suit le niveau mesure : A2 ⇒ B1, B1 ⇒ B2, A1 non atteint ⇒ A2")
+    void lePalierSuitLeNiveauMesure() {
         List<Skill> referentiel = referentielComprehension();
-        Skill ceB1 = referentiel.stream().filter(s -> s.getCode().equals("CE-B1")).findFirst()
+
+        assertThat(codes(builder.versLObjectif(EpreuveType.TCF_CE, UUID.randomUUID(),
+                NiveauCecrl.A2, TargetLevel.B2, referentiel, Set.of())))
+                .containsExactly("CE-B1");
+        assertThat(codes(builder.versLObjectif(EpreuveType.TCF_CE, UUID.randomUUID(),
+                NiveauCecrl.B1, TargetLevel.B2, referentiel, Set.of())))
+                .containsExactly("CE-B2");
+        assertThat(codes(builder.versLObjectif(EpreuveType.TCF_CE, UUID.randomUUID(),
+                NiveauCecrl.A1_NON_ATTEINT, TargetLevel.B2, referentiel, Set.of())))
+                .containsExactly("CE-A2");
+        // L'objectif plafonne : A2 vise B1 ⇒ B1.
+        assertThat(codes(builder.versLObjectif(EpreuveType.TCF_CE, UUID.randomUUID(),
+                NiveauCecrl.A2, TargetLevel.B1, referentiel, Set.of())))
+                .containsExactly("CE-B1");
+    }
+
+    @Test
+    @DisplayName("D-72 — le palier prouve aujourd'hui ne fait PAS sauter au suivant : examen seul")
+    void unPalierProuveNeFaitPasSauterAuSuivant() {
+        List<Skill> referentiel = referentielComprehension();
+        Skill ceA2 = referentiel.stream().filter(s -> s.getCode().equals("CE-A2")).findFirst()
                 .orElseThrow();
 
         assertThat(builder.versLObjectif(EpreuveType.TCF_CE, UUID.randomUUID(),
-                NiveauCecrl.A2, TargetLevel.B1, referentiel, Set.of())
-                .priorites().stream().map(p -> p.skill().getCode()))
-                .containsExactly("CE-B1");
-        assertThat(builder.versLObjectif(EpreuveType.TCF_CE, UUID.randomUUID(),
-                NiveauCecrl.A1_NON_ATTEINT, TargetLevel.B2, referentiel, Set.of(ceB1.getId()))
-                .priorites().stream().map(p -> p.skill().getCode()))
-                .containsExactly("CE-A2", "CE-B2");
+                NiveauCecrl.A1, TargetLevel.B2, referentiel, Set.of(ceA2.getId()))).isNull();
+    }
+
+    @Test
+    @DisplayName("D-72 — budget D-67 tenu A L'INTERIEUR du palier : quatre competences A2, trois retenues")
+    void leBudgetD67SeDepenseDansLePalier() {
+        List<Skill> referentiel = new ArrayList<>(referentielComprehension());
+        for (int i = 2; i <= 4; i++) {
+            Skill autre = comprehension(SkillSection.CO, "CO-A2-" + i);
+            autre.setTargetLevel("A2");
+            referentiel.add(autre);
+        }
+
+        JourneyLotBuilder.Lot lot = builder.versLObjectif(EpreuveType.TCF_CO, UUID.randomUUID(),
+                NiveauCecrl.A1, TargetLevel.B2, referentiel, Set.of());
+
+        assertThat(lot.priorites()).hasSize(3)
+                .allSatisfy(p -> assertThat(p.skill().getTargetLevel()).isEqualTo("A2"));
     }
 
     @Test
@@ -293,6 +323,84 @@ class JourneyLotBuilderTest {
                 null, TargetLevel.B2, referentiel, Set.of())).isNull();
         assertThat(builder.versLObjectif(EpreuveType.TCF_EE, UUID.randomUUID(),
                 NiveauCecrl.A1, TargetLevel.B2, referentiel, Set.of())).isNull();
+    }
+
+    // ----------------------------------------------- D-72 — lot d'une evaluation
+
+    @Test
+    @DisplayName("D-72 — examen CE a A1, fragilites A2/B1/B2 : le lot ne retient que l'A2")
+    void lExamenDeComprehensionNeRetientQueLePalierDuCycle() {
+        UUID evaluation = UUID.randomUUID();
+        List<LearningPlanObservation> observations = new ArrayList<>();
+        for (Skill skill : referentielComprehension()) {
+            if (skill.getSection() != SkillSection.CE) continue;
+            observations.add(observation(evaluation, skill, LearningPlanSkillStatus.PRIORITY,
+                    ObservationConfidence.HIGH, T0));
+        }
+
+        List<JourneyLotBuilder.Lot> lots = builder.depuisEvaluation(sources(evaluation),
+                observations, Set.of(), TargetLevel.B2, profil(null, NiveauCecrl.A1, null, null));
+
+        assertThat(lots).hasSize(1);
+        assertThat(codes(lots.getFirst())).containsExactly("CE-A2");
+    }
+
+    @Test
+    @DisplayName("D-72 — aucune fragilite AU palier : pas de lot (D-70 completera le bloc)")
+    void sansFragiliteAuPalierPasDeLot() {
+        UUID evaluation = UUID.randomUUID();
+        Skill coB2 = comprehension(SkillSection.CO, "CO-B2");
+        coB2.setTargetLevel("B2");
+
+        assertThat(builder.depuisEvaluation(sources(evaluation),
+                List.of(observation(evaluation, coB2, LearningPlanSkillStatus.PRIORITY,
+                        ObservationConfidence.HIGH, T0)),
+                Set.of(), TargetLevel.B2, profil(NiveauCecrl.A2, null, null, null))).isEmpty();
+    }
+
+    @Test
+    @DisplayName("D-72 — niveau INCONNU ou objectif ATTEINT, et expression : composition inchangee")
+    void horsDuPerimetreLaCompositionEstInchangee() {
+        UUID evaluation = UUID.randomUUID();
+        List<LearningPlanObservation> observations = new ArrayList<>();
+        for (Skill skill : referentielComprehension()) {
+            if (skill.getSection() != SkillSection.CO) continue;
+            observations.add(observation(evaluation, skill, LearningPlanSkillStatus.PRIORITY,
+                    ObservationConfidence.HIGH, T0));
+        }
+        for (int i = 1; i <= 3; i++) {
+            observations.add(observation(evaluation, skill(SkillTaskCode.EE1, "EE1-C" + i),
+                    LearningPlanSkillStatus.PRIORITY, ObservationConfidence.HIGH, T0));
+        }
+
+        // 🛑 null = inconnu, jamais le plus bas : les trois paliers restent.
+        assertThat(lot(builder.depuisEvaluation(sources(evaluation), observations, Set.of(),
+                TargetLevel.B2, profil(null, null, NiveauCecrl.A1, null)), EpreuveType.TCF_CO)
+                .priorites()).hasSize(3);
+        // Objectif atteint : rien ne change non plus.
+        assertThat(lot(builder.depuisEvaluation(sources(evaluation), observations, Set.of(),
+                TargetLevel.B1, profil(NiveauCecrl.B1, null, NiveauCecrl.A1, null)),
+                EpreuveType.TCF_CO).priorites()).hasSize(3);
+        // L'expression n'est jamais filtree, meme a A1 sous B2.
+        assertThat(lot(builder.depuisEvaluation(sources(evaluation), observations, Set.of(),
+                TargetLevel.B2, profil(NiveauCecrl.A1, null, NiveauCecrl.A1, null)),
+                EpreuveType.TCF_EE).priorites()).hasSize(3);
+    }
+
+    @Test
+    @DisplayName("D-72 — le palier du cycle : CO/CE seulement, null si inconnu ou atteint")
+    void lePalierDuCycle() {
+        TcfLevelProfile profil = profil(NiveauCecrl.A1, NiveauCecrl.B1, NiveauCecrl.A1, null);
+        assertThat(JourneyLotBuilder.palierDuCycle(EpreuveType.TCF_CO, profil, TargetLevel.B2))
+                .isEqualTo(TargetLevel.A2);
+        assertThat(JourneyLotBuilder.palierDuCycle(EpreuveType.TCF_CE, profil, TargetLevel.B2))
+                .isEqualTo(TargetLevel.B2);
+        assertThat(JourneyLotBuilder.palierDuCycle(EpreuveType.TCF_CE, profil, TargetLevel.B1))
+                .isNull();
+        assertThat(JourneyLotBuilder.palierDuCycle(EpreuveType.TCF_EE, profil, TargetLevel.B2))
+                .isNull();
+        assertThat(JourneyLotBuilder.palierDuCycle(EpreuveType.TCF_CO,
+                profil(null, null, null, null), TargetLevel.B2)).isNull();
     }
 
     @Test
@@ -316,6 +424,14 @@ class JourneyLotBuilderTest {
 
         assertThat(lots.getFirst().priorites().stream().map(p -> p.skill().getCode()))
                 .containsExactly("EE3-C2", "EE1-C7", "EE2-C7");
+    }
+
+    private static List<String> codes(JourneyLotBuilder.Lot lot) {
+        return lot.priorites().stream().map(p -> p.skill().getCode()).toList();
+    }
+
+    private static JourneyLotBuilder.Lot lot(List<JourneyLotBuilder.Lot> lots, EpreuveType epreuve) {
+        return lots.stream().filter(l -> l.epreuve() == epreuve).findFirst().orElseThrow();
     }
 
     private static Skill skill(SkillTaskCode taskCode, String code, int rang) {
@@ -355,11 +471,16 @@ class JourneyLotBuilderTest {
         return skill;
     }
 
+    /** Une competence de comprehension ; son palier se lit sur le code (« CO-B1 » ⇒ B1). */
     private static Skill comprehension(SkillSection section, String code) {
         Skill skill = new Skill();
         skill.setId(UUID.randomUUID());
         skill.setSection(section);
         skill.setCode(code);
+        String[] parts = code.split("-");
+        if (parts.length > 1 && List.of("A2", "B1", "B2").contains(parts[1])) {
+            skill.setTargetLevel(parts[1]);
+        }
         skill.setTitle("Competence " + code);
         return skill;
     }

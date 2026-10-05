@@ -3248,3 +3248,44 @@ premier plan.
 **Si l'arbitrage était autre** (« le 403 doit aussi fermer l'examen hors Plan ») : c'est D-33 /
 D-62 qu'il faudrait réviser — le créneau 1 de la grille cesserait d'être offert après le premier
 plan. Verrouillé par `JourneyReadServiceTest` (A178) et `ActualisationCiviqueApresExamensIT`.
+
+# 2026-10-05 — Un seul palier par cycle en compréhension (D-72)
+
+### A179 — Où D-72 s'applique, et ce que j'ai tranché seul
+
+**Le palier.** « Le plus bas pas encore acquis » = le premier cran (A2, B1, B2) **strictement
+au-dessus du niveau du DOMAINE**, lecture Plan (`TcfProfileService.levelProfile`, D-2), plafonné
+par l'objectif — la même lecture que D-70 et que l'ordre des lots (R10 bis), jamais le plancher
+global ni la moyenne d'Accueil. La table vit dans `TcfDomaine.palierAAcquerir`, que
+`PlanDomainTargetLevelResolver.suivant` lit désormais aussi (elle y vivait en copie privée).
+
+**Trois points d'application, une règle.**
+1. **À la composition du lot d'une évaluation** (`JourneyLotBuilder.lotsParEpreuve`) : en CO/CE,
+   les fragilités hors palier sont écartées **avant** la coupe à 3 — le budget D-67 se dépense
+   dans le palier. Vaut pour tout lot (cycle en attente, amorce, affinage A161) : la raison du
+   propriétaire (20 minutes par série) vaut pour tout cycle.
+2. **Au complément d'un bloc vide** (`versLObjectif`, D-70) : le seul palier.
+3. **À l'actualisation** (`JourneyService.retenirLePalierDuCycle`) : le cycle en attente est
+   **relu** sur le niveau du moment — le niveau a pu monter depuis la mise en attente (un second
+   examen), ou l'attente a été composée avant la règle. Les étapes d'entraînement hors palier
+   sont closes `SUPERSEDED` ; si plus aucune n'est au palier, le lot entier l'est (examen
+   compris) et D-70 recompose le bloc (palier, puis examen). Motif : la consigne « recalculé à
+   chaque fois » ; sans cette relecture, une attente périmée aurait fait retravailler un palier
+   déjà acquis.
+
+**Palier prouvé aujourd'hui** (transfert prouvé, `SkillMasteryEngine`) alors que le niveau mesuré
+ne l'atteint pas : **examen blanc seul**, on ne saute pas au palier suivant. L'examen remesure ;
+sauter sur une maîtrise que le niveau ne confirme pas contredirait « le plus bas pas encore
+acquis » au sens du niveau mesuré. *Si l'arbitrage était autre* : dans `versLObjectif`, prendre
+le premier palier non prouvé au lieu de rendre `null`.
+
+**Le nombre annoncé** (`JourneyCycleSuivant.prioritesIdentifiees`) rejoue les deux étapes de
+l'actualisation avec les **mêmes** fonctions (`JourneyPalierDuCycle.Lecture.garde`,
+`JourneyPalierDuCycle.complement`) : entraînements gardés du cycle en attente, plus le
+complément D-70 d'un bloc CO/CE qui resterait vide. Coût assumé : la lecture du parcours lit le
+niveau du domaine (`levelProfile`) une fois de plus ; le référentiel et la maîtrise ne sont
+chargés que si un bloc vide doit être complété.
+
+**Ce qui n'est pas touché.** Un cycle **en cours** n'est jamais réécrit (la relecture
+n'intervient qu'à l'actualisation ; la réparation D-70 de lecture ne fait qu'ajouter à un bloc
+vide). Requête morte supprimée : `JourneyStepRepository.countEntrainementsOuverts`.

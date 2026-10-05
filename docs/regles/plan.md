@@ -2081,6 +2081,9 @@ dépasse.
 désormais écrit comme tel — au plus 3 priorités par épreuve (TCF), au plus 3 unités par thématique
 (civique), les plus urgentes dans l'ordre du moteur. Le nombre retenu est **servi**
 (`cycle.prioritesCycleSuivant`). → § « Le budget du cycle suivant » plus bas.
+🛑 **D-72 (2026-10-05) : en CO/CE, ce budget se dépense dans UN palier** — le plus bas à acquérir ;
+les fragilités des autres paliers sont écartées **avant** la coupe. → § « Un seul palier par
+cycle en compréhension ».
 
 **Ce n'est pas l'incident du 2026-08-25**, et la différence est ce qui rend ce choix tenable :
 là-bas un plafond de 5 actions était **partagé entre 4 domaines**, et trois domaines sur quatre
@@ -2334,8 +2337,8 @@ ligne « Mon diagnostic » n'apparaît que si `diagnosticFait`.
 - **Objectif** : lu à sa seule autorité (`TargetProcedure.niveauVise`, la mention civique). Sans
   démarche, pas de parcours (D-3) — le profil obligatoire la demande à l'entrée de l'app.
 - **Fin du cycle d'examens** : les examens passés, « Actualiser mon plan » (D-66) ; le cycle
-  suivant porte les priorités qu'ils ont détectées (D-67), et **aucun bloc vide** (D-70 : les
-  paliers jusqu'à l'objectif en CO/CE, sinon un examen blanc).
+  suivant porte les priorités qu'ils ont détectées (D-67), et **aucun bloc vide** (D-70 : en
+  CO/CE le **seul** palier à acquérir — D-72 —, sinon un examen blanc).
 - **Jalon D-68** : le cycle d'examens ne compte pas comme cycle de travail (aucune `TRAIN_SKILL`).
 - **Freemium** : verrous `ACCESS` servis. 🛑 **Ce premier plan est le seul offert** (A178,
   2026-10-05) : sur un compte sans accès au module, les examens des plans suivants sont servis
@@ -2598,9 +2601,12 @@ tout.
   mesuré garde son seul examen blanc (pendant civique de D-70). Avant, sans diagnostic, le cycle
   suivant d'un cycle d'examens n'était fait **que** d'examens. Verrouillé par
   `ActualisationCiviqueApresExamensIT`.
-- Servi : `cycle.prioritesCycleSuivant` (`JourneyCycleSuivant.prioritesIdentifiees`) — TCF : les
-  étapes d'entraînement ouvertes du cycle en attente ; civique : ce que l'actualisation poserait
-  maintenant. `null` en consultation d'un cycle clos.
+- Servi : `cycle.prioritesCycleSuivant` (`JourneyCycleSuivant.prioritesIdentifiees`) — TCF :
+  **exactement les entraînements que l'actualisation posera** (D-72, 2026-10-05) : ceux du cycle
+  en attente que le palier unique de la compréhension garde, plus le complément D-70 d'un bloc
+  CO/CE qui resterait vide (avant, ce complément n'était pas compté : un cycle d'examens fini à A1
+  en CO annonçait N et posait N + 3) ; civique : ce que l'actualisation poserait maintenant.
+  `null` en consultation d'un cycle clos.
 - 🛑 **Le nombre bouge APRÈS la fin de l'examen EE/EO** (2026-10-05) : l'étape d'examen se clôt
   à la soumission, mais ses priorités n'entrent dans le cycle en attente qu'avec les corrections,
   en arrière-plan (`porterAuParcours` → `onAssessmentCompleted`, après commit). Les fronts suivent
@@ -2635,7 +2641,7 @@ exclues) reçoit, dans l'ordre du TCF :
 
 | L'épreuve | Ce que le bloc reçoit |
 |---|---|
-| CO / CE **mesurée** (`NiveauActuelEpreuveResolver.mesure`), niveau du domaine (lecture Plan, D-2) **sous** l'objectif | la compétence de compréhension de **chaque palier strictement au-dessus du niveau et jusqu'à l'objectif** (A1 → A2, B1, B2 pour un objectif B2), du plus bas au plus haut, ≤ `maxPrioritiesPerLot` (D-67), puis son examen blanc `REASSESS` (R3). Une compétence au transfert prouvé aujourd'hui n'y entre pas. |
+| CO / CE **mesurée** (`NiveauActuelEpreuveResolver.mesure`), niveau du domaine (lecture Plan, D-2) **sous** l'objectif | la compétence de compréhension du **seul palier à acquérir** — le premier strictement au-dessus du niveau, plafonné par l'objectif (A1 → **A2** pour un objectif B2 ; ⚠️ **D-72** : D-70 posait A2, B1 **et** B2) —, ≤ `maxPrioritiesPerLot` (D-67), puis son examen blanc `REASSESS` (R3). Une compétence au transfert prouvé aujourd'hui n'y entre pas (le bloc reçoit alors l'examen seul). |
 | tout autre cas — expression, objectif atteint, niveau inconnu | un **examen blanc** seul : `REASSESS` si l'épreuve est mesurée, `INITIAL_ASSESSMENT` sinon (R12) |
 
 - **Quand** : à l'actualisation (`JourneyCycleService.actualiser`) **et à la lecture**
@@ -2653,6 +2659,44 @@ exclues) reçoit, dans l'ordre du TCF :
   « N étapes sur M »).
 - Civique : **non concerné** (blocs par thématique, amorce civique distincte) — sa règle
   équivalente vit dans l'amorce du cycle suivant (A177, § « Le budget du cycle suivant »).
+
+### Un seul palier par cycle en compréhension (D-72, 2026-10-05)
+
+> Arbitrage : `docs/decisions/plan-parcours-tcf.md` **D-72** · autonomie **A179** · autorités
+> `TcfDomaine.palierAAcquerir`, `JourneyLotBuilder.palierDuCycle`, `JourneyPalierDuCycle` ·
+> verrouillé par `JourneyLotBuilderTest`, `ActualisationApresExamensIT`.
+
+🛑 **Décision du propriétaire** : en **CO et CE seulement**, chaque nouveau cycle ne travaille
+**qu'un palier CECRL** — le **plus bas pas encore acquis** — puis l'examen blanc de l'épreuve.
+Motif : une série ou un examen de compréhension dure ~20 minutes ; A2 + B1 + B2 dans un même
+cycle le rendent interminable.
+
+| Niveau du domaine (objectif B2) | Bloc CO/CE du cycle suivant |
+|---|---|
+| A1 (ou A1 non atteint) | **A2** + examen |
+| A2 | **B1** + examen |
+| B1 | **B2** + examen |
+| B2 (objectif atteint) | inchangé : fragilités observées s'il y en a, sinon examen seul |
+| inconnu (`null`) | inchangé : examen blanc seul — `null` = inconnu, jamais le plus bas |
+
+- **Le palier** = premier cran (A2, B1, B2) strictement au-dessus du niveau du **domaine**,
+  lecture Plan (`levelProfile`, D-2), plafonné par l'objectif — une seule table,
+  `TcfDomaine.palierAAcquerir`. Il se **recalcule** à chaque composition : un examen raté qui
+  redonne A1 après un cycle d'A2 redonne l'A2.
+- **Où** : (1) le lot d'une évaluation (`JourneyLotBuilder`) écarte les fragilités hors palier
+  **avant** la coupe D-67 — le budget de 3 se dépense dans le palier ; (2) le complément d'un
+  bloc vide (D-70, `versLObjectif`) ne pose que ce palier ; (3) **à l'actualisation**, le cycle en
+  attente est relu sur le niveau du moment (`JourneyService.retenirLePalierDuCycle`) : étapes hors
+  palier closes `SUPERSEDED`, et un lot sans étape au palier est écarté entier, D-70 recomposant
+  le bloc (palier, puis examen).
+- **Ce n'est pas un plafond d'affichage** : le moteur calcule toujours toutes les fragilités ;
+  le Plan (`plan.domaines`, « Mes paliers ») et « Débloquer mon plan » les servent toutes.
+- **Le nombre annoncé** (`cycle.prioritesCycleSuivant`) rejoue l'actualisation avec les mêmes
+  fonctions : il est égal au nombre d'entraînements posés.
+- **Hors périmètre** : EE/EO, civique, premier cycle (cycle d'examens D-69), freemium (A178
+  inchangé). Un cycle **en cours** n'est jamais réécrit.
+- **Fronts** : aucun changement — ils affichent les étapes servies, sans hypothèse sur le
+  nombre de paliers d'un bloc.
 
 ### Le quota d'une étape de compréhension (D-16, révoque D-5 sur ce point)
 

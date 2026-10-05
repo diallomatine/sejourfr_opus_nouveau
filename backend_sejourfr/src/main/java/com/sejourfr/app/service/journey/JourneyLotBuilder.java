@@ -21,7 +21,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.TreeMap;
 import java.util.UUID;
 
 /**
@@ -103,7 +102,8 @@ public class JourneyLotBuilder {
         List<LearningPlanObservation> sonLot = evaluations.stream()
                 .filter(observation -> sources.contient(observation.getSourceId()))
                 .toList();
-        return ordonner(parEpreuve(sonLot, maitriseesCeJour, source -> sources.evaluation()),
+        return ordonner(parEpreuve(sonLot, maitriseesCeJour, source -> sources.evaluation(),
+                        objectif, profil),
                 objectif, profil);
     }
 
@@ -139,75 +139,121 @@ public class JourneyLotBuilder {
                             && TcfDomaine.epreuve(observation.getSkill().getSection()) == epreuve)
                     .toList();
             List<Priorite> priorites =
-                    lotsParEpreuve(sonLot, maitriseesCeJour).get(epreuve);
+                    lotsParEpreuve(sonLot, maitriseesCeJour, objectif, profil).get(epreuve);
             if (priorites != null) lots.add(new Lot(epreuve, reference.evaluation(), priorites));
         });
         return ordonner(lots, objectif, profil);
     }
 
+    // ------------------------------------------------------- D-72 (palier)
+
+    /**
+     * <b>D-72 — en CO et en CE, un cycle ne travaille qu'UN palier</b> : le plus
+     * bas encore a acquerir, puis l'examen blanc de l'epreuve (decision du
+     * proprietaire, 2026-10-05).
+     *
+     * <p>Motif du proprietaire : une serie ou un examen de comprehension dure
+     * environ 20 minutes, et travailler A2 + B1 + B2 dans le meme cycle le rend
+     * interminable. Un candidat mesure A1 sous un objectif B2 travaille l'A2 ;
+     * mesure A2, le B1 ; mesure B1, le B2. Un examen rate (A1 apres un cycle
+     * d'A2) redonne l'A2 : le palier se <b>recalcule</b> a chaque composition
+     * sur le niveau mesure.
+     *
+     * <p>🛑 <b>Le niveau est celui du DOMAINE, lecture Plan</b> (D-2,
+     * {@code TcfProfileService.levelProfile}) — la meme lecture que D-70 et que
+     * l'ordre des lots (R10 bis), jamais le plancher global.
+     *
+     * <p>🛑 <b>Ce n'est PAS un plafond d'affichage</b> : le moteur continue de
+     * calculer toutes les fragilites, le Plan et « Débloquer mon plan » les
+     * servent toutes. C'est une regle de <b>COMPOSITION du cycle</b>, comme le
+     * budget D-67, qui reste applique <b>a l'interieur</b> du palier.
+     *
+     * @return le palier a travailler, ou {@code null} quand la regle ne
+     *         s'applique pas et que la composition reste celle d'avant :
+     *         expression (EE/EO), niveau <b>inconnu</b> ({@code null} = inconnu,
+     *         jamais le plus bas), objectif deja atteint.
+     */
+    public static TargetLevel palierDuCycle(
+            EpreuveType epreuve, TcfLevelProfile profil, TargetLevel objectif) {
+        SkillSection domaine = TcfDomaine.section(epreuve);
+        if (domaine == null || !domaine.isComprehension()) return null;
+        return TcfDomaine.palierAAcquerir(niveauDuDomaine(profil, epreuve), objectif);
+    }
+
+    /**
+     * Le palier d'une competence de comprehension ({@code skills.target_level}) ;
+     * {@code null} pour une competence d'expression ou un palier illisible.
+     */
+    public static TargetLevel palierDe(Skill skill) {
+        if (skill == null || skill.getTargetLevel() == null) return null;
+        try {
+            return TargetLevel.valueOf(skill.getTargetLevel());
+        } catch (IllegalArgumentException inconnu) {
+            return null;
+        }
+    }
+
+    /**
+     * Le niveau du DOMAINE d'une epreuve, <b>lecture Plan</b> (D-2) — celle qui
+     * ordonne les lots et fixe le palier du cycle. {@code null} = inconnu.
+     */
+    public static NiveauCecrl niveauDuDomaine(TcfLevelProfile profil, EpreuveType epreuve) {
+        if (profil == null || epreuve == null) return null;
+        return switch (epreuve) {
+            case TCF_CO -> profil.co();
+            case TCF_CE -> profil.ce();
+            case TCF_EE -> profil.ee();
+            case TCF_EO -> profil.eo();
+            default -> null;
+        };
+    }
+
     // ------------------------------------------------------------- D-70
 
     /**
-     * <b>D-70 — un bloc de compréhension VIDE sous l'objectif reçoit les paliers
-     * qui le séparent de l'objectif</b> (décision du propriétaire, 2026-10-03 :
-     * « on a eu A1, donc il devrait proposer des séances en A2, B1, et même
-     * B2 »).
+     * <b>D-70 — un bloc de compréhension VIDE sous l'objectif reçoit le palier
+     * qui le sépare de l'objectif</b> (décision du propriétaire, 2026-10-03,
+     * <b>restreinte à UN palier par D-72</b>, 2026-10-05).
      *
      * <p>🛑 <b>« Non fragile » n'est pas « plus rien à apprendre »</b> (invariant
      * racine) : un examen qui ne désigne aucune fragilité — trop peu de réponses
      * pour observer un palier, ou une priorité perdue — ne dit pas que le palier
-     * est acquis. Le niveau du DOMAINE, lui, le dit : tout palier strictement
-     * au-dessus de lui et jusqu'à l'objectif reste à acquérir, et la compétence
-     * de compréhension de ce palier est son entraînement (une par palier et par
-     * domaine).
+     * est acquis. Le niveau du DOMAINE, lui, le dit. ⚠️ D-70 posait <b>tous</b>
+     * les paliers strictement au-dessus du niveau jusqu'à l'objectif (A1 sous B2
+     * ⇒ A2, B1, B2) ; depuis D-72, seul le <b>plus bas</b> d'entre eux
+     * ({@link #palierDuCycle}) est posé.
      *
-     * <p>Budget de composition D-67 inchangé : au plus
-     * {@code maxPrioritiesPerLot}, du palier le plus bas au plus haut — c'est
-     * l'ordre dans lequel on les acquiert. Une compétence dont le transfert est
-     * prouvé aujourd'hui n'y entre jamais.
+     * <p>Budget de composition D-67 inchangé, à l'intérieur du palier : au plus
+     * {@code maxPrioritiesPerLot}. Une compétence dont le transfert est prouvé
+     * aujourd'hui n'y entre jamais — le bloc reçoit alors son examen seul, qui
+     * remesurera ; on ne saute pas au palier suivant sur une maîtrise que le
+     * niveau mesuré ne confirme pas.
      *
      * @param niveau le niveau de l'épreuve, <b>lecture Plan</b> (D-2). 🛑
      *               {@code null} = inconnu : aucun palier n'est fabriqué, le
      *               bloc reçoit un examen blanc.
      * @return {@code null} quand il n'y a rien à proposer (expression, niveau
-     *         inconnu, objectif atteint, paliers prouvés) — l'appelant pose
+     *         inconnu, objectif atteint, palier prouvé) — l'appelant pose
      *         alors l'examen blanc seul.
      */
     public Lot versLObjectif(
             EpreuveType epreuve, UUID sourceAssessmentId, NiveauCecrl niveau,
             TargetLevel objectif, List<Skill> comprehension, Set<UUID> maitriseesCeJour) {
-        NiveauCecrl cible = TcfDomaine.niveau(objectif);
         SkillSection domaine = TcfDomaine.section(epreuve);
-        if (niveau == null || cible == null || sourceAssessmentId == null) return null;
-        if (domaine != SkillSection.CO
-                && domaine != SkillSection.CE) {
+        if (sourceAssessmentId == null || domaine == null || !domaine.isComprehension()) {
             return null;
         }
-        if (niveau.ordinal() >= cible.ordinal()) return null;
-        Map<NiveauCecrl, Skill> parPalier = new TreeMap<>();
-        for (Skill skill : comprehension) {
-            if (skill.getSection() != domaine || maitriseesCeJour.contains(skill.getId())) continue;
-            NiveauCecrl palier = palier(skill.getTargetLevel());
-            if (palier == null) continue;
-            if (palier.ordinal() <= niveau.ordinal() || palier.ordinal() > cible.ordinal()) continue;
-            parPalier.putIfAbsent(palier, skill);
-        }
+        TargetLevel palier = TcfDomaine.palierAAcquerir(niveau, objectif);
+        if (palier == null) return null;
         List<Priorite> priorites = new ArrayList<>();
-        parPalier.values().stream()
+        comprehension.stream()
+                .filter(skill -> skill.getSection() == domaine)
+                .filter(skill -> !maitriseesCeJour.contains(skill.getId()))
+                .filter(skill -> palierDe(skill) == palier)
                 .limit(config.maxPrioritiesPerLot())
                 .forEach(skill -> priorites.add(new Priorite(skill, priorites.size())));
         if (priorites.isEmpty()) return null;
         return new Lot(epreuve, sourceAssessmentId, List.copyOf(priorites));
-    }
-
-    /** Le palier d'une compétence de compréhension ({@code skills.target_level}). */
-    private static NiveauCecrl palier(String targetLevel) {
-        if (targetLevel == null) return null;
-        try {
-            return TcfDomaine.niveau(TargetLevel.valueOf(targetLevel));
-        } catch (IllegalArgumentException inconnu) {
-            return null;
-        }
     }
 
     // ------------------------------------------------------------------ R2
@@ -223,9 +269,15 @@ public class JourneyLotBuilder {
      * la confusion qui a produit les faux {@code A1_NON_ATTEINT} de
      * V040/V041/V042. Zero fragilite observee donne zero priorite, et c'est un
      * resultat legitime (R9).
+     *
+     * <p>🛑 <b>D-72</b> : en CO/CE, une fragilite hors du palier du cycle
+     * ({@link #palierDuCycle}) n'entre pas — si le palier n'en porte aucune,
+     * l'epreuve n'a pas de lot ici, et son bloc sera complete par D-70 (le
+     * palier, puis l'examen) a la composition du cycle.
      */
     private Map<EpreuveType, List<Priorite>> lotsParEpreuve(
-            List<LearningPlanObservation> observations, Set<UUID> maitriseesCeJour) {
+            List<LearningPlanObservation> observations, Set<UUID> maitriseesCeJour,
+            TargetLevel objectif, TcfLevelProfile profil) {
         Map<EpreuveType, List<LearningPlanObservation>> parEpreuve = new LinkedHashMap<>();
         for (LearningPlanObservation observation : observations) {
             Skill skill = observation.getSkill();
@@ -237,6 +289,10 @@ public class JourneyLotBuilder {
             }
             EpreuveType epreuve = TcfDomaine.epreuve(skill.getSection());
             if (epreuve == null) continue;
+            // 🛑 D-72 — en CO/CE, seul le palier du cycle entre, et il est
+            // filtre AVANT la coupe : le budget D-67 se depense dans ce palier.
+            TargetLevel palier = palierDuCycle(epreuve, profil, objectif);
+            if (palier != null && palierDe(skill) != palier) continue;
             parEpreuve.computeIfAbsent(epreuve, key -> new ArrayList<>()).add(observation);
         }
         Map<EpreuveType, List<Priorite>> retenus = new LinkedHashMap<>();
@@ -259,9 +315,10 @@ public class JourneyLotBuilder {
     private List<Lot> parEpreuve(
             List<LearningPlanObservation> observations,
             Set<UUID> maitriseesCeJour,
-            java.util.function.Function<EpreuveType, UUID> source) {
+            java.util.function.Function<EpreuveType, UUID> source,
+            TargetLevel objectif, TcfLevelProfile profil) {
         List<Lot> lots = new ArrayList<>();
-        lotsParEpreuve(observations, maitriseesCeJour).forEach((epreuve, priorites) ->
+        lotsParEpreuve(observations, maitriseesCeJour, objectif, profil).forEach((epreuve, priorites) ->
                 lots.add(new Lot(epreuve, source.apply(epreuve), priorites)));
         return lots;
     }
@@ -298,15 +355,7 @@ public class JourneyLotBuilder {
     }
 
     private static Integer ecart(EpreuveType epreuve, TargetLevel objectif, TcfLevelProfile profil) {
-        if (profil == null) return null;
-        NiveauCecrl mesure = switch (epreuve) {
-            case TCF_CO -> profil.co();
-            case TCF_CE -> profil.ce();
-            case TCF_EE -> profil.ee();
-            case TCF_EO -> profil.eo();
-            default -> null;
-        };
-        return TcfDomaine.ecartAuNiveauCible(mesure, objectif);
+        return TcfDomaine.ecartAuNiveauCible(niveauDuDomaine(profil, epreuve), objectif);
     }
 
     /**
