@@ -117,3 +117,23 @@ export function monthBounds(month: string): { from: string; to: string } {
   const last = new Date(Date.UTC(y, m, 0)).getUTCDate();
   return { from: `${month}-01`, to: `${month}-${String(last).padStart(2, "0")}` };
 }
+
+/**
+ * Date courte d'une liste façon boîte mail, en heure de Paris : l'heure si
+ * l'instant servi tombe aujourd'hui, « Hier » la veille, sinon le jour et le
+ * mois (l'année s'ajoute hors de l'année en cours).
+ */
+export function formatParisShort(iso: string | null | undefined): string {
+  if (!iso) return "—";
+  const day = parisDay(iso);
+  const today = parisToday();
+  if (day === today) return formatParisTime(iso);
+  const [y, m, d] = today.split("-").map(Number);
+  if (day === new Date(Date.UTC(y, m - 1, d - 1)).toISOString().slice(0, 10)) return "Hier";
+  return new Date(iso).toLocaleDateString("fr-FR", {
+    timeZone: PARIS,
+    day: "numeric",
+    month: "short",
+    ...(day.slice(0, 4) === today.slice(0, 4) ? {} : { year: "numeric" }),
+  });
+}

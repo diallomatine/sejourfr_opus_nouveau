@@ -62,6 +62,13 @@ src/
 │   │                        (userId/authorId null → coordonnées dans
 │   │                        userEmail/userFullName). « Répondre » envoie un
 │   │                        email au contact (MailService, Reply-To support).
+│                        Refonte 2026-10-05 : ≥ 1180 px liste + fil côte à
+│                        côte (1er fil ouvert d'office), en dessous l'un OU
+│                        l'autre (retour = bouton ou navigateur). Filtres
+│                        (`status`, `unread`, `q` = objet), `page` et fil
+│                        ouvert `c` dans l'URL. Une sélection posée reste
+│                        ouverte même si le fil sort du filtre (plus de
+│                        cascade de « marquer lu »). Suppression via `Modal`.
 │   ├── productions/         « Productions IA » : liste `/productions-ia` et fiche
 │   │                        `/productions-ia/:id` des productions EE/EO corrigées
 │   │                        par IA, signalement. Détail dans la section plus bas.
@@ -625,7 +632,10 @@ vraies productions, le bandeau mesure l'écart avec l'IA.
   (`show(titre, ton, détail?)`), `Panel`, `PageHeader` (`description`), `Chips` (filtre exclusif,
   défilement horizontal en mobile), `Avatar` (initiales), `Icon`, `Collapsible` (carte repliable,
   `<details>` natif), `Segmented` (sélecteur exclusif compact des écrans de pilotage),
-  `PeriodPicker` (période + plage personnalisée, sur `lib/period.ts`), `StatTile` (tuile KPI).
+  `PeriodPicker` (période + plage personnalisée, sur `lib/period.ts`), `StatTile` (tuile KPI),
+  `SearchField` (recherche de liste, avec `useUrlSearchInput`), `InlineError` (bandeau d'erreur
+  + « Réessayer »), `BackLink` (retour à la liste : lien ou bouton). Hook `useMediaQuery` pour
+  un rendu qui change de structure (pas seulement de style) selon la largeur.
 - **Tableaux** : envelopper la `<table>` dans `<div className={tableStyles.tableWrap}>` et
   ajouter `tableStyles.cardTable` à la table, tous deux dans
   `components/ui/DataTable.module.css`. `tableWrap` donne le défilement horizontal (les

@@ -1,10 +1,11 @@
 import { useState } from "react";
 import type { ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Link, useLocation, useParams } from "react-router-dom";
+import { useLocation, useParams } from "react-router-dom";
 import { HttpError, httpErrorMessage } from "../../api/http";
 import { usersApi } from "../../api/usersApi";
 import { Avatar } from "../../components/ui/Avatar";
+import { BackLink } from "../../components/ui/BackLink";
 import { Button } from "../../components/ui/Button";
 import { Icon } from "../../components/ui/Icon";
 import { EmptyState, Panel } from "../../components/ui/Panel";
@@ -60,12 +61,7 @@ export function UserDetailPage() {
     staleTime: 5 * 60_000,
   });
 
-  const back = (
-    <Link to={`/users${listSearch}`} className={styles.back}>
-      <Icon name="arrowLeft" size={15} />
-      Retour aux utilisateurs
-    </Link>
-  );
+  const back = <BackLink to={`/users${listSearch}`} label="Retour aux utilisateurs" />;
 
   if (detailQuery.isPending) {
     return (

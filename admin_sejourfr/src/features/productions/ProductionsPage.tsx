@@ -7,9 +7,11 @@ import { productionsApi } from "../../api/productionsApi";
 import { Button } from "../../components/ui/Button";
 import { Select } from "../../components/ui/Form";
 import { Icon } from "../../components/ui/Icon";
+import { InlineError } from "../../components/ui/InlineError";
 import { PageHeader } from "../../components/ui/PageHeader";
 import { Pagination } from "../../components/ui/Pagination";
 import { EmptyState, Panel } from "../../components/ui/Panel";
+import { SearchField } from "../../components/ui/SearchField";
 import { Spinner } from "../../components/ui/Spinner";
 import { Tag } from "../../components/ui/Tag";
 import { useClampPage, useUrlSearchInput } from "../../hooks/useUrlListState";
@@ -110,19 +112,12 @@ export function ProductionsPage() {
         noPadding
       >
         <div className={styles.toolbar}>
-          <label className={styles.search}>
-            <span className="visually-hidden">
-              Rechercher une production (email, identifiant utilisateur ou de production)
-            </span>
-            <Icon name="search" size={17} className={styles.searchIcon} />
-            <input
-              type="search"
-              className={styles.searchInput}
-              placeholder="Email, ID utilisateur ou ID production (complet)…"
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-            />
-          </label>
+          <SearchField
+            label="Rechercher une production (email, identifiant utilisateur ou de production)"
+            placeholder="Email, ID utilisateur ou ID production (complet)…"
+            value={searchInput}
+            onChange={setSearchInput}
+          />
         </div>
 
         <div className={styles.filters}>
@@ -245,15 +240,10 @@ export function ProductionsPage() {
         )}
 
         {listQuery.isError && (
-          <div className={styles.inlineError} role="alert">
-            <span>
-              {data ? "Actualisation impossible" : "Impossible de charger les productions"} :{" "}
-              {httpErrorMessage(listQuery.error)}
-            </span>
-            <Button variant="default" size="sm" onClick={() => listQuery.refetch()}>
-              Réessayer
-            </Button>
-          </div>
+          <InlineError onRetry={() => listQuery.refetch()}>
+            {data ? "Actualisation impossible" : "Impossible de charger les productions"} :{" "}
+            {httpErrorMessage(listQuery.error)}
+          </InlineError>
         )}
 
         {data &&

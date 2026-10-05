@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link, useLocation, useParams } from "react-router-dom";
 import { HttpError, httpErrorMessage } from "../../api/http";
 import { productionsApi } from "../../api/productionsApi";
+import { BackLink } from "../../components/ui/BackLink";
 import { Button } from "../../components/ui/Button";
 import { Collapsible } from "../../components/ui/Collapsible";
 import { Icon } from "../../components/ui/Icon";
@@ -44,12 +45,7 @@ export function ProductionDetailPage() {
     enabled: id !== "",
   });
 
-  const back = (
-    <Link to={`/productions-ia${listSearch}`} className={styles.back}>
-      <Icon name="arrowLeft" size={15} />
-      Retour aux productions
-    </Link>
-  );
+  const back = <BackLink to={`/productions-ia${listSearch}`} label="Retour aux productions" />;
 
   if (detailQuery.isPending) {
     return (
