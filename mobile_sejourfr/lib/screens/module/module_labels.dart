@@ -9,7 +9,7 @@ import '../../core/router/shell_navigation.dart';
 
 const String kTabAccueil = 'Accueil';
 const String kTabTcf = 'TCF';
-const String kTabCivique = 'Civique';
+const String kTabCivique = 'Examen civique';
 const String kTabProfil = 'Profil';
 
 /* ----------------------------------------------------- en-têtes de module --- */
