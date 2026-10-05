@@ -3212,3 +3212,39 @@ les thèmes réussis.
 reste. Il suffit, à la fin de ce cycle (ou via un nouvel examen puis « Actualiser »), de
 réactualiser ; en local, le cycle `b7be9c00` de `lamine17@gmail.com` peut aussi être historisé à
 la main pour rejouer l'actualisation.
+
+# 2026-10-05 — Le premier plan est offert, les suivants sont réservés (A178)
+
+### A178 — Hors premier plan, les examens d'un compte sans accès au module sont servis `locked`
+
+**L'arbitrage du propriétaire, verbatim** : « C'est seulement le PREMIER plan (le cycle
+d'examens) où on peut faire les examens normalement s'ils sont dans le plan, si on n'est pas
+abonné. Seuls les abonnés peuvent travailler via le plan après le premier plan. Le premier
+plan = le diagnostic offert ; pour les autres on s'abonne. »
+
+**L'écart qu'il ferme.** `JourneyReadService.raisonDuVerrou` ne verrouillait l'examen d'un bloc
+que pour la progression (D-15) ou une gratuité EE/EO consommée. Un examen QCM (CO, CE, thème
+civique) restait donc jouable depuis le Plan **dans tout cycle**, abonné ou non — en TCF comme en
+civique ; le TCF semblait juste parce que ses blocs du cycle 2 portent presque toujours des
+compétences (verrou D-15), alors que les thèmes civiques réussis n'ont que leur examen (A177).
+D-69 n°7 (« freemium inchangé : verrous ACCESS servis ») ne disait rien des cycles suivants ; la
+règle du propriétaire prolonge D-18 (« Plan lisible mais inexécutable ») en n'exemptant que le
+premier plan.
+
+**La décision.**
+- Autorité dérivée `JourneyPlanOffert` : un cycle est le **premier plan** quand le candidat n'a,
+  sur ce module, **aucun** cycle historisé par un geste (`fin_de_cycle` posé) hors ceux que le
+  lancement D-69 ter a remplacés (`reinitialiser_au_lancement`). Pas le **rang** : les comptes
+  d'avant le lancement ont un cycle INTERROMPU derrière leur cycle d'examens, qui reste pourtant
+  leur plan offert ; et les cycles historisés avant V077 n'ont pas de geste.
+- Sur un plan non offert et un compte sans accès **au module** (`hasCivique` / `hasTcf`) :
+  `SECTION_EXAM` ⇒ `ACCESS`, après le verrou `PROGRESSION` qui l'emporte toujours. Les
+  `TRAIN_SKILL` étaient déjà `ACCESS`. Aucune requête de plus pour un abonné.
+- **Aucun 403 nouveau** : il n'existe pas de démarrage « depuis le Plan » — l'étape lance
+  l'examen blanc ordinaire (créneau 1), offert depuis l'onglet Examens (D-33, D-62). Ce qui se
+  ferme est le **geste du Plan**, par le `locked` servi que les deux fronts lisent déjà
+  (`ExamStep` ⇄ `_examen`, `civicNowCard` ⇄ `civicNowCard`, `journeyNowCta`) : aucun code front.
+
+**Si l'arbitrage était autre** (« le 403 doit aussi fermer l'examen hors Plan ») : c'est D-33 /
+D-62 qu'il faudrait réviser — le créneau 1 de la grille cesserait d'être offert après le premier
+plan. Verrouillé par `JourneyReadServiceTest` (A178) et `ActualisationCiviqueApresExamensIT`.

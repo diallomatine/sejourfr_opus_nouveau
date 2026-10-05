@@ -147,6 +147,28 @@
     jamais, aucune de ses compétences n'atteint `SOLID`, et il ne reçoit aucun
     **jalon** d'examen blanc. La vérification est **premium** — choix produit du
     2026-08-14, détaillé dans la section Plan. Ne pas « réparer ».
+- 🛑 **Compte gratuit, Plan : le PREMIER plan est offert, les suivants sont réservés
+  (A178, 2026-10-05, décision du propriétaire).** Verbatim : « C'est seulement le PREMIER
+  plan (le cycle d'examens) où on peut faire les examens normalement s'ils sont dans le plan,
+  si on n'est pas abonné. Seuls les abonnés peuvent travailler via le plan après le premier
+  plan. Le premier plan = le diagnostic offert ; pour les autres on s'abonne. »
+  - **Premier plan** (cycle d'examens D-69 ter, ou d'affinage D-64) : ses examens blancs
+    suivent la gratuité de l'examen lui-même (créneau 1 QCM offert, EE/EO nominatifs D-17
+    bis) ; le travail (`TRAIN_SKILL`) reste premium (D-18).
+  - **Plans suivants**, compte sans accès **au module** : **toutes** les étapes sont servies
+    `locked`, examens compris (`lockReason = ACCESS`, ou `PROGRESSION` si une unité / compétence
+    du bloc reste due — elle l'emporte) ; `state = LOCKED`, la carte « À faire maintenant »
+    nomme l'étape avec son paywall. Abonné du module : inchangé.
+  - **Autorité** : `JourneyPlanOffert` (dérivé : aucun plan antérieur terminé ou mis de côté
+    par le candidat ; les cycles remplacés au lancement D-69 ter et ceux d'avant V077 ne
+    comptent pas), lue par `JourneyReadService.raisonDuVerrou` — la même fonction pour la file
+    et pour l'écran d'étape (`verrouDeLEtape`). Les fronts lisent le `locked` servi, rien
+    d'autre.
+  - ⚠️ **Le 403 reste celui de l'examen, pas du Plan** : une étape d'examen lance l'examen
+    blanc ordinaire (créneau 1 de la grille), qu'aucun lien ne rattache au Plan. Ce créneau
+    reste offert depuis l'onglet Examens (D-33, D-62, inchangés) ; ce qui se ferme est le geste
+    **depuis le Plan**. Un tel examen passé hors Plan clôt quand même l'étape d'un bloc sans
+    travail dû (règle d'achèvement inchangée) ; un bloc avec du travail dû reste dû (D-15).
 - **Compte gratuit, examen blanc TCF complet** (`/api/full-tcf-exams`,
   orchestré CO→CE→EE→EO) : **accessible sans abonnement**, et chaque épreuve de
   production y est incluse **tant que sa gratuité n'est pas consommée**.

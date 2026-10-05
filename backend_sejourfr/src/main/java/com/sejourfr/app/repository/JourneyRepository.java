@@ -45,6 +45,15 @@ public interface JourneyRepository extends JpaRepository<Journey, UUID> {
     long countByUserIdAndModuleAndStatus(UUID userId, Module module, JourneyStatus status);
 
     /**
+     * Les plans <b>finis ou mis de cote par le candidat</b> sur ce module : les
+     * cycles historises par un geste ({@code fin_de_cycle} pose depuis V077),
+     * hors ceux que le lancement D-69 ter a remplaces
+     * ({@code reinitialiser_au_lancement}). Sert {@code JourneyPlanOffert}.
+     */
+    long countByUserIdAndModuleAndStatusAndReinitialiserAuLancementFalseAndFinDeCycleIsNotNull(
+            UUID userId, Module module, JourneyStatus status);
+
+    /**
      * <b>Les cycles du module qui se racontent</b> : l'historique et le cycle en
      * cours, <b>par ordre chronologique de creation</b>.
      *

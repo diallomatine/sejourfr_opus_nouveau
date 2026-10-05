@@ -167,6 +167,8 @@ public class JourneyReadService {
     // que l'amorce civique.
     private final JourneyCycleSuivant cycleSuivant;
     private final JourneyExamResultReader examResultReader;
+    /** A178 : le premier plan est offert, les examens des suivants sont premium. */
+    private final JourneyPlanOffert planOffert;
 
     /** L'etat lu d'une etape : le fait persiste, plus tout ce qui s'en derive. */
     private record Etat(JourneyStep step, JourneyStepStatus status, JourneyLockReason lockReason,
@@ -252,11 +254,20 @@ public class JourneyReadService {
         // clos). Aucune requete tant qu'aucun examen n'est clos.
         Map<UUID, JourneyExamResultDto> resultats = examResultReader.lire(userId, toutesLesEtapes);
 
+        // 🛑 A178 (2026-10-05, decision du proprietaire) : apres le PREMIER plan,
+        // seuls les abonnes travaillent via le plan -- examens compris. Lu une
+        // fois, et seulement pour un compte sans acces au module (aucune
+        // requete de plus pour un abonne).
+        boolean accesModule = journey.getModule() == Module.CIVIQUE
+                ? accesCivique
+                : access.unlimited();
+        boolean planReserve = !accesModule && !planOffert.pour(journey);
+
         Map<UUID, Etat> etats = new LinkedHashMap<>();
         for (JourneyStep step : toutesLesEtapes) {
             JourneyLockReason lockReason = raisonDuVerrou(step, access, progressionExpression,
                     examensDeProductionVerrouilles, blocsAvecTravailOuvert,
-                    journey.getModule() == Module.CIVIQUE, accesCivique, affinage);
+                    journey.getModule() == Module.CIVIQUE, accesCivique, affinage, planReserve);
             etats.put(step.getId(), new Etat(step,
                     statutHorsPromotion(step, toutesLesEtapes), lockReason,
                     progression(step, progressionExpression, seriesParEtape)));
@@ -616,16 +627,21 @@ public class JourneyReadService {
                 .filter(JourneyStep::estOuverte)
                 .toList();
         boolean civique = module == Module.CIVIQUE;
+        SkillAccessService.SkillAccess access = accessService.resolve(userId);
+        boolean accesCivique = civique && subscriptionService.hasCivique(userId);
+        boolean accesModule = civique ? accesCivique : access.unlimited();
         return raisonDuVerrou(
                 step,
-                accessService.resolve(userId),
+                access,
                 progressionDesCompetencesDExpression(userId, ouvertes),
                 examensDeProductionVerrouilles(userId, ouvertes),
                 blocsAvecTravailOuvert(ouvertes),
                 civique,
-                civique && subscriptionService.hasCivique(userId),
+                accesCivique,
                 step.getType() == JourneyStepType.SECTION_EXAM
-                        && cycleAffinage.pour(step.getJourney())) != null;
+                        && cycleAffinage.pour(step.getJourney()),
+                step.getType() == JourneyStepType.SECTION_EXAM
+                        && !accesModule && !planOffert.pour(step.getJourney())) != null;
     }
 
     private JourneyLockReason raisonDuVerrou(
@@ -636,7 +652,8 @@ public class JourneyReadService {
             Set<String> blocsAvecTravailOuvert,
             boolean moduleCivique,
             boolean accesCivique,
-            boolean affinage) {
+            boolean affinage,
+            boolean planReserve) {
         // 🛑 UNE ETAPE FAITE N'EST JAMAIS VERROUILLEE (2026-09-27). Le verrou dit
         // « tu ne peux pas le faire » ; sur ce qui est deja fait, il mentait —
         // un examen EE gratuit passe s'affichait « Réservé à l'offre
@@ -661,6 +678,10 @@ public class JourneyReadService {
                 if (!affinage && blocsAvecTravailOuvert.contains(step.blocCode())) {
                     yield JourneyLockReason.PROGRESSION;
                 }
+                // 🛑 A178 : hors PREMIER plan, l'examen d'un bloc est reserve aux
+                // abonnes du module, comme le travail. Au premier plan, seule la
+                // gratuite de l'examen lui-meme compte (EE/EO consommee).
+                if (planReserve) yield JourneyLockReason.ACCESS;
                 yield step.getExamType() != null
                         && examensDeProductionVerrouilles.contains(step.getExamType())
                         ? JourneyLockReason.ACCESS

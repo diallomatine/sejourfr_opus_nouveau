@@ -74,6 +74,17 @@ public class JourneyManager {
     }
 
     /**
+     * Combien de <b>plans</b> ce candidat a deja termines ou mis de cote sur ce
+     * module — hors cycles anterieurs au lancement D-69 ter. Zero ⇔ le cycle en
+     * cours est son <b>premier plan</b>, celui qui est offert (A178).
+     */
+    public int compterPlansAnterieurs(UUID userId, Module module) {
+        return (int) repository
+                .countByUserIdAndModuleAndStatusAndReinitialiserAuLancementFalseAndFinDeCycleIsNotNull(
+                        userId, module, JourneyStatus.HISTORISE);
+    }
+
+    /**
      * Les cycles du module qui se <b>racontent</b> — l'historique et le cycle en
      * cours —, par ordre chronologique de creation. Le cycle {@code EN_ATTENTE}
      * est exclu <b>en base</b> : il est invisible du candidat (D-13).

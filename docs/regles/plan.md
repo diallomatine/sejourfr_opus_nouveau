@@ -2337,7 +2337,9 @@ ligne « Mon diagnostic » n'apparaît que si `diagnosticFait`.
   suivant porte les priorités qu'ils ont détectées (D-67), et **aucun bloc vide** (D-70 : les
   paliers jusqu'à l'objectif en CO/CE, sinon un examen blanc).
 - **Jalon D-68** : le cycle d'examens ne compte pas comme cycle de travail (aucune `TRAIN_SKILL`).
-- **Freemium inchangé** : verrous `ACCESS` servis.
+- **Freemium** : verrous `ACCESS` servis. 🛑 **Ce premier plan est le seul offert** (A178,
+  2026-10-05) : sur un compte sans accès au module, les examens des plans suivants sont servis
+  `locked` comme le travail — `docs/regles/freemium.md`, `JourneyPlanOffert`.
 
 ---
 

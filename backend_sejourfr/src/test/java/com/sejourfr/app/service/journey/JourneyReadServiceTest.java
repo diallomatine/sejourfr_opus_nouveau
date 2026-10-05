@@ -132,11 +132,17 @@ class JourneyReadServiceTest {
                 // mocks — `null` (jalon non propose) et 0 par defaut.
                 jalonExamenComplet, cycleSuivant,
                 // D-69 ter : le resultat d'un examen clos (mock : aucun).
-                examResultReader);
+                examResultReader,
+                // A178 : le VRAI, sur le manager mocke -- 0 plan anterieur par
+                // defaut, donc le premier plan (examens au regime d'avant).
+                new JourneyPlanOffert(journeyManager));
         // 🛑 Les blocs interrogent « cette epreuve a-t-elle deja ete mesuree ? »
         // chez son unique autorite. Par defaut : aucune mesure.
         when(mesureResolver.mesure(any(), any()))
                 .thenReturn(NiveauActuelEpreuveResolver.Mesure.AUCUNE);
+        // Un acces est TOUJOURS resolu en production (jamais `null`) : par
+        // defaut, un compte sans acces TCF ; chaque test le surcharge au besoin.
+        when(accessService.resolve(any())).thenReturn(SkillAccessService.SkillAccess.AUCUN);
         user = new User();
         user.setId(UUID.randomUUID());
         journey = new Journey();
@@ -1148,6 +1154,77 @@ class JourneyReadServiceTest {
 
         assertThat(bloc(vue, EpreuveType.TCF_EE).exam().lockReason())
                 .isEqualTo(JourneyLockReason.PROGRESSION);
+    }
+
+    // =====================================================================
+    // A178 (2026-10-05, decision du proprietaire) — LE PREMIER PLAN EST OFFERT,
+    // LES SUIVANTS SONT RESERVES AUX ABONNES, EXAMENS COMPRIS.
+    // =====================================================================
+
+    @Test
+    @DisplayName("A178 — premier plan, compte gratuit : l'examen d'un bloc reste ouvert")
+    void auPremierPlanLExamenEstOffert() {
+        when(journeyManager.compterPlansAnterieurs(user.getId(), Module.TCF)).thenReturn(0);
+
+        JourneyDto vue = service.lire(journey, List.of(examStep(EpreuveType.TCF_CO, 1)));
+
+        assertThat(bloc(vue, EpreuveType.TCF_CO).exam().locked()).isFalse();
+        assertThat(vue.current()).isNotNull();
+        assertThat(vue.current().locked()).isFalse();
+    }
+
+    @Test
+    @DisplayName("A178 — apres le premier plan, compte gratuit TCF : l'examen est verrouille "
+            + "pour l'ACCES, et rien n'est executable")
+    void apresLePremierPlanLExamenEstReserveTcf() {
+        when(journeyManager.compterPlansAnterieurs(user.getId(), Module.TCF)).thenReturn(1);
+
+        JourneyDto vue = service.lire(journey, List.of(
+                examStep(EpreuveType.TCF_CO, 1), examStep(EpreuveType.TCF_CE, 2)));
+
+        assertThat(bloc(vue, EpreuveType.TCF_CO).exam().lockReason())
+                .isEqualTo(JourneyLockReason.ACCESS);
+        assertThat(bloc(vue, EpreuveType.TCF_CE).exam().lockReason())
+                .isEqualTo(JourneyLockReason.ACCESS);
+        // D-18 / D-60 : la carte nomme l'examen, verrouille, et rien ne se lance.
+        assertThat(vue.current()).isNotNull();
+        assertThat(vue.current().locked()).isTrue();
+        assertThat(vue.state()).isEqualTo(JourneyState.LOCKED);
+    }
+
+    @Test
+    @DisplayName("A178 — apres le premier plan, un ABONNE TCF garde ses examens ouverts")
+    void apresLePremierPlanLAbonneGardeSesExamens() {
+        when(accessService.resolve(user.getId()))
+                .thenReturn(SkillAccessService.SkillAccess.UNLIMITED);
+        when(journeyManager.compterPlansAnterieurs(user.getId(), Module.TCF)).thenReturn(2);
+
+        JourneyDto vue = service.lire(journey, List.of(examStep(EpreuveType.TCF_CO, 1)));
+
+        assertThat(bloc(vue, EpreuveType.TCF_CO).exam().locked()).isFalse();
+    }
+
+    @Test
+    @DisplayName("A178 — apres le premier plan, compte gratuit CIVIQUE : l'examen de "
+            + "thematique est verrouille pour l'ACCES ; abonne Civique : ouvert")
+    void apresLePremierPlanLExamenCiviqueEstReserve() {
+        journey.setModule(Module.CIVIQUE);
+        journey.poserObjectif(TargetProcedure.NAT);
+        Theme droits = theme("CIV_DROITS", "Droits et devoirs");
+        when(themeManager.findByModuleOrderedByDisplayOrder(Module.CIVIQUE))
+                .thenReturn(List.of(droits));
+        when(journeyManager.compterPlansAnterieurs(user.getId(), Module.CIVIQUE)).thenReturn(1);
+        JourneyStep examen = etapeCivique(JourneyStepType.SECTION_EXAM, droits, 1);
+
+        when(subscriptionService.hasCivique(user.getId())).thenReturn(false);
+        JourneyDto gratuit = service.lire(journey, List.of(examen));
+        assertThat(gratuit.blocs().getFirst().exam().lockReason())
+                .isEqualTo(JourneyLockReason.ACCESS);
+        assertThat(gratuit.state()).isEqualTo(JourneyState.LOCKED);
+
+        when(subscriptionService.hasCivique(user.getId())).thenReturn(true);
+        JourneyDto abonne = service.lire(journey, List.of(examen));
+        assertThat(abonne.blocs().getFirst().exam().locked()).isFalse();
     }
 
     @Test

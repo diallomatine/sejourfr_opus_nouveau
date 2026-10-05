@@ -1,5 +1,6 @@
 package com.sejourfr.app.service.journey;
 
+import com.sejourfr.app.dto.JourneyDto;
 import com.sejourfr.app.entity.Attempt;
 import com.sejourfr.app.entity.Journey;
 import com.sejourfr.app.entity.Theme;
@@ -8,6 +9,8 @@ import com.sejourfr.app.enums.AttemptMode;
 import com.sejourfr.app.enums.AttemptStatus;
 import com.sejourfr.app.enums.AttemptType;
 import com.sejourfr.app.enums.EpreuveType;
+import com.sejourfr.app.enums.JourneyLockReason;
+import com.sejourfr.app.enums.JourneyState;
 import com.sejourfr.app.enums.Module;
 import com.sejourfr.app.enums.TargetProcedure;
 import com.sejourfr.app.manager.AttemptManager;
@@ -169,6 +172,52 @@ class ActualisationCiviqueApresExamensIT extends AbstractIntegrationTest {
                 SELECT count(*) FROM journey_step WHERE journey_id = ? AND type = 'TRAIN_SKILL'
                 """, Integer.class, premier.getId())).isZero();
         assertThat(etapesOuvertes(premier.getId())).isEqualTo(5);
+    }
+
+    @Test
+    @DisplayName("A178 — compte gratuit : les examens du PREMIER plan sont jouables, ceux du "
+            + "plan suivant sont reserves (verrou ACCESS servi, rien d'executable)")
+    void leSecondPlanEstReserveAuxAbonnes() {
+        User user = candidatCivique();
+        journeyService.getOrCreate(user.getId(), Module.CIVIQUE).orElseThrow();
+        JourneyDto premier = journeyService.lire(user.getId(), Module.CIVIQUE);
+        assertThat(premier.blocs()).allSatisfy(bloc ->
+                assertThat(bloc.exam().locked()).as("premier plan : examen offert").isFalse());
+
+        List<Theme> themes = themeManager.findByModuleOrderedByDisplayOrder(Module.CIVIQUE);
+        for (int i = 0; i < themes.size(); i++) {
+            examenDeThemePasse(user, themes.get(i), i < 3 ? 4 : 18);
+        }
+        cycleService.actualiser(user.getId(), Module.CIVIQUE);
+
+        JourneyDto second = journeyService.lire(user.getId(), Module.CIVIQUE);
+        assertThat(second.blocs()).allSatisfy(bloc -> {
+            assertThat(bloc.steps()).allSatisfy(step ->
+                    assertThat(step.lockReason()).isEqualTo(JourneyLockReason.ACCESS));
+            // Un bloc qui porte des unites garde le verrou PEDAGOGIQUE (il
+            // l'emporte) ; un bloc a examen seul est ferme pour l'ACCES.
+            assertThat(bloc.exam().locked()).isTrue();
+            assertThat(bloc.exam().lockReason()).isEqualTo(bloc.steps().isEmpty()
+                    ? JourneyLockReason.ACCESS
+                    : JourneyLockReason.PROGRESSION);
+        });
+        assertThat(second.state()).isEqualTo(JourneyState.LOCKED);
+    }
+
+    @Test
+    @DisplayName("A178 — le cycle d'examens du LANCEMENT (D-69 ter) reste le premier plan, "
+            + "meme si un cycle l'a precede")
+    void leCycleDuLancementResteLePremierPlan() {
+        User user = candidatCivique();
+        Journey ancien = journeyService.getOrCreate(user.getId(), Module.CIVIQUE).orElseThrow();
+        jdbc.update("UPDATE journey SET reinitialiser_au_lancement = true WHERE id = ?",
+                ancien.getId());
+
+        Journey lancement = journeyService.getOrCreate(user.getId(), Module.CIVIQUE).orElseThrow();
+        assertThat(lancement.getId()).isNotEqualTo(ancien.getId());
+
+        assertThat(journeyService.lire(user.getId(), Module.CIVIQUE).blocs())
+                .allSatisfy(bloc -> assertThat(bloc.exam().locked()).isFalse());
     }
 
     // ------------------------------------------------------------------------
