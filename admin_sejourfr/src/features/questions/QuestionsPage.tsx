@@ -82,7 +82,14 @@ function QuestionsPageContent({ module }: QuestionsPageContentProps) {
   const types = typesForModule(module);
 
   const filters = useMemo(
-    () => ({
+    (): {
+      themeId: string;
+      difficulty: Difficulty | "";
+      type: QuestionType | "";
+      active: (typeof ACTIVE_VALUES)[number] | "";
+      media: QuestionMediaFilter | "";
+      search: string;
+    } => ({
       themeId: params.get("themeId") ?? "",
       difficulty: oneOf(params.get("difficulty"), levels) ?? "",
       type: oneOf(params.get("type"), types) ?? "",
