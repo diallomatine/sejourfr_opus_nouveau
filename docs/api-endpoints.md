@@ -1135,7 +1135,8 @@ Remplace `GET /api/admin/analytics` et `/api/admin/analytics/annotations` (ancie
   `includeInternal=false`. Valeur inconnue → **400** nommé.
 - Réponse `AdminSuiviResponse` : `window`, `filters` (+ `availableSources`),
   `measurementStart` (toutes les clés `SuiviIndicator`), `kpis` (visiteurs, soumis, achats,
-  net réel estimé ; valeur, période précédente, variation, ligne secondaire), `funnel`
+  net réel estimé, inscriptions — `signups` = `signups.total`, D118 ; valeur, période
+  précédente, variation, ligne secondaire), `funnel`
   (7 étapes, % depuis la précédente et % de l'étape 1, 3 sous-lignes de « Compte rattaché »,
   CA net cohorte, « en cours », `runsWithoutIdentifier` = entrées de l'étape 1 sans
   compte ni identifiant de mesure, doublons possibles — contrôle D), `revenue` (brut, TVA,

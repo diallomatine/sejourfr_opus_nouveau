@@ -13,17 +13,19 @@ import styles from "../suivi.module.css";
 function secondary(
   data: AdminSuiviResponse,
   kpi: SuiviKpi,
-  indicator: SuiviIndicator,
+  indicator: SuiviIndicator | null,
   text: string | null,
 ): { trend: string; neutral: boolean } {
-  if (kpi.value == null) return { trend: unmeasuredNote(data, indicator), neutral: true };
-  const since = measuredSinceNote(data, indicator);
+  if (kpi.value == null) {
+    return { trend: indicator == null ? DASH : unmeasuredNote(data, indicator), neutral: true };
+  }
+  const since = indicator == null ? null : measuredSinceNote(data, indicator);
   if (text == null) return { trend: since ?? DASH, neutral: true };
   return { trend: since == null ? text : `${text} · ${since}`, neutral: false };
 }
 
 export function KpiGrid({ data }: { data: AdminSuiviResponse }) {
-  const { visitors, submitted, purchases, netExVatCents } = data.kpis;
+  const { visitors, submitted, purchases, netExVatCents, signups } = data.kpis;
 
   const visitorsLine = secondary(
     data,
@@ -46,6 +48,18 @@ export function KpiGrid({ data }: { data: AdminSuiviResponse }) {
     purchases.ratioPct == null ? null : `${pct(purchases.ratioPct)} des diagnostics`,
   );
   const netLine = secondary(data, netExVatCents, "REVENUE_BREAKDOWN", "après TVA et frais");
+  // Les inscriptions sont un fait de `users`, toujours mesuré ; seul un filtre
+  // iOS / Android dépend de la date de ventilation par plateforme (D118).
+  const signupsLine = secondary(
+    data,
+    signups,
+    data.filters.platform === "IOS" || data.filters.platform === "ANDROID"
+      ? "SIGNUP_PLATFORM_DETAIL"
+      : null,
+    signups.deltaPct == null
+      ? null
+      : `${signedPct(signups.deltaPct)} ${comparedTo(data.window.preset)}`,
+  );
 
   return (
     <section className={styles.gridKpi}>
@@ -72,6 +86,12 @@ export function KpiGrid({ data }: { data: AdminSuiviResponse }) {
         value={money(netExVatCents.value)}
         trend={netLine.trend}
         neutral={netLine.neutral}
+      />
+      <StatTile
+        label="Inscriptions"
+        value={int(signups.value)}
+        trend={signupsLine.trend}
+        neutral={signupsLine.neutral || (signups.deltaPct ?? 0) <= 0}
       />
     </section>
   );

@@ -1682,6 +1682,11 @@ export interface SuiviKpis {
   submitted: SuiviKpi;
   purchases: SuiviKpi;
   netExVatCents: SuiviKpi;
+  /**
+   * Inscriptions de la période (comptes créés, supprimés exclus) ; même valeur
+   * que `signups.total`, tendance vs la période précédente (D118).
+   */
+  signups: SuiviKpi;
 }
 
 export interface SuiviFunnelStep {

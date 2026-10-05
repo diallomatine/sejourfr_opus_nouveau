@@ -101,8 +101,12 @@ public record AdminSuiviResponse(
      * @param purchases     achats de la periode (rembourses inclus)
      * @param netExVatCents net reel estime : net HT apres frais des achats de la
      *                      periode, remboursements de la periode deduits
+     * @param signups       inscriptions de la periode : comptes crees, supprimes
+     *                      exclus ; meme valeur que {@code signups.total} (memes
+     *                      filtres : plateforme d'inscription, source, internes ;
+     *                      le filtre type ne s'y applique pas) (D118)
      */
-    public record Kpis(Kpi visitors, Kpi submitted, Kpi purchases, Kpi netExVatCents) {
+    public record Kpis(Kpi visitors, Kpi submitted, Kpi purchases, Kpi netExVatCents, Kpi signups) {
     }
 
     /**

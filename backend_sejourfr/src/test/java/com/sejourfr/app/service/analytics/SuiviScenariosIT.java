@@ -579,6 +579,71 @@ class SuiviScenariosIT extends AbstractIntegrationTest {
     }
 
     @Test
+    @DisplayName("KPI Inscriptions — période, tendance vs la veille, supprimés et internes exclus (D118)")
+    void kpiInscriptions() {
+        LocalDate d4 = D3.plusDays(1);
+        for (int i = 0; i < 4; i++) data.userCreatedAt("direct", ClientPlatform.WEB, paris(D3, 9 + i));
+        for (int i = 0; i < 4; i++) data.userCreatedAt("direct", ClientPlatform.WEB, paris(d4, 9 + i));
+        data.userCreatedAt("direct", ClientPlatform.ANDROID, paris(d4, 14));
+        data.userCreatedAt("direct", ClientPlatform.WEB, paris(D3.minusDays(1), 9));
+        User supprimeVeille = data.userCreatedAt("direct", ClientPlatform.WEB, paris(D3, 15));
+        User supprime = data.userCreatedAt("direct", ClientPlatform.WEB, paris(d4, 15));
+        User interne = data.userCreatedAt("direct", ClientPlatform.WEB, paris(d4, 16));
+        em.flush();
+        jdbc.update("UPDATE users SET deleted_at = ? WHERE id IN (?, ?)", ts(paris(d4, 20)),
+                supprimeVeille.getId(), supprime.getId());
+        jdbc.update("UPDATE users SET is_internal = true WHERE id = ?", interne.getId());
+
+        AdminSuiviResponse r = lire(jour(d4), SuiviTypeFilter.ALL);
+        AdminSuiviResponse.Kpi k = r.kpis().signups();
+        assertThat(k.value()).isEqualTo(5L);
+        assertThat(k.previous()).isEqualTo(4L);
+        assertThat(k.deltaPct()).isEqualTo(25.0);
+        assertThat(k.ratioPct()).isNull();
+        assertThat(r.signups().total()).isEqualTo(k.value());
+
+        // Le filtre type ne s'applique pas aux inscriptions.
+        assertThat(lire(jour(d4), SuiviTypeFilter.TCF).kpis().signups().value()).isEqualTo(5L);
+
+        AdminSuiviResponse inclus = service.compute(new SuiviQuery(null, jour(d4), SuiviTypeFilter.ALL,
+                SuiviPlatformFilter.ALL, null, true), mesure());
+        assertThat(inclus.kpis().signups().value()).isEqualTo(6L);
+        assertThat(inclus.kpis().signups().deltaPct()).isEqualTo(50.0);
+
+        AdminSuiviResponse web = service.compute(new SuiviQuery(null, jour(d4), SuiviTypeFilter.ALL,
+                SuiviPlatformFilter.WEB, null, false), mesure());
+        assertThat(web.kpis().signups().value()).isEqualTo(4L);
+        assertThat(web.kpis().signups().previous()).isEqualTo(4L);
+        assertThat(web.kpis().signups().deltaPct()).isEqualTo(0.0);
+
+        // Deux jours : les deux derniers jours contre les deux d'avant (1 compte le 2).
+        AdminSuiviResponse deuxJours = lire(new FenetreMesure(D3, d4), SuiviTypeFilter.ALL);
+        assertThat(deuxJours.kpis().signups().value()).isEqualTo(9L);
+        assertThat(deuxJours.kpis().signups().previous()).isEqualTo(1L);
+        assertThat(deuxJours.kpis().signups().deltaPct()).isEqualTo(800.0);
+
+        AdminSuiviResponse veilleVide = lire(jour(D3.minusDays(1)), SuiviTypeFilter.ALL);
+        assertThat(veilleVide.kpis().signups().value()).isEqualTo(1L);
+        assertThat(veilleVide.kpis().signups().previous()).isZero();
+        assertThat(veilleVide.kpis().signups().deltaPct()).isNull();
+    }
+
+    @Test
+    @DisplayName("KPI Inscriptions — filtre iOS / Android : null tant que la ventilation n'est pas mesurée")
+    void kpiInscriptionsNonMesure() {
+        data.userCreatedAt("direct", ClientPlatform.ANDROID, paris(D3, 9));
+        Map<SuiviIndicator, LocalDate> starts = mesure();
+        starts.put(SuiviIndicator.SIGNUP_PLATFORM_DETAIL, D3);
+
+        AdminSuiviResponse android = service.compute(new SuiviQuery(null, jour(D3), SuiviTypeFilter.ALL,
+                SuiviPlatformFilter.ANDROID, null, false), starts);
+
+        assertThat(android.kpis().signups().value()).isEqualTo(1L);
+        assertThat(android.kpis().signups().previous()).isNull();
+        assertThat(android.kpis().signups().deltaPct()).isNull();
+    }
+
+    @Test
     @DisplayName("Filtre plateforme : la plateforme de l'étape 1 pour le tunnel, le canal pour les achats")
     void filtrePlateforme() {
         User user = data.userCreatedAt("direct", ClientPlatform.ANDROID, paris(D3, 8));

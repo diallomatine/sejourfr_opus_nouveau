@@ -327,7 +327,8 @@ blocs, libellés et paliers responsive (1050 / 640 px) repris au plus près ;
 **couleurs et polices par les tokens** de `styles/global.css` (zéro hex, zéro nom
 de police dans la feature). Décisions : `docs/admin/decisions-suivi.md`.
 
-- **Blocs** : 4 KPI → tunnel 7 étapes (cohorte) + revenus de la période →
+- **Blocs** : 5 KPI (visiteurs, soumis, achats, net réel estimé, **inscriptions**
+  — D118 ; grille `auto-fit` ≥ 168 px, 2 colonnes sous 640 px) → tunnel 7 étapes (cohorte) + revenus de la période →
   ratios (secondaire) → par type + inscriptions → activité + sources.
   🛑 **Pas de bloc « Utilisation du plan »** (Q7 : ni proxy, ni « bientôt »).
 - **Un SEUL appel** (`useSuivi`, `queryKey: ["adminSuivi", query]`, la clé

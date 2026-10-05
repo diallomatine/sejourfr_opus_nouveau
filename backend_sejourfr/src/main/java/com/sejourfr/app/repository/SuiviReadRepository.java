@@ -581,6 +581,9 @@ public interface SuiviReadRepository extends Repository<DiagnosticRun, UUID> {
     interface SignupRow {
         long getTotal();
 
+        /** Inscriptions de la periode precedente (tendance du KPI). */
+        long getPrevTotal();
+
         long getAfterTotal();
 
         long getAfterTcf();
@@ -604,9 +607,11 @@ public interface SuiviReadRepository extends Repository<DiagnosticRun, UUID> {
 
     /**
      * Comptes crees dans la periode ({@code users.created_at}, non supprimes),
-     * par contexte d'inscription, type du diagnostic rattache et plateforme.
-     * Le total part de {@code :from} ; le contexte et la plateforme, de leur
-     * propre date de debut de mesure ({@code :ctxFrom}, {@code :pfFrom}, D117).
+     * par contexte d'inscription, type du diagnostic rattache et plateforme, et
+     * comptes crees dans la periode precedente ({@code [:prevFrom, :from)},
+     * KPI « Inscriptions », D118). Le total part de {@code :curFrom} ; le
+     * contexte et la plateforme, de leur propre date de debut de mesure
+     * ({@code :ctxFrom}, {@code :pfFrom}, D117), toutes {@code >= :from}.
      */
     @Query(value = """
             WITH comptes AS (
@@ -616,13 +621,16 @@ public interface SuiviReadRepository extends Repository<DiagnosticRun, UUID> {
              AS src_key
                       FROM users u
             """ + SOURCE_DU_COMPTE + """
-                     WHERE u.created_at >= :from AND u.created_at < :to AND u.deleted_at IS NULL
+                     WHERE ((u.created_at >= :prevFrom AND u.created_at < :from)
+                            OR (u.created_at >= :curFrom AND u.created_at < :to))
+                       AND u.deleted_at IS NULL
                        AND (:includeInternal OR NOT u.is_internal)
                        AND (CAST(:platform AS text) IS NULL OR u.signup_platform = CAST(:platform AS text))) x
                  WHERE CAST(:source AS text) IS NULL OR (""" + GROUPE + """
             ) = CAST(:source AS text)
             )
-            SELECT count(*) AS total,
+            SELECT count(*) FILTER (WHERE created_at >= :curFrom) AS total,
+                   count(*) FILTER (WHERE created_at < :from) AS prev_total,
                    count(*) FILTER (WHERE created_at >= :ctxFrom
                                       AND signup_context = 'AFTER_DIAGNOSTIC') AS after_total,
                    count(*) FILTER (WHERE created_at >= :ctxFrom AND signup_context = 'AFTER_DIAGNOSTIC'
@@ -642,7 +650,8 @@ public interface SuiviReadRepository extends Repository<DiagnosticRun, UUID> {
                        AS platform_unknown
               FROM comptes
             """, nativeQuery = true)
-    SignupRow signups(@Param("from") Instant from, @Param("ctxFrom") Instant ctxFrom,
+    SignupRow signups(@Param("prevFrom") Instant prevFrom, @Param("from") Instant from,
+                      @Param("curFrom") Instant curFrom, @Param("ctxFrom") Instant ctxFrom,
                       @Param("pfFrom") Instant pfFrom, @Param("to") Instant to,
                       @Param("platform") String platform, @Param("source") String source,
                       @Param("includeInternal") boolean includeInternal,

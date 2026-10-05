@@ -82,7 +82,7 @@ public class SuiviReadManager {
                         q.source(), q.includeInternal(), q.srcMap(), q.fallback()),
                 repository.refunds(q.prevFrom(), q.from(), d.refunds(), q.to(), q.type(), q.platform(),
                         q.source(), q.includeInternal(), q.srcMap(), q.fallback()),
-                repository.signups(d.signups(), d.signupContext(), d.signupPlatform(), q.to(), q.platform(),
+                repository.signups(q.prevFrom(), q.from(), d.signups(), d.signupContext(), d.signupPlatform(), q.to(), q.platform(),
                         q.source(), q.includeInternal(), q.srcMap(), q.fallback()));
     }
 }

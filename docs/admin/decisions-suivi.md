@@ -1028,6 +1028,15 @@ retour (faible / moyenne / forte).
 - Fichiers : `SuiviMapper`, `SuiviService`, `SuiviReadManager`, `SuiviReadRepository` ; admin `measurement.ts` (`measuredSinceNote`) et cartes Suivi ; tests `SuiviScenariosIT.periodeQuiChevaucheLeDebutDeMesure`, `debutsDeMesureDecales`, `AdminSuiviControllerIT.periodesQuiChevauchentLaMiseEnProduction`.
 - Difficulté de retour : faible (le mapper et quatre paramètres SQL).
 
+**D118 — KPI « Inscriptions » : 5ᵉ tuile, même total que le bloc Inscriptions** · Demande du propriétaire (2026-10-05)
+- Contexte : le propriétaire veut, à côté des 4 KPI, le nombre d'inscriptions (comptes créés) de la période filtrée, avec sa tendance comme les visiteurs (« +20 % vs hier »), comptes supprimés exclus.
+- Options : (a) seconde lecture SQL dédiée au KPI ; (b) étendre la lecture des inscriptions existante d'un compte de la période précédente.
+- Choix : **(b)**, une seule autorité. `SuiviReadRepository.signups` lit désormais `[prevFrom, from)` ∪ `[curFrom, to)` et sert `prev_total` ; `kpis.signups` = `Kpi(signups.total, prev_total, delta, null)`, la variation calculée par `SuiviMapper.delta` comme les autres KPI. Le nombre de requêtes reste six (`SuiviPerformanceIT`). **Filtres** : type non applicable (une inscription directe n'a pas de type, comme `signups.typeFilterApplied = false`) ; plateforme = `users.signup_platform` ; source = source du compte ; internes exclus sauf `includeInternal`. **Date de début de mesure** : aucune nouvelle — `users.created_at` existe depuis toujours (D117 : `signups.total` est un fait de `users`) ; seul un filtre iOS / Android dépend de `SIGNUP_PLATFORM_DETAIL` (valeur depuis cette date, tendance `null` si la période précédente n'est pas mesurée de bout en bout).
+- **Comptes supprimés** : le bloc Inscriptions les excluait déjà (`u.deleted_at IS NULL`) — KPI et bloc sont donc alignés sans correctif. Le **tunnel** (sous-ligne « inscrit après » de l'étape 3, ratio diagnostic → inscription) **continue de les compter** : c'est une cohorte de personnes et de runs, dont les faits survivent à la suppression par décision (contrôle N9, `DiagnosticRunRepository.forgetIdentifiersOfUser` : « la run et ses faits restent (le tunnel les compte) ») ; les exclure là seulement casserait « somme des sous-lignes = étape 3 ». À arbitrer par le propriétaire s'il veut l'inverse.
+- Admin : tuile « Inscriptions » dans `KpiGrid` (tendance `${signedPct} ${comparedTo}`, neutre si ≤ 0, comme les visiteurs) ; `.gridKpi` passe de `repeat(4)` / 2 colonnes sous 1050 px à `repeat(auto-fit, minmax(min(100%, 168px), 1fr))`, 2 colonnes sous 640 px.
+- Fichiers : `AdminSuiviResponse`, `SuiviReadRepository`, `SuiviReadManager`, `SuiviMapper`, `SuiviScenariosIT` (`kpiInscriptions`, `kpiInscriptionsNonMesure`) ; admin `types/api.ts`, `KpiGrid.tsx`, `suivi.module.css`, `CLAUDE.md` ; `docs/api-endpoints.md`, `docs/regles/mesure-audience.md`.
+- Difficulté de retour : faible (un champ ajouté, une colonne SQL).
+
 ---
 
 ## 3. Récapitulatif final (2026-09-25)

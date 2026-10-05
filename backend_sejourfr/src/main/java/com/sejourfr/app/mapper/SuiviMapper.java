@@ -161,6 +161,11 @@ public class SuiviMapper {
         Long submittedRaw = submittedSince != null ? l.activity().getCurRaw() : null;
         LocalDate purchasesSince = mesure.since(SuiviIndicator.PURCHASES);
 
+        // Inscriptions : un fait de `users`, toujours mesure, sauf filtre iOS / Android
+        // (ventilation de plateforme datee). KPI et bloc Inscriptions lisent le meme total (D118).
+        Long signupsTotal = mesure.now(mesure.withPlatform()) ? l.signups().getTotal() : null;
+        Long signupsPrev = mesure.before(mesure.withPlatform()) ? l.signups().getPrevTotal() : null;
+
         // Un ratio ne rapporte que deux comptes mesures sur les MEMES jours (D117).
         Kpis kpis = new Kpis(
                 new Kpi(visitors, visitorsPrev, delta(visitors, visitorsPrev), null),
@@ -171,7 +176,8 @@ public class SuiviMapper {
                         java.util.Objects.equals(purchasesSince, submittedSince)
                                 ? pct(revenue.purchases(), submitted) : null),
                 new Kpi(revenue.netExVatAfterRefundsCents(), previousRevenue.netExVatAfterRefundsCents(),
-                        delta(revenue.netExVatAfterRefundsCents(), previousRevenue.netExVatAfterRefundsCents()), null));
+                        delta(revenue.netExVatAfterRefundsCents(), previousRevenue.netExVatAfterRefundsCents()), null),
+                new Kpi(signupsTotal, signupsPrev, delta(signupsTotal, signupsPrev), null));
 
         boolean anonMeasured = mesure.now(SuiviIndicator.DIAGNOSTIC_SUBMITTED, SuiviIndicator.ACCOUNT_ATTACHED);
         Activity activity = new Activity(submitted, submittedRaw,
@@ -190,7 +196,7 @@ public class SuiviMapper {
                 revenue,
                 List.of(typeRow(SuiviTypeFilter.TCF, funnelRows.get("QUICK_TCF"), mesure),
                         typeRow(SuiviTypeFilter.CIVIQUE, funnelRows.get("CIVIQUE"), mesure)),
-                signups(l.signups(), l.activity().getLoggedInAfter(), mesure),
+                signups(l.signups(), signupsTotal, l.activity().getLoggedInAfter(), mesure),
                 sources(l.visitors(), availableSources, sourcesMeasured),
                 sourcesMeasured ? unknownSource(l.visitors()) : null,
                 ratios(scopeRow, funnel),
@@ -383,12 +389,11 @@ public class SuiviMapper {
     // Inscriptions, sources
     // ------------------------------------------------------------------------
 
-    private Signups signups(SignupRow row, long loggedInAfter, Mesure mesure) {
-        boolean totalMeasured = mesure.now(mesure.withPlatform());
-        boolean context = totalMeasured && mesure.now(mesure.withPlatform(SuiviIndicator.SIGNUP_CONTEXT));
+    private Signups signups(SignupRow row, Long total, long loggedInAfter, Mesure mesure) {
+        boolean context = total != null && mesure.now(mesure.withPlatform(SuiviIndicator.SIGNUP_CONTEXT));
         boolean platforms = mesure.now(SuiviIndicator.SIGNUP_PLATFORM_DETAIL);
         return new Signups(
-                totalMeasured ? row.getTotal() : null,
+                total,
                 context ? new AfterDiagnostic(row.getAfterTotal(), row.getAfterTcf(), row.getAfterCivique())
                         : new AfterDiagnostic(null, null, null),
                 context ? row.getOutside() : null,

@@ -186,9 +186,10 @@
 
 /* ---------- KPI ---------- */
 
+/* Cinq tuiles (D118) : une ligne dès qu'elles tiennent à 168 px, sinon 3 + 2 ou 4 + 1. */
 .gridKpi {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 168px), 1fr));
   gap: 14px;
   margin-bottom: 18px;
 }
@@ -510,9 +511,6 @@
 /* ---------- Responsive (paliers du template) ---------- */
 
 @media (max-width: 1050px) {
-  .gridKpi {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
   .layout,
   .twoCol {
     grid-template-columns: minmax(0, 1fr);
