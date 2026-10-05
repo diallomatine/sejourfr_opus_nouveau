@@ -16,7 +16,7 @@ import { EmptyState, Panel } from "../../components/ui/Panel";
 import { Spinner } from "../../components/ui/Spinner";
 import { Tag } from "../../components/ui/Tag";
 import { useClampPage, useUrlSearchInput } from "../../hooks/useUrlListState";
-import { formatParisDateTime } from "../../lib/dates";
+import { formatParisDateTime, monthOptions } from "../../lib/dates";
 import type {
   AdminSubscriptionDto,
   CancelSubscriptionResponse,
@@ -91,39 +91,10 @@ function formatDateTime(iso: string | null | undefined): string {
   });
 }
 
-const PARIS = "Europe/Paris";
 
 /** Date d'achat lue en heure de Paris : le filtre mensuel du serveur découpe les mois ainsi. */
 const formatPurchase = formatParisDateTime;
 
-const MONTH_OPTIONS_COUNT = 24;
-
-/**
- * Les 24 derniers mois civils (Paris), le plus récent en tête, au format du
- * paramètre serveur `yyyy-MM`. Un mois plus ancien arrivé par l'URL reste
- * sélectionné : il est ajouté en fin de liste plutôt qu'ignoré.
- */
-function monthOptions(selected: string | undefined): { value: string; label: string }[] {
-  const [y, m] = new Intl.DateTimeFormat("en-CA", { timeZone: PARIS, year: "numeric", month: "2-digit" })
-    .format(new Date())
-    .split("-")
-    .map(Number);
-  const values: string[] = [];
-  for (let i = 0; i < MONTH_OPTIONS_COUNT; i++) {
-    const d = new Date(Date.UTC(y, m - 1 - i, 1));
-    values.push(`${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`);
-  }
-  if (selected && !values.includes(selected)) values.push(selected);
-  return values.map((value) => {
-    const [vy, vm] = value.split("-").map(Number);
-    const label = new Date(Date.UTC(vy, vm - 1, 1)).toLocaleDateString("fr-FR", {
-      timeZone: "UTC",
-      month: "long",
-      year: "numeric",
-    });
-    return { value, label };
-  });
-}
 
 function formatPrice(n: number | null | undefined): string {
   if (n === null || n === undefined) return "—";

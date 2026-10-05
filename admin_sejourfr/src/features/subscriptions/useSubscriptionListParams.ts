@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { MONTH_PATTERN } from "../../lib/dates";
 import { oneOf, useUrlListState } from "../../hooks/useUrlListState";
 import type {
   AdminSubscriptionFilters,
@@ -21,7 +22,6 @@ const STATUSES: readonly SubscriptionStatus[] = [
 ];
 const MODULES: readonly ModuleAccess[] = ["CIVIQUE", "INTEGRAL"];
 
-const MONTH_PATTERN = /^\d{4}-(0[1-9]|1[0-2])$/;
 
 export type SubscriptionFilterKey =
   | "source"

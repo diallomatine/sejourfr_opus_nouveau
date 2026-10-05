@@ -40,7 +40,7 @@ export function useSuiviParams() {
   const [params, setParams] = useSearchParams();
 
   const state = useMemo(() => {
-    const { period, from, to, range } = readPeriod(params, SUIVI_PERIODS);
+    const { period, from, to, month, range } = readPeriod(params, SUIVI_PERIODS);
     const query: SuiviQuery = {
       range,
       type: lookup(TYPES, params.get("type")) ?? "ALL",
@@ -48,7 +48,7 @@ export function useSuiviParams() {
       source: params.get("source") || "ALL",
       includeInternal: params.get("internal") === "1",
     };
-    return { period, from, to, query };
+    return { period, from, to, month, query };
   }, [params]);
 
   const update = useCallback(

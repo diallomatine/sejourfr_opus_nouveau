@@ -350,7 +350,10 @@ de police dans la feature). Décisions : `docs/admin/decisions-suivi.md`.
   virgule décimale, `—` pour l'absent. Montants en centimes.
 - **Période** : Aujourd'hui / Hier / 7 jours / **30 jours** (`LAST_30_DAYS`) / Mois /
   Personnalisé, lue et écrite par `lib/period.ts` et choisie par
-  `components/ui/PeriodPicker` (partagés avec Activité).
+  `components/ui/PeriodPicker` (partagés avec Activité). **Mois** ouvre la liste des 24
+  derniers mois (`lib/dates.ts` `monthOptions`, partagée avec Abonnements), le mois courant
+  par défaut : courant ⇒ preset `MONTH` (à date), mois passé ⇒ `?month=yyyy-MM`, envoyé en
+  plage `from`/`to` du 1er au dernier jour.
 - **Carte « Actifs maintenant »** au-dessus des KPI : `LiveActivityCard` de
   `features/activity/` en variante `compact` (second appel assumé, D11 ; sa propre
   `queryKey`, 30 s ; ne dépend ni de la période ni des filtres, sauf « internes »),

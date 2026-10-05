@@ -20,7 +20,7 @@ import styles from "./suivi.module.css";
  * l'ecran ; les bornes affichees sont celles SERVIES.
  */
 export function SuiviPage() {
-  const { period, from, to, query, update } = useSuiviParams();
+  const { period, from, to, month, query, update } = useSuiviParams();
   const { data, error, isPending, isPlaceholderData } = useSuivi(query);
 
   return (
@@ -41,6 +41,7 @@ export function SuiviPage() {
           period={period}
           from={from}
           to={to}
+          month={month}
           type={query.type}
           platform={query.platform}
           source={query.source}

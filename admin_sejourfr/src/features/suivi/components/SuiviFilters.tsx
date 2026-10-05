@@ -10,6 +10,7 @@ interface SuiviFiltersProps {
   period: PeriodId;
   from: string;
   to: string;
+  month: string;
   type: SuiviTypeFilter;
   platform: SuiviPlatformFilter;
   source: string;
@@ -35,6 +36,7 @@ export function SuiviFilters(props: SuiviFiltersProps) {
         period={props.period}
         from={props.from}
         to={props.to}
+        month={props.month}
         servedFrom={props.servedFrom}
         servedTo={props.servedTo}
         onChange={onChange}

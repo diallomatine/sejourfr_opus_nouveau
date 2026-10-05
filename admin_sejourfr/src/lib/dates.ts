@@ -77,3 +77,43 @@ function monthName(day: string): string {
     timeZone: "UTC",
   });
 }
+
+/** Mois civil courant à Paris, au format `yyyy-MM`. */
+export function parisCurrentMonth(): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: PARIS, year: "numeric", month: "2-digit" })
+    .format(new Date())
+    .slice(0, 7);
+}
+
+export const MONTH_PATTERN = /^\d{4}-(0[1-9]|1[0-2])$/;
+
+/**
+ * Les `count` derniers mois civils (Paris), le plus récent en tête, au format
+ * `yyyy-MM`. Un mois plus ancien arrivé par l'URL reste sélectionné : il est
+ * ajouté en fin de liste plutôt qu'ignoré.
+ */
+export function monthOptions(selected: string | undefined, count = 24): { value: string; label: string }[] {
+  const [y, m] = parisCurrentMonth().split("-").map(Number);
+  const values: string[] = [];
+  for (let i = 0; i < count; i++) {
+    const d = new Date(Date.UTC(y, m - 1 - i, 1));
+    values.push(`${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`);
+  }
+  if (selected && !values.includes(selected)) values.push(selected);
+  return values.map((value) => {
+    const [vy, vm] = value.split("-").map(Number);
+    const label = new Date(Date.UTC(vy, vm - 1, 1)).toLocaleDateString("fr-FR", {
+      timeZone: "UTC",
+      month: "long",
+      year: "numeric",
+    });
+    return { value, label };
+  });
+}
+
+/** Premier et dernier jour (`yyyy-MM-dd`) d'un mois `yyyy-MM`. */
+export function monthBounds(month: string): { from: string; to: string } {
+  const [y, m] = month.split("-").map(Number);
+  const last = new Date(Date.UTC(y, m, 0)).getUTCDate();
+  return { from: `${month}-01`, to: `${month}-${String(last).padStart(2, "0")}` };
+}

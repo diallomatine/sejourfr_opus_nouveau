@@ -1,4 +1,5 @@
 import type { SuiviPeriodPreset, SuiviRange } from "../types/api";
+import { MONTH_PATTERN, monthBounds, parisCurrentMonth } from "./dates";
 
 /**
  * Période d'un écran de pilotage (Suivi, Activité) : un preset du serveur ou
@@ -33,6 +34,8 @@ export interface PeriodState {
   period: PeriodId;
   from: string;
   to: string;
+  /** Mois choisi sous « Mois » (`yyyy-MM`), le mois courant par défaut. */
+  month: string;
   range: SuiviRange;
 }
 
@@ -51,18 +54,26 @@ export function readPeriod(params: URLSearchParams, offered: readonly PeriodId[]
     ISO_DAY.test(from) &&
     ISO_DAY.test(to) &&
     from <= to;
-  if (customValid) return { period: "custom", from, to, range: { from, to } };
+  const current = parisCurrentMonth();
+  if (customValid) return { period: "custom", from, to, month: current, range: { from, to } };
   const period =
     raw != null && raw !== "custom" && Object.hasOwn(PRESETS, raw) && offered.includes(raw as PeriodId)
       ? (raw as PresetPeriodId)
       : "today";
-  return { period, from, to, range: { preset: PRESETS[period] } };
+  // « Mois » : le mois courant passe par le preset du serveur (à date) ; un mois
+  // passé part en plage du 1er au dernier jour. Un mois illisible ou futur ⇒ courant.
+  const rawMonth = params.get("month") ?? "";
+  if (period === "month" && MONTH_PATTERN.test(rawMonth) && rawMonth < current) {
+    return { period, from, to, month: rawMonth, range: monthBounds(rawMonth) };
+  }
+  return { period, from, to, month: current, range: { preset: PRESETS[period] } };
 }
 
 export interface PeriodPatch {
   period?: PeriodId;
   from?: string;
   to?: string;
+  month?: string;
 }
 
 /** Écrit la période dans l'URL ; le défaut n'est pas écrit, un preset efface la plage. */
@@ -77,6 +88,10 @@ export function writePeriod(next: URLSearchParams, patch: PeriodPatch): void {
       next.delete("from");
       next.delete("to");
     }
+    if (patch.period !== "month") next.delete("month");
+  }
+  if (patch.month !== undefined) {
+    write("month", patch.month === parisCurrentMonth() ? null : patch.month);
   }
   if (patch.from !== undefined) write("from", patch.from);
   if (patch.to !== undefined) write("to", patch.to);
