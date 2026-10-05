@@ -77,6 +77,7 @@ import {withRetour} from "./retour";
 import {cached, clearDataCache, invalidateCache, peekCached, primeCached} from "./data-cache";
 import {requiresDiagnosticRevalidation} from "./diagnostic";
 import {signalerPlanARelire} from "./plan-relecture";
+import {isSubmissionPending} from "./types";
 import {PRODUCTION_PROGRESS_PREFIXES} from "./production-catalog";
 import {SKILLS_CACHE_PREFIX} from "./skill-catalog";
 
@@ -2104,6 +2105,61 @@ export const productionApi = {
         );
     },
 };
+
+/** Cadence du suivi des corrections d'un examen EE/EO (même cadence que le polling des résultats). */
+const CORRECTIONS_POLL_MS = 3_000;
+/** Borne du suivi : une correction bloquée côté serveur ne fait plus tirer le navigateur sur le réseau. */
+const CORRECTIONS_MAX_MS = 3 * 60_000;
+/** Sursis entre « toutes les corrections sont finies » et la relecture : le parcours range les
+ *  priorités de l'examen APRÈS le commit de la dernière correction (`ApresCommit`), donc quelques
+ *  dizaines de millisecondes après que la soumission se lit `EVALUATED`. */
+const PARCOURS_APRES_CORRECTIONS_MS = 2_000;
+const examensSuivis = new Set<string>();
+
+/**
+ * **Relire le compte quand les corrections d'un examen EE/EO ont atterri** (bug du 2026-10-05).
+ *
+ * L'étape d'examen du Plan se clôt **à la soumission**, mais les priorités que l'examen dépose
+ * dans le cycle suivant (« N priorités identifiées ») n'arrivent qu'avec ses corrections, en
+ * arrière-plan, des secondes plus tard. La purge du `finish` laissait donc le Plan se relire sur
+ * l'état d'avant l'analyse, et rien ne le relisait ensuite : le bilan peut être quitté avant la
+ * fin, et son polling meurt avec lui. Ce suivi n'appartient à **aucun composant** : il tourne
+ * jusqu'à la dernière correction, puis purge et fait relire le Plan affiché.
+ *
+ * Un seul suivi par examen ; aucun signal si rien n'était en cours au départ (la purge du
+ * `finish` était alors déjà juste). Pendant mobile : `relireApresLesCorrections`
+ * (`production_exam_corrections.dart`).
+ */
+export async function relireApresLesCorrections(
+    attemptId: string,
+    epreuve: EpreuveType,
+): Promise<void> {
+    if (typeof window === "undefined" || examensSuivis.has(attemptId)) return;
+    examensSuivis.add(attemptId);
+    const attendre = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+    try {
+        const debut = Date.now();
+        let correctionEnCours = false;
+        while (Date.now() - debut < CORRECTIONS_MAX_MS) {
+            const session = await productionApi
+                .listMine({epreuve, limit: 20})
+                .then((all) => all.filter((s) => s.attemptId === attemptId))
+                .catch(() => null);
+            if (session && !session.some(isSubmissionPending)) {
+                if (!correctionEnCours) return;
+                await attendre(PARCOURS_APRES_CORRECTIONS_MS);
+                invalidateProductionProgress();
+                invalidateDiagnosticAndPlan();
+                signalerPlanARelire();
+                return;
+            }
+            if (session) correctionEnCours = true;
+            await attendre(CORRECTIONS_POLL_MS);
+        }
+    } finally {
+        examensSuivis.delete(attemptId);
+    }
+}
 
 // ============================================================================
 // COMPÉTENCES TCF — micro-exercices ciblés (voie parallèle aux productions)

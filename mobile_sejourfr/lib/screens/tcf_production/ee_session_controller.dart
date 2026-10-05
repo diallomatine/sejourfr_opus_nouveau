@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/api/attempts_repository.dart';
@@ -7,6 +9,7 @@ import '../../core/models/attempt_models.dart';
 import '../../core/models/enums.dart';
 import '../../core/models/production_models.dart';
 import '../plan/learning_plan_provider.dart';
+import 'production_exam_corrections.dart';
 import '../../core/utils/submission_key.dart';
 
 /// Une "session EE" = 3 taches consecutives partageant 1 meme attempt parent.
@@ -200,20 +203,6 @@ class EeSessionNotifier extends StateNotifier<AsyncValue<EeSessionState>> {
     return submission;
   }
 
-  /// Re-fetch la submission de la tâche `taskIndex` depuis le backend et la
-  /// remet à jour dans le state. Utilisé par le bilan de session 3-tâches
-  /// pour poller l'évaluation IA (Claude) tant que la submission n'est pas
-  /// dans un statut final (`EVALUATED` ou `FAILED`).
-  Future<void> refreshSubmission(int taskIndex) async {
-    final current = state.value;
-    if (current == null) return;
-    final existing = current.submissions[taskIndex];
-    if (existing == null) return;
-    final fresh = await _repo.getSubmission(existing.id);
-    final updated = {...current.submissions, taskIndex: fresh};
-    state = AsyncData(current.copyWith(submissions: updated));
-    if (fresh.statut.isFinal) _onPlanChanged();
-  }
 
   /// Finalise l'attempt d'examen courant (`POST /finish`). À appeler après la
   /// dernière soumission acquittée, à l'expiration du chrono ou à l'abandon
@@ -231,6 +220,14 @@ class EeSessionNotifier extends StateNotifier<AsyncValue<EeSessionState>> {
     } catch (_) {
       /* déjà fini / réseau : le bilan lira l'état réel */
     }
+    // 🛑 Les priorités de l'examen arrivent avec ses corrections, après le
+    // `finish` : ce suivi relit le compte quand elles ont atterri.
+    unawaited(relireApresLesCorrections(
+      repo: _repo,
+      attemptId: attemptId,
+      epreuve: EpreuveType.tcfEe,
+      onPlanChanged: _onPlanChanged,
+    ));
   }
 
   /// Reinitialise (apres avoir termine les 3 taches ou quand l'utilisateur

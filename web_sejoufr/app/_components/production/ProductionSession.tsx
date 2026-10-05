@@ -4,7 +4,13 @@ import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Check, ChevronRight, Lightbulb } from "lucide-react";
-import { ApiException, attemptApi, fullTcfExamApi, productionApi } from "@/lib/api";
+import {
+  ApiException,
+  attemptApi,
+  fullTcfExamApi,
+  productionApi,
+  relireApresLesCorrections,
+} from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { useSubmissionKey } from "@/lib/idempotency";
 import { fullExamHubHref, retourExamenDe } from "@/lib/retour";
@@ -177,6 +183,13 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
   /** Timeout d'abandon programmé au démontage (annulé par un remount StrictMode). */
   const abandonTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  /** Clôt l'épreuve puis suit ses corrections : les priorités qu'elle dépose dans le Plan
+   *  n'arrivent qu'avec elles, après le `finish` (`relireApresLesCorrections`). */
+  const finirLExamen = useCallback(async () => {
+    await attemptApi.finish(attemptId).catch(() => undefined);
+    void relireApresLesCorrections(attemptId, config.epreuve);
+  }, [attemptId, config.epreuve]);
+
   const fetchSubs = useCallback(async (): Promise<Map<number, ProductionSubmissionDto>> => {
     const list = await productionApi.listMine({ epreuve: config.epreuve, limit: 100 });
     const m = new Map<number, ProductionSubmissionDto>();
@@ -330,7 +343,7 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
       abandonTimerRef.current = setTimeout(() => {
         if (finishedRef.current) return;
         finishedRef.current = true;
-        void attemptApi.finish(attemptId).catch(() => undefined);
+        void finirLExamen();
       }, 0);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -352,10 +365,10 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
     // première lecture du bilan se font derrière elle, pas sur un écran figé.
     setAwaitingAnalysis(true);
     setPhase("bilan");
-    await attemptApi.finish(attemptId).catch(() => undefined);
+    await finirLExamen();
     if (cancelledRef.current) return;
     startBilanPolling();
-  }, [attemptId, startBilanPolling]);
+  }, [finirLExamen, startBilanPolling]);
 
   async function send(go: (attemptId: string) => Promise<ProductionSubmissionDto>) {
     if (submitting || !currentTask) return;
@@ -523,13 +536,13 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
       await fullTcfExamApi.markSubDone(fullExamId, config.epreuve).catch(() => undefined);
       if (!cancelledRef.current) router.push(fullExamHub);
     } else {
-      await attemptApi.finish(attemptId).catch(() => undefined);
+      await finirLExamen();
       if (cancelledRef.current) return;
       setAwaitingAnalysis(true);
       setPhase("bilan");
       startBilanPolling();
     }
-  }, [attemptId, fullExamId, fullExamHub, config.epreuve, router, startBilanPolling]);
+  }, [finirLExamen, fullExamId, fullExamHub, config.epreuve, router, startBilanPolling]);
 
   /**
    * Quitter une épreuve d'examen complet : **elle est close sur-le-champ**,

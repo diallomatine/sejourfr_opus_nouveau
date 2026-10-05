@@ -3047,9 +3047,14 @@ flag `isExam` + le `slotNumber`. Points d'entrée :
 - `startInFullExam(subAttemptId:...)` → reprend le sous-attempt EE/EO d'un examen TCF complet et charge
   ses 3 tâches via `getExamTasks` (composition gérée backend selon le slot du parent + niveau cible).
 - `finishAttemptIfExam()` → `POST /finish` sur l'attempt courant (no-op hors examen module). Appelé
-  après la 3e soumission acquittée, à l'expiration du chrono et à l'abandon confirmé.
-- `refreshSubmission(taskIndex)` permet au bilan d'aller chercher la dernière version d'une
-  submission (utilisé par le polling mode `live=1` de `HistorySessionScreen`).
+  après la 3e soumission acquittée, à l'expiration du chrono et à l'abandon confirmé. Lance
+  ensuite **`relireApresLesCorrections`** (`production_exam_corrections.dart`, 2026-10-05) : 🛑 l'étape
+  d'examen du Plan se clôt à la soumission, mais les priorités que l'examen dépose dans le cycle
+  suivant (« N priorités identifiées ») n'arrivent qu'avec ses corrections, en arrière-plan. Ce
+  suivi, **indépendant de tout écran** (le bilan peut être quitté avant), poll les soumissions de
+  l'examen jusqu'à la dernière correction, attend 2 s (le parcours écrit après le commit) puis
+  émet le signal des sources du compte. Miroir web : `relireApresLesCorrections` (`lib/api.ts`).
+  (`refreshSubmission`, jamais appelé, est supprimé.)
 
 `production_repository.dart` : `startProductionAttempt` gagne `exam`/`slotNumber` ; nouvelle méthode
 `getExamTasks(attemptId)` (3 tâches) ; `finishAttempt(attemptId)`. `ProductionBilan` (models) gagne

@@ -2593,6 +2593,13 @@ tout.
 - Servi : `cycle.prioritesCycleSuivant` (`JourneyCycleSuivant.prioritesIdentifiees`) — TCF : les
   étapes d'entraînement ouvertes du cycle en attente ; civique : ce que l'actualisation poserait
   maintenant. `null` en consultation d'un cycle clos.
+- 🛑 **Le nombre bouge APRÈS la fin de l'examen EE/EO** (2026-10-05) : l'étape d'examen se clôt
+  à la soumission, mais ses priorités n'entrent dans le cycle en attente qu'avec les corrections,
+  en arrière-plan (`porterAuParcours` → `onAssessmentCompleted`, après commit). Les fronts suivent
+  donc les corrections de l'examen **hors de tout écran** puis relisent le compte :
+  `relireApresLesCorrections` (`web_sejoufr/lib/api.ts` ⇄
+  `mobile_sejourfr/lib/screens/tcf_production/production_exam_corrections.dart`). Sans lui, la tuile
+  restait à l'ancien nombre jusqu'au redémarrage (constat : 5 au lieu de 8).
 
 `exit_level` se lit sur la **lecture Plan** (`TcfProfileService`, D-2) et reste `null` si
 rien n'est mesuré **ou** si le niveau est sous l'A2 : `null` = inconnu, jamais mauvais, et
