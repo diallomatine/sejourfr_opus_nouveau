@@ -14,6 +14,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.time.Instant;
 
 import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -87,34 +88,28 @@ class AdminActivityControllerIT extends AbstractIntegrationTest {
     }
 
     @Test
-    @DisplayName("Configuration livrée : l'activité n'est pas encore datée ⇒ null partout, jamais 0")
-    void configurationLivreeNonMesuree() throws Exception {
+    @DisplayName("Configuration livrée : l'activité est datée du déploiement (2026-10-06) ⇒ mesurée, jamais null")
+    void configurationLivreeDatee() throws Exception {
         User admin = data.admin();
         mvc.perform(get(URL).param("includeInternal", "true").header("Authorization", auth.bearer(admin)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.includeInternal").value(true))
-                .andExpect(jsonPath("$.measurementStart.ACTIVE_USERS").value(nullValue()))
-                .andExpect(jsonPath("$.measurementStart.SCREEN_VIEWS_APP").value(nullValue()))
-                .andExpect(jsonPath("$.activeUsers.measuredSince").value(nullValue()))
-                .andExpect(jsonPath("$.activeUsers.total.value").value(nullValue()))
-                .andExpect(jsonPath("$.activeUsers.daily[0].total").value(nullValue()))
-                .andExpect(jsonPath("$.logins.uniqueUsers.value").value(nullValue()))
+                .andExpect(jsonPath("$.measurementStart.ACTIVE_USERS").value("2026-10-06"))
+                .andExpect(jsonPath("$.measurementStart.LOGINS").value("2026-10-06"))
+                .andExpect(jsonPath("$.measurementStart.SCREEN_VIEWS_WEB").value("2026-10-06"))
+                .andExpect(jsonPath("$.measurementStart.SCREEN_VIEWS_APP").value("2026-10-06"))
+                .andExpect(jsonPath("$.activeUsers.total.value").value(notNullValue()))
                 .andExpect(jsonPath("$.logins.byMethod[0].method").value("LOCAL"))
                 .andExpect(jsonPath("$.logins.byMethod[0].label").value("E-mail"))
                 .andExpect(jsonPath("$.platforms", hasSize(5)))
                 .andExpect(jsonPath("$.platforms[3].label").value("App — système inconnu"))
-                .andExpect(jsonPath("$.platforms[4].displayed").value(true))
-                .andExpect(jsonPath("$.platforms[0].activeUsers").value(nullValue()))
-                .andExpect(jsonPath("$.screens.web.measuredSince").value(nullValue()))
-                .andExpect(jsonPath("$.screens.web.rows", hasSize(0)))
-                .andExpect(jsonPath("$.screens.app.total").value(nullValue()));
+                .andExpect(jsonPath("$.platforms[4].displayed").value(true));
         mvc.perform(get(LIVE).header("Authorization", auth.bearer(admin)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.windowSeconds").value(180))
-                .andExpect(jsonPath("$.measurementStart").value(nullValue()))
-                .andExpect(jsonPath("$.total").value(nullValue()))
+                .andExpect(jsonPath("$.measurementStart").value("2026-10-06"))
+                .andExpect(jsonPath("$.total").value(notNullValue()))
                 .andExpect(jsonPath("$.byPlatform", hasSize(5)))
-                .andExpect(jsonPath("$.byPlatform[4].displayed").value(false))
-                .andExpect(jsonPath("$.byPlatform[0].value").value(nullValue()));
+                .andExpect(jsonPath("$.byPlatform[4].displayed").value(false));
     }
 }

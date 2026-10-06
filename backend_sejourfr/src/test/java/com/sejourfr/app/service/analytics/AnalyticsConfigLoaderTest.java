@@ -85,9 +85,11 @@ class AnalyticsConfigLoaderTest {
             if (activite.contains(indicator)) continue;
             assertThat(config.measurementStartOf(indicator)).as(indicator.name()).contains(miseEnProduction);
         }
-        // Activite des comptes (v2) : pas encore mesuree, la date se pose au deploiement (D43, N4).
+        // Activite des comptes (v2) : mesuree depuis son deploiement en prod, le 2026-10-06
+        // (V087 appliquee a 19:31, heure de Paris) — D43, N4.
         for (SuiviIndicator indicator : activite) {
-            assertThat(config.measurementStartOf(indicator)).as(indicator.name()).isEmpty();
+            assertThat(config.measurementStartOf(indicator)).as(indicator.name())
+                    .contains(LocalDate.of(2026, 10, 6));
         }
         assertThat(config.activity().retentionDays()).isEqualTo(365);
         assertThat(config.activity().writeIntervalSeconds()).isEqualTo(60);

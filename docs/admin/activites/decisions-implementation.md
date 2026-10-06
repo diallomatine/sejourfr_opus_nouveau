@@ -619,3 +619,10 @@ préexistant), eslint ✓ sur les fichiers touchés (3 erreurs préexistantes ai
   `sejourfr`, mode 600), puis `systemctl restart sejourfr-backend`. Un redémarrage est
   **nécessaire** : systemd ne relit pas l'`EnvironmentFile` à chaud et `Restart=on-failure` ne
   réagit pas à un changement de fichier. Aucun redéploiement du code n'est requis.
+
+**DI-B09 — Dates de début de mesure de l'activité posées (2026-10-06).** Les quatre indicateurs
+`ACTIVE_USERS`, `LOGINS`, `SCREEN_VIEWS_WEB`, `SCREEN_VIEWS_APP` sont datés du **2026-10-06**,
+jour de la mise en prod de V087 (19:31, heure de Paris), dans `analytics-config-v2.json` (D43).
+Avant ce jour, l'écran dit toujours « non mesuré ». `AnalyticsConfigLoaderTest` et
+`AdminActivityControllerIT` verrouillent la date livrée ; le cas « non mesuré ⇒ null » reste
+couvert par `ActivityScenariosIT`.

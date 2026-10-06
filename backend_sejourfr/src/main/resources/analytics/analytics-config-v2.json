@@ -55,9 +55,9 @@
     "REFUNDS": "2026-09-28",
     "SIGNUP_CONTEXT": "2026-09-28",
     "SIGNUP_PLATFORM_DETAIL": "2026-09-28",
-    "ACTIVE_USERS": null,
-    "LOGINS": null,
-    "SCREEN_VIEWS_WEB": null,
-    "SCREEN_VIEWS_APP": null
+    "ACTIVE_USERS": "2026-10-06",
+    "LOGINS": "2026-10-06",
+    "SCREEN_VIEWS_WEB": "2026-10-06",
+    "SCREEN_VIEWS_APP": "2026-10-06"
   }
 }
