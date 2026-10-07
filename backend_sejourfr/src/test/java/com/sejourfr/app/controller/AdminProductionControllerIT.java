@@ -103,7 +103,7 @@ class AdminProductionControllerIT extends AbstractIntegrationTest {
     }
 
     private AdminProductionService.Filtres filtres() {
-        return new AdminProductionService.Filtres(fx.jeton, null, null, null, null, null, null, null, null, null, false);
+        return new AdminProductionService.Filtres(fx.jeton, null, null, null, null, null, null, null, null, null, null, false);
     }
 
     // ------------------------------------------------------------------ liste
@@ -193,7 +193,7 @@ class AdminProductionControllerIT extends AbstractIntegrationTest {
                                                        Integer tache, AdminProductionNiveauFiltre niveau,
                                                        AdminProductionStatutIa statut) {
         return new AdminProductionService.Filtres(f.q(), epreuve, tache, niveau, statut, f.signalement(),
-                f.annotation(), f.periode(), f.from(), f.to(), f.includeInternal());
+                f.annotation(), f.examinateur(), f.periode(), f.from(), f.to(), f.includeInternal());
     }
 
     @Test
@@ -274,9 +274,38 @@ class AdminProductionControllerIT extends AbstractIntegrationTest {
 
         AdminProductionService.Filtres f = filtres();
         assertThat(idsService(new AdminProductionService.Filtres(f.q(), null, null, null, null, null,
-                AdminProductionAnnotationFiltre.ANNOTEES, null, null, null, false))).containsExactly(annotee.getId());
+                AdminProductionAnnotationFiltre.ANNOTEES, null, null, null, null, false))).containsExactly(annotee.getId());
         assertThat(idsService(new AdminProductionService.Filtres(f.q(), null, null, null, null, null,
-                AdminProductionAnnotationFiltre.NON_ANNOTEES, null, null, null, false))).containsExactly(vierge.getId());
+                AdminProductionAnnotationFiltre.NON_ANNOTEES, null, null, null, null, false))).containsExactly(vierge.getId());
+    }
+
+    @Test
+    void filtre_examinateur_ia_sur_la_source_avec_comptage_juste() throws Exception {
+        User u = fx.candidat("exam");
+        Instant t = Instant.now().truncatedTo(ChronoUnit.SECONDS);
+        ProductionSubmission ee = fx.production(u, EpreuveType.TCF_EE, 1, SubmissionStatut.EVALUATED, t.minusSeconds(30));
+        ProductionSubmission eoEnregistre = fx.production(u, EpreuveType.TCF_EO, 2, SubmissionStatut.EVALUATED, t.minusSeconds(20));
+        ProductionSubmission eoExaminateur = fx.tempsReel(
+                fx.production(u, EpreuveType.TCF_EO, 1, SubmissionStatut.EVALUATED, t.minusSeconds(10)));
+        ProductionSubmission eoExaminateur2 = fx.tempsReel(
+                fx.production(u, EpreuveType.TCF_EO, 2, SubmissionStatut.EVALUATING, t));
+
+        JsonNode avec = list("examinateur", "AVEC");
+        assertThat(ids(avec)).containsExactly(eoExaminateur2.getId().toString(), eoExaminateur.getId().toString());
+        assertThat(avec.get("totalElements").asLong()).isEqualTo(2);
+        assertThat(avec.at("/content/0/source").asString()).isEqualTo("REALTIME");
+
+        JsonNode sans = list("examinateur", "SANS", "size", "1");
+        assertThat(ids(sans)).containsExactly(eoEnregistre.getId().toString());
+        assertThat(sans.get("totalElements").asLong()).isEqualTo(2);
+        assertThat(ids(list("examinateur", "SANS"))).containsExactly(
+                eoEnregistre.getId().toString(), ee.getId().toString());
+
+        JsonNode tous = list();
+        assertThat(tous.get("totalElements").asLong()).isEqualTo(4);
+
+        assertThat(ids(list("examinateur", "AVEC", "tache", "1")))
+                .containsExactly(eoExaminateur.getId().toString());
     }
 
     @Test
@@ -288,6 +317,7 @@ class AdminProductionControllerIT extends AbstractIntegrationTest {
                 new String[]{"niveau", "C1"},
                 new String[]{"statut", "SUCCES"},
                 new String[]{"sort", "COUT"},
+                new String[]{"examinateur", "REALTIME"},
                 new String[]{"from", "2026-09-01"},
                 new String[]{"from", "2026-13-01", "to", "2026-13-02"})) {
             var req = get(URL).header(HttpHeaders.AUTHORIZATION, bearer);

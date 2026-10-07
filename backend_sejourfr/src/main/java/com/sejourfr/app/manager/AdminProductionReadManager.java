@@ -19,6 +19,7 @@ public class AdminProductionReadManager {
     /**
      * Critères déjà validés par le service ; {@code null} = pas de filtre.
      *
+     * @param source          {@code ASYNC | REALTIME} (filtre « Examinateur IA »)
      * @param etatSignalement {@code AUCUN | SIGNALE | VERIFIE}
      */
     public record Criteres(
@@ -27,6 +28,7 @@ public class AdminProductionReadManager {
             String qPattern,
             String epreuve,
             Integer tache,
+            String source,
             Instant fromTs,
             Instant toTs,
             String niveau,
@@ -36,13 +38,13 @@ public class AdminProductionReadManager {
     ) {}
 
     public List<AdminProductionReadRepository.Ligne> findPage(Criteres c, String sort, int limit, long offset) {
-        return repository.findPage(c.includeInternal(), null, c.qUuid(), c.qPattern(), c.epreuve(), c.tache(),
+        return repository.findPage(c.includeInternal(), null, c.qUuid(), c.qPattern(), c.epreuve(), c.tache(), c.source(),
                 c.fromTs(), c.toTs(), c.niveau(), c.statut(), c.etatSignalement(), c.annotee(),
                 sort, limit, offset);
     }
 
     public long count(Criteres c) {
-        return repository.count(c.includeInternal(), null, c.qUuid(), c.qPattern(), c.epreuve(), c.tache(),
+        return repository.count(c.includeInternal(), null, c.qUuid(), c.qPattern(), c.epreuve(), c.tache(), c.source(),
                 c.fromTs(), c.toTs(), c.niveau(), c.statut(), c.etatSignalement(), c.annotee());
     }
 
@@ -52,7 +54,7 @@ public class AdminProductionReadManager {
      * production n'existe pas ou sort du périmètre (diagnostic…).
      */
     public Optional<AdminProductionReadRepository.Ligne> findLigne(UUID submissionId) {
-        return repository.findPage(true, submissionId, null, null, null, null, null, null,
+        return repository.findPage(true, submissionId, null, null, null, null, null, null, null,
                 null, null, null, null, "DATE_DESC", 1, 0).stream().findFirst();
     }
 }

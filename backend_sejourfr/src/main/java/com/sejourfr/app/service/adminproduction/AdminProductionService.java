@@ -11,6 +11,7 @@ import com.sejourfr.app.entity.ProductionSubmission;
 import com.sejourfr.app.entity.ProductionTask;
 import com.sejourfr.app.entity.User;
 import com.sejourfr.app.enums.AdminProductionAnnotationFiltre;
+import com.sejourfr.app.enums.AdminProductionExaminateurFiltre;
 import com.sejourfr.app.enums.AdminProductionNiveauFiltre;
 import com.sejourfr.app.enums.AdminProductionPeriode;
 import com.sejourfr.app.enums.AdminProductionSignalementFiltre;
@@ -83,6 +84,7 @@ public class AdminProductionService {
             AdminProductionStatutIa statut,
             AdminProductionSignalementFiltre signalement,
             AdminProductionAnnotationFiltre annotation,
+            AdminProductionExaminateurFiltre examinateur,
             AdminProductionPeriode periode,
             String from,
             String to,
@@ -199,6 +201,7 @@ public class AdminProductionService {
                 qPattern,
                 f.epreuve() == null ? null : f.epreuve().name(),
                 f.tache(),
+                f.examinateur() == null ? null : f.examinateur().source().name(),
                 fromTs,
                 toTs,
                 f.niveau() == null ? null : f.niveau().name(),

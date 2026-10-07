@@ -6,6 +6,7 @@ import com.sejourfr.app.dto.AdminProductionFlagRequest;
 import com.sejourfr.app.dto.AdminProductionListItemDto;
 import com.sejourfr.app.dto.PageResponse;
 import com.sejourfr.app.enums.AdminProductionAnnotationFiltre;
+import com.sejourfr.app.enums.AdminProductionExaminateurFiltre;
 import com.sejourfr.app.enums.AdminProductionNiveauFiltre;
 import com.sejourfr.app.enums.AdminProductionPeriode;
 import com.sejourfr.app.enums.AdminProductionSignalementFiltre;
@@ -55,6 +56,7 @@ public class AdminProductionController {
             @RequestParam(required = false) AdminProductionStatutIa statut,
             @RequestParam(required = false) AdminProductionSignalementFiltre signalement,
             @RequestParam(required = false) AdminProductionAnnotationFiltre annotation,
+            @RequestParam(required = false) AdminProductionExaminateurFiltre examinateur,
             @RequestParam(required = false) AdminProductionPeriode periode,
             @RequestParam(required = false) String from,
             @RequestParam(required = false) String to,
@@ -64,7 +66,7 @@ public class AdminProductionController {
             @RequestParam(defaultValue = "25") int size) {
         return productionService.list(
                 new AdminProductionService.Filtres(q, epreuve, tache, niveau, statut, signalement, annotation,
-                        periode, from, to, includeInternal),
+                        examinateur, periode, from, to, includeInternal),
                 sort, page, size);
     }
 

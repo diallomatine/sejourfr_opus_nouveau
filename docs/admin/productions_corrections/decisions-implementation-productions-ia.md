@@ -319,6 +319,27 @@ n'existait dans `admin_sejourfr/`). Aucun bug backend bloquant rencontré : back
   `JSON.stringify(…, 2)`, lecture seule). Icônes `sparkles`, `flag`, `chevronDown` ajoutées au jeu.
 - **Pourquoi** : aucune primitive n'existait (audit) ; `<details>` donne clavier et lecteur d'écran.
 
+## Évolution — filtre « Examinateur IA » (2026-10-07)
+
+### DI-34 — `examinateur=AVEC|SANS`, lu sur `production_submissions.source`
+- **Décision** : nouveau paramètre facultatif de `GET /api/admin/productions`,
+  `examinateur=AVEC|SANS` (enum `AdminProductionExaminateurFiltre`, valeur inconnue ⇒ 400).
+  `AVEC` = `source = 'REALTIME'` (session d'EO temps réel avec l'examinateur vocal),
+  `SANS` = `source = 'ASYNC'` (audio enregistré ou texte EE). Le prédicat vit dans la CTE `BASE`
+  partagée par la page et le comptage : pagination et total restent justes, toujours 2 requêtes.
+  Absent = comportement d'avant. Aucun DTO ne change : `source` était déjà servi sur la ligne
+  (et l'en-tête de la fiche). Admin : 9ᵉ sélecteur « Examinateur IA » (état `?examinateur=` dans
+  l'URL via `useProductionListParams`, compté dans « Réinitialiser ») ; la sous-ligne
+  « Temps réel » (DI-26) et le suffixe « · temps réel » du contexte de la fiche deviennent un
+  badge neutre « Examinateur IA » (liste sous EO, fiche dans les étiquettes du haut).
+- **Pourquoi** : `source` est la marque d'origine posée à la création de la soumission (V017,
+  CHECK `ASYNC|REALTIME`) ; vérifié sur la base locale le 2026-10-07 : les 53 lignes `REALTIME`
+  ont toutes une `realtime_sessions` (même `attempt_id` + `production_task_id`), les 180 `ASYNC`
+  aucune. Une jointure sur `realtime_sessions` aurait dit la même chose pour plus cher.
+  Ton neutre : `warning` signifie déjà « Non évaluable » / « Signalée » sur cet écran.
+- **Plus tard** : `SANS` inclut l'EE (forcément classique) ; combiner avec `epreuve=TCF_EO` pour
+  comparer EO classique et EO avec examinateur.
+
 ### Écarts assumés vs maquette v3
 Sélecteurs libellés au lieu de pastilles-select ; pas de bouton « Actualiser » en topbar ;
 bouton « Signaler » en contour rouge (`danger`, pas de variante ambre dans `Button`) ; scores

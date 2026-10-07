@@ -19,6 +19,7 @@ export const productionsApi = {
         statut: filters.statut,
         signalement: filters.signalement,
         annotation: filters.annotation,
+        examinateur: filters.examinateur,
         periode: filters.periode,
         from: filters.from,
         to: filters.to,

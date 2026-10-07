@@ -166,7 +166,7 @@ Endpoints utilisés actuellement :
   « Audio manquant » sur la liste TCF et la fiche — jamais déduit de `audioMediaUrl`.
 - `POST /api/admin/question-imports/co-image/analyze|import` (feature `questionImport/`,
   multipart `manifest` + N `images`)
-- `GET /api/admin/productions?q=&epreuve=&tache=&niveau=&statut=&signalement=&annotation=&periode=|from=&to=&includeInternal=&sort=&page=&size=`,
+- `GET /api/admin/productions?q=&epreuve=&tache=&niveau=&statut=&signalement=&annotation=&examinateur=&periode=|from=&to=&includeInternal=&sort=&page=&size=`,
   `GET /api/admin/productions/{id}`, `POST /api/admin/productions/{id}/flags`,
   `POST /api/admin/productions/flags/{flagId}/verify|remove` (feature `productions/`,
   contrat : `docs/api-endpoints.md` § « Admin — Productions IA »)
@@ -514,17 +514,19 @@ format : `docs/question-audio/audit-questions-co-images.md` §4.
 ### Productions IA (`features/productions/`)
 
 Contrôler une production EE/EO corrigée par IA : **repérer → ouvrir → comprendre → signaler**
-(brief, audit et journal DI-01 → DI-33 : `docs/admin/productions_corrections/`). Maquette
+(brief, audit et journal DI-01 → DI-34 : `docs/admin/productions_corrections/`). Maquette
 `sejourfr-admin-productions-ia-v3.html` : design repris, données fictives NON reproduites
 (pas de €, pas de /4, pas de « Prononciation », pas de lecteur audio).
 
 - **Routes** : `/productions-ia` (liste) et `/productions-ia/:id` (fiche). Entrée de nav
   « Génération IA › Productions IA » (F-8).
 - **Liste** : pagination serveur **25** par défaut (F-9 révisé, `useUrlListState(25)`, sélecteur en bas), état dans l'URL
-  (`useProductionListParams` : `?q&epreuve&tache&niveau&statut&signalement&annotation&periode|from+to&internes&sort&page&size`),
+  (`useProductionListParams` : `?q&epreuve&tache&niveau&statut&signalement&annotation&examinateur&periode|from+to&internes&sort&page&size`),
   comptes internes exclus par défaut (case « Inclure les comptes internes », F-7). Plage
   personnalisée = `from`/`to` posés ensemble (aujourd'hui Paris par défaut), jamais avec
   `periode`. Recherche : email « contient » ou **UUID complet** (production ou utilisateur).
+  Filtre « Examinateur IA » (`examinateur=AVEC|SANS`, DI-34) : lu côté serveur sur la `source`
+  servie (`REALTIME` = EO temps réel) ; badge neutre « Examinateur IA » sur la ligne et la fiche.
 - 🛑 **Rien n'est recalculé** : statut IA (4 états, F-6), contexte, état de signalement, calcul
   du niveau, cohérence, écart IA ⇄ retenu sont servis. Les seuls libellés locaux sont ceux des
   **valeurs de filtre** et des 6 motifs de la modale (`productionLabels.ts`, aucun endpoint ne

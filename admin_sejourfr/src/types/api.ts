@@ -1369,6 +1369,9 @@ export type AdminProductionSignalementFiltre = "SIGNALEES" | "VERIFIEES" | "NON_
 
 export type AdminProductionAnnotationFiltre = "ANNOTEES" | "NON_ANNOTEES";
 
+/** `AVEC` = examinateur IA (EO temps réel, `source` REALTIME) ; `SANS` = production classique (ASYNC). */
+export type AdminProductionExaminateurFiltre = "AVEC" | "SANS";
+
 export type AdminProductionPeriode = "TODAY" | "LAST_7_DAYS" | "LAST_30_DAYS";
 
 export type AdminProductionTri = "DATE_DESC" | "DATE_ASC" | "NIVEAU_DESC" | "NIVEAU_ASC" | "EPREUVE";
@@ -1382,6 +1385,7 @@ export interface AdminProductionFilters {
   statut?: AdminProductionStatutIa;
   signalement?: AdminProductionSignalementFiltre;
   annotation?: AdminProductionAnnotationFiltre;
+  examinateur?: AdminProductionExaminateurFiltre;
   periode?: AdminProductionPeriode;
   from?: string;
   to?: string;

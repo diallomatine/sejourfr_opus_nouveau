@@ -1077,7 +1077,7 @@ Audit : `docs/admin/productions_corrections/audit-admin-productions-ia.md` ; dé
 (EO temps réel comprise) — ni diagnostic, ni petits sujets Compétences. DTO **propres à l'admin** :
 aucun DTO candidat ne change. Tout est servi (statut, libellés, calcul) : le front ne recalcule rien.
 
-- `GET /api/admin/productions?q=&epreuve=&tache=&niveau=&statut=&signalement=&annotation=&periode=&from=&to=&includeInternal=&sort=&page=&size=`
+- `GET /api/admin/productions?q=&epreuve=&tache=&niveau=&statut=&signalement=&annotation=&examinateur=&periode=&from=&to=&includeInternal=&sort=&page=&size=`
   → `PageResponse<AdminProductionListItemDto>` (`page` indexée à 0, `size` défaut **25**, bornée
   `[1, 100]`).
   - `q` : UUID complet ⇒ id de production **ou** id utilisateur ; sinon email « contient »,
@@ -1087,7 +1087,8 @@ aucun DTO candidat ne change. Tout est servi (statut, libellés, calcul) : le fr
     `statut=EN_COURS|EVALUEE|NON_EVALUABLE|ECHEC` ;
     `signalement=SIGNALEES|VERIFIEES|NON_SIGNALEES` (actif non vérifié / actif vérifié / aucun
     actif — un signalement retiré ne compte plus) ; `annotation=ANNOTEES|NON_ANNOTEES` (note
-    humaine de calibration) ; `periode=TODAY|LAST_7_DAYS|LAST_30_DAYS` (jours Europe/Paris)
+    humaine de calibration) ; `examinateur=AVEC|SANS` (`source` `REALTIME` = EO temps réel avec
+    l'examinateur IA / `ASYNC` = production classique, EE comprise) ; `periode=TODAY|LAST_7_DAYS|LAST_30_DAYS` (jours Europe/Paris)
     **ou** `from`/`to` (`yyyy-MM-dd`, inclus, les deux, 365 j max, `FenetreMesure`) ;
     `includeInternal=false` (comptes `is_internal` exclus par défaut) ;
     `sort=DATE_DESC|DATE_ASC|NIVEAU_DESC|NIVEAU_ASC|EPREUVE` (défaut `DATE_DESC`, toujours

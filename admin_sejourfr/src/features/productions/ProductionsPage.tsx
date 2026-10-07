@@ -23,6 +23,8 @@ import {
   ANNOTATION_OPTIONS,
   EPREUVE_OPTIONS,
   EPREUVE_SIGLE,
+  EXAMINATEUR_IA_BADGE,
+  EXAMINATEUR_OPTIONS,
   NIVEAU_OPTIONS,
   PERIODE_OPTIONS,
   SIGNALEMENT_OPTIONS,
@@ -168,6 +170,14 @@ export function ProductionsPage() {
             options={ANNOTATION_OPTIONS}
             value={filters.annotation ?? ""}
             onChange={(v) => setFilter("annotation", v)}
+          />
+          <FilterSelect
+            id="prod-examinateur"
+            label="Examinateur IA"
+            allLabel="Toutes"
+            options={EXAMINATEUR_OPTIONS}
+            value={filters.examinateur ?? ""}
+            onChange={(v) => setFilter("examinateur", v)}
           />
           <FilterSelect
             id="prod-periode"
@@ -346,7 +356,11 @@ function ProductionRow({
       </td>
       <td data-label="Épreuve">
         <Tag tone="info">{EPREUVE_SIGLE[row.epreuve] ?? row.epreuve}</Tag>
-        {row.source === "REALTIME" && <span className={styles.subLine}>Temps réel</span>}
+        {row.source === "REALTIME" && (
+          <span className={styles.inlineTag}>
+            <Tag tone="neutral">{EXAMINATEUR_IA_BADGE}</Tag>
+          </span>
+        )}
       </td>
       <td data-label="Tâche">
         <Cell main={`Tâche ${row.tache}`} sub={row.contexteLabel} />

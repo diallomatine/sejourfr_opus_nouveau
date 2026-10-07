@@ -95,6 +95,7 @@ public interface AdminProductionReadRepository extends Repository<ProductionSubm
                         OR lower(u.email) LIKE CAST(:qPattern AS varchar) ESCAPE '\\')
                    AND (CAST(:epreuve AS varchar) IS NULL OR pt.epreuve = CAST(:epreuve AS varchar))
                    AND (CAST(:tache AS integer) IS NULL OR pt.tache_numero = CAST(:tache AS integer))
+                   AND (CAST(:source AS varchar) IS NULL OR ps.source = CAST(:source AS varchar))
                    AND (CAST(:fromTs AS timestamptz) IS NULL OR ps.submitted_at >= CAST(:fromTs AS timestamptz))
                    AND (CAST(:toTs AS timestamptz) IS NULL OR ps.submitted_at < CAST(:toTs AS timestamptz))
             )
@@ -138,6 +139,7 @@ public interface AdminProductionReadRepository extends Repository<ProductionSubm
                          @Param("qPattern") String qPattern,
                          @Param("epreuve") String epreuve,
                          @Param("tache") Integer tache,
+                         @Param("source") String source,
                          @Param("fromTs") Instant fromTs,
                          @Param("toTs") Instant toTs,
                          @Param("niveau") String niveau,
@@ -155,6 +157,7 @@ public interface AdminProductionReadRepository extends Repository<ProductionSubm
                @Param("qPattern") String qPattern,
                @Param("epreuve") String epreuve,
                @Param("tache") Integer tache,
+               @Param("source") String source,
                @Param("fromTs") Instant fromTs,
                @Param("toTs") Instant toTs,
                @Param("niveau") String niveau,

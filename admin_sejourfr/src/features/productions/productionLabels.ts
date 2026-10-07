@@ -2,6 +2,7 @@ import type { TagTone } from "../../components/ui/Tag";
 import type {
   AdminProductionAnnotationFiltre,
   AdminProductionEpreuve,
+  AdminProductionExaminateurFiltre,
   AdminProductionNiveauFiltre,
   AdminProductionPeriode,
   AdminProductionSignalementFiltre,
@@ -60,6 +61,14 @@ export const ANNOTATION_OPTIONS: readonly Option<AdminProductionAnnotationFiltre
   { value: "NON_ANNOTEES", label: "À annoter" },
   { value: "ANNOTEES", label: "Annotées" },
 ];
+
+export const EXAMINATEUR_OPTIONS: readonly Option<AdminProductionExaminateurFiltre>[] = [
+  { value: "AVEC", label: "Avec l'examinateur IA" },
+  { value: "SANS", label: "Sans examinateur (classique)" },
+];
+
+/** Badge de la `source` servie `REALTIME` : production passée avec l'examinateur vocal (EO temps réel). */
+export const EXAMINATEUR_IA_BADGE = "Examinateur IA";
 
 export type PeriodChoice = AdminProductionPeriode | "CUSTOM";
 

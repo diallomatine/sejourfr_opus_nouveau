@@ -4,6 +4,7 @@ import type { AdminProductionFilters, AdminProductionPeriode, AdminProductionTri
 import {
   ANNOTATION_OPTIONS,
   EPREUVE_OPTIONS,
+  EXAMINATEUR_OPTIONS,
   NIVEAU_OPTIONS,
   SIGNALEMENT_OPTIONS,
   SORT_OPTIONS,
@@ -31,6 +32,7 @@ export type ProductionFilterKey =
   | "statut"
   | "signalement"
   | "annotation"
+  | "examinateur"
   | "internes"
   | "sort";
 
@@ -38,7 +40,7 @@ export type ListFilters = Required<Pick<AdminProductionFilters, "page" | "size" 
   AdminProductionFilters;
 
 /**
- * `?q&epreuve&tache&niveau&statut&signalement&annotation&periode|from+to&internes&sort&page&size`
+ * `?q&epreuve&tache&niveau&statut&signalement&annotation&examinateur&periode|from+to&internes&sort&page&size`
  * (mécanique commune : `hooks/useUrlListState`). Une plage personnalisée vit
  * dans `from`/`to` ; elle n'est envoyée que si les deux bornes sont lisibles
  * et ordonnées — sinon ignorée, jamais complétée.
@@ -62,6 +64,7 @@ export function useProductionListParams() {
       statut: oneOf(params.get("statut"), values(STATUT_OPTIONS)),
       signalement: oneOf(params.get("signalement"), values(SIGNALEMENT_OPTIONS)),
       annotation: oneOf(params.get("annotation"), values(ANNOTATION_OPTIONS)),
+      examinateur: oneOf(params.get("examinateur"), values(EXAMINATEUR_OPTIONS)),
       periode: customValid ? undefined : periode,
       from: customValid ? from : undefined,
       to: customValid ? to : undefined,
@@ -82,6 +85,7 @@ export function useProductionListParams() {
       filters.statut ||
       filters.signalement ||
       filters.annotation ||
+      filters.examinateur ||
       filters.periode ||
       filters.from ||
       filters.includeInternal,

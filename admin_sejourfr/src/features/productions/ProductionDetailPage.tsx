@@ -23,7 +23,7 @@ import { ActiveFlagBanner, FlagHistory } from "./components/FlagSection";
 import { FlagModal } from "./components/FlagModal";
 import { ReponseBlock } from "./components/ReponseBlock";
 import { TechBlock } from "./components/TechBlock";
-import { EPREUVE_NOM, EPREUVE_SIGLE, SIGNALEMENT_TONE, STATUT_TONE, formatSeconds } from "./productionLabels";
+import { EPREUVE_NOM, EPREUVE_SIGLE, EXAMINATEUR_IA_BADGE, SIGNALEMENT_TONE, STATUT_TONE, formatSeconds } from "./productionLabels";
 import styles from "./ProductionDetailPage.module.css";
 
 /**
@@ -194,6 +194,7 @@ function Hero({ detail, actions }: { detail: AdminProductionDetailDto; actions: 
       <div className={styles.heroMain}>
         <div className={styles.heroTags}>
           <Tag tone="info">{EPREUVE_SIGLE[entete.epreuve] ?? entete.epreuve}</Tag>
+          {entete.source === "REALTIME" && <Tag tone="neutral">{EXAMINATEUR_IA_BADGE}</Tag>}
           <Tag tone={STATUT_TONE[entete.statutIa]} dot>
             {entete.statutIaLabel}
           </Tag>
@@ -235,7 +236,7 @@ function Hero({ detail, actions }: { detail: AdminProductionDetailDto; actions: 
             { label: "Soumise le", value: formatParisDateTime(entete.submittedAt) },
             {
               label: "Contexte",
-              value: `${entete.contexteLabel}${entete.source === "REALTIME" ? " · temps réel" : ""}`,
+              value: entete.contexteLabel,
             },
           ]}
         />
