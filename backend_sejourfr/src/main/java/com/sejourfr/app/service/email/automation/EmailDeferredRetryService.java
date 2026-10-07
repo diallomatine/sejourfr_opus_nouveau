@@ -88,6 +88,7 @@ public class EmailDeferredRetryService {
             case EMAIL_CHANGED -> security.emailChanged(d.getUserId(), d.getRecipient(), d.getReferenceId(),
                     d.getOccurredAt(), o);
             case SUPPORT_REPLY -> support.supportReply(d.getReferenceId(), o);
+            case ADMIN_MESSAGE -> support.adminMessage(d.getReferenceId(), o);
             case DIAGNOSTIC_PLAN_READY -> EmailKeys.moduleOf(d.getDeduplicationKey())
                     .flatMap(module -> diagnostics.planReady(d.getUserId(), module, d.getReferenceId(), o));
             default -> Optional.empty();

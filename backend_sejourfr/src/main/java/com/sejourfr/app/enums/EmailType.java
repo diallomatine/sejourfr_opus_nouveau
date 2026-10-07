@@ -35,6 +35,12 @@ public enum EmailType {
      */
     CONTACT_RECEIVED(EmailCategory.REQUIRED, DeferredRetry.NONE, false),
     SUPPORT_REPLY(EmailCategory.REQUIRED, DeferredRetry.EVENT_WINDOW, false),
+    /**
+     * Message ecrit par un admin a un COMPTE (console : « Nouveau message », fiche
+     * utilisateur, ou reponse dans une conversation rattachee a un compte). Message
+     * de service, pas de marketing : ni preference, ni lien de desabonnement.
+     */
+    ADMIN_MESSAGE(EmailCategory.REQUIRED, DeferredRetry.EVENT_WINDOW, false),
 
     /**
      * Provoque par une action du candidat : <b>jamais bloque par le plafond</b>,

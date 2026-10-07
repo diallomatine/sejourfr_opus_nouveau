@@ -73,6 +73,7 @@ La catégorie, la politique de relance différée et l'exemption de plafond de c
 | `EMAIL_CHANGED` | REQ | `UserProfileService.confirmEmailChange` → **ancienne** adresse (nouvelle masquée) | `…:{email_change_tokens.id}` | 24 h |
 | `CONTACT_RECEIVED` | REQ | `ConversationService.createFromContact` (avec numéro de suivi) | `…:{conversationId}` | jamais (suivi non persisté) |
 | `SUPPORT_REPLY` | REQ | `ConversationService.reply` (conversation de contact) | `…:{messageId}` | 24 h |
+| `ADMIN_MESSAGE` | REQ | `ConversationService.sendToUser` (« Nouveau message » / « Envoyer un message » de la console) **et** `ConversationService.reply` dans une conversation rattachée à un compte | `…:{messageId}` | 24 h |
 | `DIAGNOSTIC_PLAN_READY` | ENG | premier Plan du module (voir plus bas) | `…:{userId}:{module}` | 24 h |
 | `NO_PREMIUM_AFTER_7_DAYS` | ENG | scénario quotidien | `…:{userId}` | tant qu'éligible |
 | `NO_TRAINING_7_DAYS` | ENG | scénario quotidien | `…:{userId}:{date de dernière activité}` | tant qu'éligible |
@@ -90,6 +91,43 @@ leur propre réévaluation quotidienne (une clé `FAILED` ne bloque pas). 🛑 `
 **Le relais du formulaire de contact** vers le support n'est pas un mail client : synchrone,
 `EmailSender.relayToSupport`, **aucune ligne de journal** ; son échec remonte à `ContactService`,
 qui l'absorbe (log masqué, réponse inchangée) : la conversation enregistrée fait foi (B-1, clos).
+
+## Message d'un admin à un compte (`ADMIN_MESSAGE`, D-58)
+
+Écrit depuis la console (`/conversations` « Nouveau message », fiche `/users/:id` « Envoyer un
+message ») : `POST /api/admin/users/{id}/messages`. Décision :
+`docs/admin/utilisateurs/decisions-gestion-utilisateurs.md` D-58.
+
+- **Catégorie REQUIRED** : c'est un message de **service** de l'équipe à une personne, pas du
+  marketing. Ni préférence ENGAGEMENT, ni lien ni en-tête de désabonnement, ni plafond — comme
+  `SUPPORT_REPLY`. Tracé dans `email_deliveries` (`user_id` renseigné, clé
+  `ADMIN_MESSAGE:{messageId}`), relance différée 24 h.
+- **Toujours une conversation** : la transaction crée une conversation rattachée au compte
+  (`user_id`, objet = sujet du mail, statut `REPONDU`) et son premier message signé par l'admin,
+  puis publie `AdminMessageEvent` ; le mail part `AFTER_COMMIT` sur l'executor email. Une
+  **réponse** de l'équipe dans une conversation rattachée à un compte part aussi en
+  `ADMIN_MESSAGE` (il n'existe aucune messagerie in-app : sans mail, elle ne serait lue par
+  personne). La réponse de la personne revient par `Reply-To` (support), comme pour
+  `SUPPORT_REPLY`.
+- **Destinataire relu à l'envoi** (composeur `SupportEmailComposer.adminMessage`, partagé par
+  l'envoi initial et la relance différée) : l'adresse **actuelle** du compte. Compte supprimé ⇒
+  refus **409** à la saisie, et rien ne part si la suppression survient entre-temps (composeur
+  vide). La suppression du compte purge ses conversations et ses lignes de journal.
+- **Gabarit** `email/admin-message.{html,txt}`, sujet `{{subject}}` (l'objet saisi, CR/LF
+  retirés), preheader `{{excerpt}}` (début du message, 110 caractères, sur un mot). Bandeau
+  « Message de l'équipe SejourFR » en bleu France, l'objet en titre, `{{greeting}}` (« Bonjour
+  Prénom »), le texte dans un encadré à filet bleu, la phrase « répondez simplement à cet
+  email », puis la signature et le pied du layout commun (logo, « L'équipe SejourFR »,
+  `support@…`).
+- 🛑 **Le texte libre n'est jamais du balisage.** Variables calculées en **un** endroit,
+  `SupportEmailComposer.adminMessageVariables` (envoi **et** aperçu de la console) :
+  `message` (texte brut, fins de ligne unifiées) pour le `.txt`, `messageHtml` =
+  `EmailFormats.multilineHtml` — **échappé d'abord**, puis chaque saut de ligne devient
+  `<br/>` — injecté brut (`{{{messageHtml}}}`) parce qu'il est déjà sûr. Aucun lien n'est
+  fabriqué : les messageries rendent elles-mêmes une URL cliquable.
+- **Aperçu** : `POST /api/admin/users/{id}/messages/preview` rend le mail par le provider local
+  (`SpringMailEmailSender.render`), sans rien écrire ni envoyer ; la console l'affiche dans une
+  `iframe` `sandbox` vide.
 
 ## Campagnes de service (`incident`, `reprise`)
 

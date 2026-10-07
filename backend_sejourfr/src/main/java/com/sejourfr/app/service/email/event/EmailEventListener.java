@@ -126,4 +126,12 @@ public class EmailEventListener {
                 EmailKeys.byReference(type, event.messageId()), event.messageId(), null);
         dispatcher.dispatch(intent, () -> support.supportReply(event.messageId(), EmailRequest.Origin.EVENT));
     }
+
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void onAdminMessage(AdminMessageEvent event) {
+        EmailType type = EmailType.ADMIN_MESSAGE;
+        EmailIntent intent = new EmailIntent(type, event.userId(), event.email(),
+                EmailKeys.byReference(type, event.messageId()), event.messageId(), null);
+        dispatcher.dispatch(intent, () -> support.adminMessage(event.messageId(), EmailRequest.Origin.EVENT));
+    }
 }

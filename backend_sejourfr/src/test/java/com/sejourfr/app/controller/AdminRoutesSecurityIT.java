@@ -135,6 +135,9 @@ class AdminRoutesSecurityIT extends AbstractIntegrationTest {
                 Arguments.of(HttpMethod.GET, "/api/admin/users/" + RANDOM_ID),
                 Arguments.of(HttpMethod.GET, "/api/admin/access-products"),
                 Arguments.of(HttpMethod.POST, "/api/admin/users/" + RANDOM_ID + "/access-operations"),
+                // Écrire à un compte (D-58) : un mail part en son nom, jamais hors ADMIN.
+                Arguments.of(HttpMethod.POST, "/api/admin/users/" + RANDOM_ID + "/messages"),
+                Arguments.of(HttpMethod.POST, "/api/admin/users/" + RANDOM_ID + "/messages/preview"),
                 // Import CO image : ecrit des brouillons et envoie sur R2.
                 Arguments.of(HttpMethod.POST, "/api/admin/question-imports/co-image/analyze"),
                 Arguments.of(HttpMethod.POST, "/api/admin/question-imports/co-image/import"),

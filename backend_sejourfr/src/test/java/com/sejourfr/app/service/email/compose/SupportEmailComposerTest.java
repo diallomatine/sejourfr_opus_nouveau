@@ -2,12 +2,14 @@ package com.sejourfr.app.service.email.compose;
 
 import com.sejourfr.app.entity.Conversation;
 import com.sejourfr.app.entity.Message;
+import com.sejourfr.app.entity.User;
 import com.sejourfr.app.enums.EmailType;
 import com.sejourfr.app.manager.MessageManager;
 import com.sejourfr.app.service.email.EmailRequest;
 import com.sejourfr.app.service.email.event.ContactReceivedEvent;
 import org.junit.jupiter.api.Test;
 
+import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -59,5 +61,58 @@ class SupportEmailComposerTest {
         when(messages.findById(id)).thenReturn(Optional.of(m));
 
         assertThat(composer.supportReply(id, EmailRequest.Origin.EVENT)).isEmpty();
+    }
+
+    private Message messageAuCompte(UUID id, User user) {
+        Conversation c = new Conversation();
+        c.setUser(user);
+        c.setSubject("Votre accès");
+        Message m = new Message();
+        m.setConversation(c);
+        m.setBody("Bonjour,\r\nVoici <b>la suite</b>.");
+        when(messages.findById(id)).thenReturn(Optional.of(m));
+        return m;
+    }
+
+    @Test
+    void messageDAdminVersLeCompteASonAdresseActuelle() {
+        UUID id = UUID.randomUUID();
+        User u = new User();
+        u.setId(UUID.randomUUID());
+        u.setEmail("alice@example.com");
+        u.setFirstName("Alice");
+        messageAuCompte(id, u);
+
+        EmailRequest r = composer.adminMessage(id, EmailRequest.Origin.EVENT).orElseThrow();
+
+        assertThat(r.type()).isEqualTo(EmailType.ADMIN_MESSAGE);
+        assertThat(r.userId()).isEqualTo(u.getId());
+        assertThat(r.recipient()).isEqualTo("alice@example.com");
+        assertThat(r.deduplicationKey()).isEqualTo("ADMIN_MESSAGE:" + id);
+        assertThat(r.referenceId()).isEqualTo(id);
+        assertThat(r.variables())
+                .containsEntry("greeting", "Bonjour Alice")
+                .containsEntry("subject", "Votre accès")
+                .containsEntry("message", "Bonjour,\nVoici <b>la suite</b>.")
+                .containsEntry("messageHtml", "Bonjour,<br/>\nVoici &lt;b&gt;la suite&lt;/b&gt;.");
+    }
+
+    @Test
+    void unCompteSupprimeNeRecoitRien() {
+        UUID id = UUID.randomUUID();
+        User u = new User();
+        u.setEmail("deleted-x@anon.sejourfr");
+        u.setDeletedAt(Instant.now());
+        messageAuCompte(id, u);
+
+        assertThat(composer.adminMessage(id, EmailRequest.Origin.DEFERRED_RETRY)).isEmpty();
+    }
+
+    @Test
+    void uneConversationDeContactNEstPasUnMessageDAdmin() {
+        UUID id = UUID.randomUUID();
+        messageAuCompte(id, null);
+
+        assertThat(composer.adminMessage(id, EmailRequest.Origin.EVENT)).isEmpty();
     }
 }

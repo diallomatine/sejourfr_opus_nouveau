@@ -47,4 +47,33 @@ public final class EmailFormats {
         String name = firstName(firstName);
         return name.isEmpty() ? "Bonjour" : "Bonjour " + name;
     }
+
+    /**
+     * Un texte LIBRE (message d'un admin) pret pour le HTML : echappe d'abord
+     * ({@link MailTemplateRenderer#escape}), puis chaque saut de ligne devient
+     * {@code <br/>} — une ligne vide reste une ligne vide, donc un paragraphe.
+     * Aucun lien n'est fabrique : les messageries rendent elles-memes une URL
+     * cliquable, et rien de ce que l'admin tape ne devient du balisage.
+     */
+    public static String multilineHtml(String text) {
+        String normalized = normalizeLines(text);
+        return MailTemplateRenderer.escape(normalized).replace("\n", "<br/>\n");
+    }
+
+    /** Fins de ligne unifiees ({@code \n}), espaces de bord retires. Jamais {@code null}. */
+    public static String normalizeLines(String text) {
+        if (text == null) return "";
+        return text.replace("\r\n", "\n").replace('\r', '\n').strip();
+    }
+
+    /**
+     * Les premiers mots d'un texte sur une seule ligne (preheader) : blancs
+     * reduits, coupe sur un mot, « … » si tronque.
+     */
+    public static String excerpt(String text, int max) {
+        String flat = normalizeLines(text).replaceAll("\\s+", " ");
+        if (flat.length() <= max) return flat;
+        int cut = flat.lastIndexOf(' ', max);
+        return flat.substring(0, cut > max / 2 ? cut : max).strip() + "…";
+    }
 }

@@ -1308,6 +1308,22 @@ recalcule rien.
     (Prolonger/Raccourcir un accès non actif, Réactiver un accès non expiré/révoqué, Corriger un
     produit inactif, Terminer sans accès), « Terminer Civique » isolé sous un Intégral actif.
   - 401 / 403 / 404 conformes. Aucun achat, paiement, montant ni abonnement récurrent n'est touché.
+- `POST /api/admin/users/{userId}/messages` `AdminUserMessageRequest {subject, body}` → **201**
+  `ConversationDetailDto` (D-58) : écrire à un compte. Crée une **nouvelle conversation**
+  rattachée au compte (`user_id`, objet = `subject`, statut `REPONDU`, non lue côté admin), dont
+  le premier message (`ADMIN`) est signé par l'admin connecté, puis envoie le mail
+  `ADMIN_MESSAGE` **après commit** (`docs/regles/emails.md`). Objet nettoyé (blancs et CR/LF
+  réduits à une espace) puis 3–150 caractères ; message aux fins de ligne unifiées, sans blancs de
+  bord, 1–5000 caractères ⇒ sinon **400**. Compte supprimé (`deleted_at`) ⇒ **409** « Ce compte a
+  été supprimé : il ne peut plus recevoir de message. » ; inconnu ⇒ 404 ; non ADMIN ⇒ 403.
+- `POST /api/admin/users/{userId}/messages/preview` `AdminUserMessageRequest` →
+  `AdminMessagePreviewDto {recipient, subject, html, text}` : le mail rendu par le **vrai**
+  gabarit `ADMIN_MESSAGE` et le layout commun, avec les variables de l'envoi
+  (`SupportEmailComposer.adminMessageVariables`). N'écrit et n'envoie rien. Mêmes 400 / 404 /
+  409 ; 409 aussi si le fournisseur configuré n'a pas de rendu local (Brevo).
+- Une **réponse** (`POST /api/admin/conversations/{id}/reply`) dans une conversation rattachée à
+  un compte part désormais aussi par email (`ADMIN_MESSAGE`, à l'adresse actuelle du compte) ;
+  celle d'une conversation de contact reste `SUPPORT_REPLY` au contact.
 
 ### Admin — Campagnes de service (`incident`, `reprise`, 2026-09-28)
 

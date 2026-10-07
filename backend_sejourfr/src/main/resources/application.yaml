@@ -170,6 +170,12 @@ sejourfr:
         subject: "Réponse à votre message"
         preheader: "Notre équipe a répondu à votre demande."
         local-template: email/support-reply
+      # Message libre d'un admin a un compte : le sujet EST celui saisi par l'admin
+      # (CR/LF retires), le preheader le debut du message.
+      ADMIN_MESSAGE:
+        subject: "{{subject}}"
+        preheader: "{{excerpt}}"
+        local-template: email/admin-message
       NO_PREMIUM_AFTER_7_DAYS:
         subject: "Où en est votre préparation ?"
         preheader: "Un diagnostic de quelques minutes construit votre plan d'entraînement."

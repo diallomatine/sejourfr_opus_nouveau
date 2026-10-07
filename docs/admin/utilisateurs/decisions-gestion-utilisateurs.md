@@ -997,3 +997,48 @@ d'aperçu mimées.
 - **Impact** : `AdminUserDetailDto`, `AdminUserService`, `AdminProductionService`,
   `AdminProductionReadRepository.compter`, `types/api.ts`, `UserDetailPage`. DTO admin seulement.
 - **Réversibilité** : facile.
+
+### D-58 — Écrire à un compte depuis la console : une conversation, un mail `ADMIN_MESSAGE`
+
+- **Contexte** : demande du propriétaire (2026-10-07) — depuis `/conversations` (choisir un
+  compte) et depuis la fiche `/users/:id`, envoyer un email libre (objet + texte) à un
+  utilisateur, avec un gabarit à l'identité SejourFR.
+- **Options envisagées** : (a) un envoi « nu », sans trace hors `email_deliveries` ; (b) ajouter
+  le message à la dernière conversation ouverte du compte ; (c) une **nouvelle conversation** par
+  message, objet = sujet du mail.
+- **Choix retenu** : (c). `POST /api/admin/users/{id}/messages` (`AdminUserController` →
+  `ConversationService.sendToUser`) crée la conversation rattachée au compte (`user_id`, statut
+  `REPONDU`, non lue côté admin, non lue côté compte), son premier message signé par l'admin
+  connecté, et publie `AdminMessageEvent` ; le mail `ADMIN_MESSAGE` part **après commit**
+  (règles : `docs/regles/emails.md` § « Message d'un admin à un compte »). Aucune migration :
+  le schéma `conversations` / `messages` suffit.
+  - **Catégorie REQUIRED** (message de service, comme `SUPPORT_REPLY`) : ni préférence
+    marketing/engagement, ni désabonnement ; tracé dans `email_deliveries`, relance 24 h.
+  - **Réponses suivantes** : `ConversationService.reply` dans une conversation **rattachée à un
+    compte** envoie désormais aussi un `ADMIN_MESSAGE` (à l'adresse actuelle du compte). Avant,
+    une telle réponse n'était envoyée nulle part (« lue dans l'app » — il n'existe aucune
+    messagerie in-app). Les conversations de contact gardent `SUPPORT_REPLY`.
+  - **Compte supprimé** : 409 (« Ce compte a été supprimé : il ne peut plus recevoir de
+    message. ») ; le bouton de la fiche est masqué pour un compte supprimé, et le sélecteur de
+    `/conversations` ne les propose pas (recherche de la liste, D-56).
+  - **Bornes** : objet nettoyé (blancs/CR-LF → une espace, en-tête de mail) puis 3–150 ; message
+    1–5000 après retrait des blancs de bord. Pas de rate-limit (ADMIN seulement).
+  - **Aperçu** : `POST …/messages/preview` rend le mail par le vrai gabarit et les mêmes
+    variables (`SupportEmailComposer.adminMessageVariables`) — l'écran ne recompose ni la
+    salutation ni la signature ; affiché dans une `iframe sandbox=""`.
+  - **Front** : un seul composant, `features/conversations/components/ComposeMessageModal.tsx`
+    (+ `RecipientPicker.tsx`, combobox sur `GET /api/admin/users?q=`). Il vit dans
+    `conversations/` parce qu'il crée une conversation et appelle l'API : ce n'est pas une
+    primitive d'UI, `components/ui/` reste sans appel réseau métier. `users/UserDetailPage`
+    l'**importe** (destinataire fixé) — un import, pas une copie. Après envoi : depuis
+    `/conversations` le fil créé s'ouvre ; depuis la fiche, la modale propose « Ouvrir la
+    conversation ».
+- **Impact** : `EmailType.ADMIN_MESSAGE`, `application.yaml` (gabarit), `email/admin-message.{html,txt}`,
+  `EmailFormats.multilineHtml|excerpt`, `SupportEmailComposer`, `AdminMessageEvent`,
+  `EmailEventListener`, `EmailDeferredRetryService`, `ConversationService`, `AdminUserController`,
+  DTO `AdminUserMessageRequest` / `AdminMessagePreviewDto` ; tests `AdminUserMessageIT`,
+  `AdminMessageEmailTest`, `SupportEmailComposerTest`, matrice `AdminRoutesSecurityIT`. Admin :
+  `types/api.ts`, `usersApi.ts`, `ConversationsPage`, `UserDetailPage`. DTO admin seulement (web
+  et mobile non concernés).
+- **Réversibilité** : facile (retirer les deux routes ; les conversations créées restent des
+  conversations ordinaires).

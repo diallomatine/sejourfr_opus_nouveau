@@ -1,0 +1,9 @@
+Message de l'équipe SejourFR
+
+{{subject}}
+
+{{greeting}},
+
+{{message}}
+
+Une question ou une précision ? Répondez simplement à cet email : votre réponse arrive directement à notre équipe.
