@@ -1,8 +1,10 @@
 package com.sejourfr.app.service.adminproduction;
 
+import com.sejourfr.app.dto.AdminProductionCompteursDto;
 import com.sejourfr.app.dto.AdminProductionDetailDto;
 import com.sejourfr.app.dto.AdminProductionFlagDto;
 import com.sejourfr.app.dto.AdminProductionListItemDto;
+import com.sejourfr.app.dto.AdminProductionStatsDto;
 import com.sejourfr.app.dto.PageResponse;
 import com.sejourfr.app.dto.ProductionSubmissionDto;
 import com.sejourfr.app.entity.AiEvaluation;
@@ -13,7 +15,6 @@ import com.sejourfr.app.entity.User;
 import com.sejourfr.app.enums.AdminProductionAnnotationFiltre;
 import com.sejourfr.app.enums.AdminProductionExaminateurFiltre;
 import com.sejourfr.app.enums.AdminProductionNiveauFiltre;
-import com.sejourfr.app.enums.AdminProductionPeriode;
 import com.sejourfr.app.enums.AdminProductionSignalementFiltre;
 import com.sejourfr.app.enums.AdminProductionStatutIa;
 import com.sejourfr.app.enums.AdminProductionTri;
@@ -31,13 +32,16 @@ import com.sejourfr.app.mapper.ProductionSubmissionMapper;
 import com.sejourfr.app.repository.AdminProductionReadRepository;
 import com.sejourfr.app.specification.LikePattern;
 import com.sejourfr.app.util.FenetreMesure;
+import com.sejourfr.app.util.PeriodeAdmin;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Clock;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -74,6 +78,7 @@ public class AdminProductionService {
     private final AdminProductionMapper mapper;
     private final ProductionSubmissionMapper submissionMapper;
     private final AdminProductionCalculService calculService;
+    private final Clock clock;
 
     /** Filtres de la liste, tels que reçus ; {@code null} = pas de filtre. */
     public record Filtres(
@@ -85,7 +90,7 @@ public class AdminProductionService {
             AdminProductionSignalementFiltre signalement,
             AdminProductionAnnotationFiltre annotation,
             AdminProductionExaminateurFiltre examinateur,
-            AdminProductionPeriode periode,
+            String preset,
             String from,
             String to,
             boolean includeInternal
@@ -96,13 +101,13 @@ public class AdminProductionService {
      * {@code size} bornée à [1 ; {@value #MAX_SIZE}].
      *
      * @throws IllegalArgumentException (→ 400) épreuve hors EE/EO, tâche hors
-     *         1-3, {@code periode} avec {@code from}/{@code to}, borne seule ou
-     *         illisible
+     *         1-3, {@code preset} inconnu ou avec {@code from}/{@code to}, borne
+     *         seule ou illisible
      */
     public PageResponse<AdminProductionListItemDto> list(Filtres f, AdminProductionTri sort, int page, int size) {
         int safeSize = Math.min(Math.max(size, 1), MAX_SIZE);
         int safePage = Math.max(page, 0);
-        AdminProductionReadManager.Criteres criteres = criteres(f);
+        AdminProductionReadManager.Criteres criteres = criteres(f, aujourdhui());
         AdminProductionTri tri = sort == null ? AdminProductionTri.DATE_DESC : sort;
 
         List<AdminProductionListItemDto> content = readManager
@@ -111,6 +116,27 @@ public class AdminProductionService {
                 .toList();
         long total = readManager.count(criteres);
         return PageResponse.from(new PageImpl<>(content, PageRequest.of(safePage, safeSize), total));
+    }
+
+    /**
+     * Encart de la liste (DI-35) : la période et les comptes internes, rien
+     * d'autre — les filtres de la liste n'y entrent pas. Une requête.
+     *
+     * @throws IllegalArgumentException (→ 400) mêmes refus de période que la liste
+     */
+    public AdminProductionStatsDto stats(String preset, String from, String to, boolean includeInternal) {
+        PeriodeAdmin periode = PeriodeAdmin.resolveOuSansBorne(preset, from, to, aujourdhui());
+        FenetreMesure fenetre = periode == null ? null : periode.window();
+        AdminProductionReadRepository.Compteurs c = readManager.compter(includeInternal, null,
+                fenetre == null ? null : fenetre.startInstant(),
+                fenetre == null ? null : fenetre.endInstantExclusive());
+        return new AdminProductionStatsDto(
+                periode == null ? null : periode.preset(),
+                fenetre == null ? null : fenetre.from(),
+                fenetre == null ? null : fenetre.to(),
+                includeInternal,
+                c.getCandidats() == null ? 0 : c.getCandidats().longValue(),
+                mapper.compteurs(c));
     }
 
     /** Fiche d'une production du périmètre ; 404 si inconnue ou hors périmètre (diagnostic…). */
@@ -164,7 +190,11 @@ public class AdminProductionService {
         return flags.stream().map(f -> mapper.flag(f, acteurs)).toList();
     }
 
-    private static AdminProductionReadManager.Criteres criteres(Filtres f) {
+    private LocalDate aujourdhui() {
+        return LocalDate.ofInstant(clock.instant(), FenetreMesure.PARIS);
+    }
+
+    private static AdminProductionReadManager.Criteres criteres(Filtres f, LocalDate aujourdhui) {
         if (f.epreuve() != null && f.epreuve() != EpreuveType.TCF_EE && f.epreuve() != EpreuveType.TCF_EO) {
             throw new IllegalArgumentException("Valeur invalide pour « epreuve » : TCF_EE ou TCF_EO.");
         }
@@ -172,20 +202,9 @@ public class AdminProductionService {
             throw new IllegalArgumentException("Valeur invalide pour « tache » : 1, 2 ou 3.");
         }
 
-        boolean bornes = !blank(f.from()) || !blank(f.to());
-        if (bornes && f.periode() != null) {
-            throw new IllegalArgumentException(
-                    "Indiquez soit « periode », soit « from » et « to », pas les deux.");
-        }
-        Instant fromTs = null;
-        Instant toTs = null;
-        if (bornes || f.periode() != null) {
-            FenetreMesure fenetre = bornes
-                    ? FenetreMesure.resolve(f.from(), f.to(), 1)
-                    : FenetreMesure.resolve(null, null, f.periode().jours());
-            fromTs = fenetre.startInstant();
-            toTs = fenetre.endInstantExclusive();
-        }
+        PeriodeAdmin periode = PeriodeAdmin.resolveOuSansBorne(f.preset(), f.from(), f.to(), aujourdhui);
+        Instant fromTs = periode == null ? null : periode.window().startInstant();
+        Instant toTs = periode == null ? null : periode.window().endInstantExclusive();
 
         UUID qUuid = null;
         String qPattern = null;

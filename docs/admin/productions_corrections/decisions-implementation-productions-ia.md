@@ -340,6 +340,43 @@ n'existait dans `admin_sejourfr/`). Aucun bug backend bloquant rencontré : back
 - **Plus tard** : `SANS` inclut l'EE (forcément classique) ; combiner avec `epreuve=TCF_EO` pour
   comparer EO classique et EO avec examinateur.
 
+## Évolution — période de Suivi et encart (2026-10-07)
+
+### DI-35 — Période au contrat de Suivi, « Tout » par défaut, encart de la période (révise DI-17 et DI-24)
+- **Décision (période)** : `GET /api/admin/productions` lit `preset=TODAY|YESTERDAY|LAST_7_DAYS|
+  LAST_30_DAYS|MONTH` **ou** `from`/`to` via l'autorité de Suivi (`PeriodeAdmin.resolveOuSansBorne`
+  → `PeriodeAdmin.resolve` → `SuiviPeriodPreset.window`, jours Paris, aujourd'hui lu sur le `Clock`
+  injecté) ; preset + bornes, preset inconnu, borne seule ⇒ 400. **Aucun paramètre = aucune borne**
+  (comportement d'avant conservé). L'ancien `periode=` et l'enum `AdminProductionPeriode` sont
+  supprimés (refonte : un ancien lien `?periode=` est simplement ignoré). Front : la liste perd son
+  sélecteur « Période » et sa plage maison ; `components/ui/PeriodPicker` + `lib/period.ts` en tête
+  d'écran (`?period&from&to&month`, mêmes clés que Suivi), « Mois » avec son sélecteur de mois.
+- **Défaut « Tout »** — décision du propriétaire du 2026-10-07, **révisée** le même jour depuis
+  « Aujourd'hui par défaut » : sans `period` dans l'URL, l'écran montre toutes les productions ; le
+  sélecteur offre « Tout » en tête, puis les presets de Suivi. `lib/period.ts` reste l'autorité
+  unique : le `PeriodId` `all` n'est lu que par un écran qui l'offre (`readOpenPeriod`, `range`
+  `null` ⇒ aucun paramètre envoyé), et `writePeriod` prend le défaut de l'écran (non écrit dans
+  l'URL). Suivi et Activité gardent « Aujourd'hui » (`readPeriod`, inchangé pour eux).
+- **Décision (encart)** : `GET /api/admin/productions/stats?preset|from+to&includeInternal`
+  (`AdminProductionStatsDto`) — endpoint dédié plutôt qu'un champ de la page, pour qu'il ne se
+  relise pas à chaque page / tri / filtre. Il ne dépend **que de la période et de la case
+  « comptes internes »** : il donne la vue d'ensemble de la période, la liste en dessous affine.
+  Compteurs (`AdminProductionCompteursDto`) : total, EE, EO, avec examinateur IA (`source =
+  REALTIME`, DI-34), évaluées / non évaluables / en échec / en cours (statut IA de la liste, F-6),
+  signalées (actif non vérifié, DI-03), + candidats distincts. **Une requête** (la CTE `BASE` de
+  la liste, `count(*) FILTER`), verrouillée par égalité. Front : 7 `StatTile` neutres (grille
+  `auto-fit`, 2 colonnes ≤ 640 px), bornes servies affichées (« Du … au … · heure de Paris » ou
+  « Depuis la première production »). La case « Inclure les comptes internes » monte à côté du
+  sélecteur de période (elle pèse sur l'encart ET la liste).
+- **Pas de tendance ni de coût** : une tendance demanderait une 2ᵉ requête et n'a pas de sens sur
+  « Tout » ; le coût IA exigerait de sommer `ai_evaluations` (micro-USD et legacy en centimes, DI-31,
+  jamais additionnés) — non servi tant que le besoin n'est pas exprimé.
+- **Clé** : `["adminProductions", "stats", {range, includeInternal}]` — sous le préfixe, donc
+  invalidée par un signalement (compteur « Signalées »).
+- **Tests** : `AdminProductionControllerIT` (chaque preset, plage, sans borne, 400 ; encart par
+  delta, internes, sans borne, coût 1 requête), `PeriodeAdminTest.sansBorne`, `AdminRoutesSecurityIT`.
+- **Plus tard** : tuiles cliquables qui posent le filtre correspondant sur la liste.
+
 ### Écarts assumés vs maquette v3
 Sélecteurs libellés au lieu de pastilles-select ; pas de bouton « Actualiser » en topbar ;
 bouton « Signaler » en contour rouge (`danger`, pas de variante ambre dans `Button`) ; scores

@@ -4,7 +4,6 @@ import type {
   AdminProductionEpreuve,
   AdminProductionExaminateurFiltre,
   AdminProductionNiveauFiltre,
-  AdminProductionPeriode,
   AdminProductionSignalementFiltre,
   AdminProductionStatutIa,
   AdminProductionTri,
@@ -69,15 +68,6 @@ export const EXAMINATEUR_OPTIONS: readonly Option<AdminProductionExaminateurFilt
 
 /** Badge de la `source` servie `REALTIME` : production passée avec l'examinateur vocal (EO temps réel). */
 export const EXAMINATEUR_IA_BADGE = "Examinateur IA";
-
-export type PeriodChoice = AdminProductionPeriode | "CUSTOM";
-
-export const PERIODE_OPTIONS: readonly Option<PeriodChoice>[] = [
-  { value: "TODAY", label: "Aujourd'hui" },
-  { value: "LAST_7_DAYS", label: "7 derniers jours" },
-  { value: "LAST_30_DAYS", label: "30 derniers jours" },
-  { value: "CUSTOM", label: "Personnalisée" },
-];
 
 export const SORT_OPTIONS: readonly Option<AdminProductionTri>[] = [
   { value: "DATE_DESC", label: "Plus récentes" },

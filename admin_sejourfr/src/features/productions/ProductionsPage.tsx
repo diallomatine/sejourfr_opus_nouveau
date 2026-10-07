@@ -10,12 +10,13 @@ import { Icon } from "../../components/ui/Icon";
 import { InlineError } from "../../components/ui/InlineError";
 import { PageHeader } from "../../components/ui/PageHeader";
 import { Pagination } from "../../components/ui/Pagination";
+import { PeriodPicker } from "../../components/ui/PeriodPicker";
 import { EmptyState, Panel } from "../../components/ui/Panel";
 import { SearchField } from "../../components/ui/SearchField";
 import { Spinner } from "../../components/ui/Spinner";
 import { Tag } from "../../components/ui/Tag";
 import { useClampPage, useUrlSearchInput } from "../../hooks/useUrlListState";
-import { formatParisDate, formatParisTime, parisToday } from "../../lib/dates";
+import { formatParisDate, formatParisTime, formatRange } from "../../lib/dates";
 import { NIVEAU_LABEL } from "../../lib/evaluation";
 import tableStyles from "../../components/ui/DataTable.module.css";
 import type { AdminProductionListItemDto } from "../../types/api";
@@ -26,7 +27,6 @@ import {
   EXAMINATEUR_IA_BADGE,
   EXAMINATEUR_OPTIONS,
   NIVEAU_OPTIONS,
-  PERIODE_OPTIONS,
   SIGNALEMENT_OPTIONS,
   SIGNALEMENT_TONE,
   SORT_OPTIONS,
@@ -36,15 +36,18 @@ import {
   shortId,
 } from "./productionLabels";
 import type { Option } from "./productionLabels";
-import { PAGE_SIZE_OPTIONS, useProductionListParams } from "./useProductionListParams";
+import { ProductionStats } from "./components/ProductionStats";
+import { PAGE_SIZE_OPTIONS, PRODUCTION_PERIODS, useProductionListParams } from "./useProductionListParams";
 import styles from "./ProductionsPage.module.css";
 
 const NUMBER_FORMAT = new Intl.NumberFormat("fr-FR");
 
 /**
  * Console « Productions IA » : repérer une production EE/EO corrigée par IA,
- * l'ouvrir, comprendre son niveau, la signaler. Tout ce qui s'affiche est
- * servi par `GET /api/admin/productions` (pagination, filtres et tri serveur).
+ * l'ouvrir, comprendre son niveau, la signaler. En tête, la période (presets de
+ * Suivi + « Tout », le défaut) et l'encart de la période (`/stats`, DI-35) ; puis
+ * la liste servie par `GET /api/admin/productions` (pagination, filtres et tri
+ * serveur), bornée par la même période.
  */
 export function ProductionsPage() {
   const {
@@ -53,7 +56,6 @@ export function ProductionsPage() {
     hasActiveFilter,
     setFilter,
     setPeriod,
-    setRange,
     setPage,
     setSize,
     resetFilters,
@@ -73,12 +75,18 @@ export function ProductionsPage() {
     placeholderData: keepPreviousData,
   });
 
+  const statsQuery = useQuery({
+    queryKey: ["adminProductions", "stats", { range: period.range, includeInternal: filters.includeInternal === true }],
+    queryFn: () => productionsApi.stats(period.range, filters.includeInternal === true),
+    placeholderData: keepPreviousData,
+  });
+  const stats = statsQuery.data;
+
   const data = listQuery.data;
   const isStale = listQuery.isPlaceholderData;
   useClampPage(data?.totalPages, isStale, filters.page, setPage);
 
   const listState = { listSearch: location.search };
-  const today = parisToday();
 
   const handleReset = () => {
     setSearchInput("");
@@ -99,6 +107,43 @@ export function ProductionsPage() {
       <PageHeader
         title="Productions IA"
         description="Contrôler les productions écrites et orales corrigées par IA, comprendre le niveau observé et signaler une évaluation incohérente. Consulter une production ne déclenche aucune évaluation."
+      />
+
+      <div className={styles.periodBar}>
+        <PeriodPicker
+          offered={PRODUCTION_PERIODS}
+          period={period.period}
+          from={period.from}
+          to={period.to}
+          month={period.month}
+          servedFrom={stats?.from ?? null}
+          servedTo={stats?.to ?? null}
+          onChange={setPeriod}
+        />
+        <div className={styles.periodSide}>
+          <span className={styles.periodServed}>
+            {stats
+              ? stats.from && stats.to
+                ? `${formatRange(stats.from, stats.to)} · heure de Paris`
+                : "Depuis la première production"
+              : "\u00a0"}
+          </span>
+          <label className={styles.checkbox}>
+            <input
+              type="checkbox"
+              checked={filters.includeInternal === true}
+              onChange={(e) => setFilter("internes", e.target.checked ? "1" : undefined)}
+            />
+            Inclure les comptes internes
+          </label>
+        </div>
+      </div>
+
+      <ProductionStats
+        data={stats}
+        error={statsQuery.error}
+        stale={statsQuery.isPlaceholderData}
+        onRetry={() => statsQuery.refetch()}
       />
 
       <Panel
@@ -180,14 +225,6 @@ export function ProductionsPage() {
             onChange={(v) => setFilter("examinateur", v)}
           />
           <FilterSelect
-            id="prod-periode"
-            label="Période"
-            allLabel="Toutes"
-            options={PERIODE_OPTIONS}
-            value={period}
-            onChange={(v) => setPeriod(v ?? "", today)}
-          />
-          <FilterSelect
             id="prod-sort"
             label="Trier par"
             options={SORT_OPTIONS}
@@ -197,45 +234,6 @@ export function ProductionsPage() {
         </div>
 
         <div className={styles.filtersFoot}>
-          {period === "CUSTOM" && filters.from && filters.to && (
-            <div className={styles.range}>
-              <label className={styles.rangeLabel}>
-                Du
-                <input
-                  type="date"
-                  className={styles.dateInput}
-                  value={filters.from}
-                  max={filters.to}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    if (value && filters.to && value <= filters.to) setRange(value, filters.to);
-                  }}
-                />
-              </label>
-              <label className={styles.rangeLabel}>
-                au
-                <input
-                  type="date"
-                  className={styles.dateInput}
-                  value={filters.to}
-                  min={filters.from}
-                  max={today}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    if (value && filters.from && value >= filters.from) setRange(filters.from, value);
-                  }}
-                />
-              </label>
-            </div>
-          )}
-          <label className={styles.checkbox}>
-            <input
-              type="checkbox"
-              checked={filters.includeInternal === true}
-              onChange={(e) => setFilter("internes", e.target.checked ? "1" : undefined)}
-            />
-            Inclure les comptes internes
-          </label>
           {hasActiveFilter && (
             <Button variant="ghost" size="sm" onClick={handleReset}>
               Réinitialiser les filtres

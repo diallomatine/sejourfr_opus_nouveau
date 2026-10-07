@@ -49,6 +49,15 @@ public class AdminProductionReadManager {
     }
 
     /**
+     * Compteurs du périmètre, une requête. {@code qUuid} : id utilisateur (ou de
+     * production), comme la recherche de la liste ; bornes {@code null} = aucune.
+     */
+    public AdminProductionReadRepository.Compteurs compter(boolean includeInternal, UUID qUuid,
+                                                           Instant fromTs, Instant toTs) {
+        return repository.compter(includeInternal, null, qUuid, null, null, null, null, fromTs, toTs);
+    }
+
+    /**
      * La ligne d'UNE production du périmètre, comptes internes compris : la même
      * expression que la liste pour le statut IA et le signalement. Vide si la
      * production n'existe pas ou sort du périmètre (diagnostic…).

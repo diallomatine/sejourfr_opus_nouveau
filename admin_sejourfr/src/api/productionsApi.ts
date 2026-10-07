@@ -1,11 +1,14 @@
 import { apiRequest } from "./http";
+import { rangeParams } from "../lib/period";
 import type {
   AdminProductionDetailDto,
   AdminProductionFilters,
   AdminProductionFlagDto,
   AdminProductionFlagRequest,
   AdminProductionListItemDto,
+  AdminProductionStatsDto,
   PageResponse,
+  SuiviRange,
 } from "../types/api";
 
 export const productionsApi = {
@@ -20,7 +23,7 @@ export const productionsApi = {
         signalement: filters.signalement,
         annotation: filters.annotation,
         examinateur: filters.examinateur,
-        periode: filters.periode,
+        preset: filters.preset,
         from: filters.from,
         to: filters.to,
         includeInternal: filters.includeInternal || undefined,
@@ -28,6 +31,13 @@ export const productionsApi = {
         page: filters.page,
         size: filters.size,
       },
+    });
+  },
+
+  /** Encart de la liste (DI-35) : période + comptes internes seulement. */
+  stats(range: SuiviRange | null, includeInternal: boolean) {
+    return apiRequest<AdminProductionStatsDto>("/api/admin/productions/stats", {
+      query: { ...rangeParams(range), includeInternal: includeInternal || undefined },
     });
   },
 

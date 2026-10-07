@@ -1372,11 +1372,13 @@ export type AdminProductionAnnotationFiltre = "ANNOTEES" | "NON_ANNOTEES";
 /** `AVEC` = examinateur IA (EO temps réel, `source` REALTIME) ; `SANS` = production classique (ASYNC). */
 export type AdminProductionExaminateurFiltre = "AVEC" | "SANS";
 
-export type AdminProductionPeriode = "TODAY" | "LAST_7_DAYS" | "LAST_30_DAYS";
-
 export type AdminProductionTri = "DATE_DESC" | "DATE_ASC" | "NIVEAU_DESC" | "NIVEAU_ASC" | "EPREUVE";
 
-/** Paramètres de `GET /api/admin/productions`. `periode` OU `from`+`to` (yyyy-MM-dd), jamais les deux. */
+/**
+ * Paramètres de `GET /api/admin/productions`. Période au contrat de Suivi :
+ * `preset` OU `from`+`to` (yyyy-MM-dd, Paris), jamais les deux ; aucun des deux
+ * = sans borne (« Tout », DI-35).
+ */
 export interface AdminProductionFilters {
   q?: string;
   epreuve?: AdminProductionEpreuve;
@@ -1386,13 +1388,44 @@ export interface AdminProductionFilters {
   signalement?: AdminProductionSignalementFiltre;
   annotation?: AdminProductionAnnotationFiltre;
   examinateur?: AdminProductionExaminateurFiltre;
-  periode?: AdminProductionPeriode;
+  preset?: SuiviPeriodPreset;
   from?: string;
   to?: string;
   includeInternal?: boolean;
   sort?: AdminProductionTri;
   page?: number;
   size?: number;
+}
+
+/**
+ * Compteurs des productions EE/EO corrigées par IA (périmètre de la console,
+ * hors diagnostic). `evaluees + nonEvaluables + enEchec + enCours = total`
+ * (servi, jamais additionné ici). `avecExaminateur` = `source REALTIME` ;
+ * `signalees` = signalement actif non vérifié.
+ */
+export interface AdminProductionCompteursDto {
+  total: number;
+  ee: number;
+  eo: number;
+  avecExaminateur: number;
+  evaluees: number;
+  nonEvaluables: number;
+  enEchec: number;
+  enCours: number;
+  signalees: number;
+}
+
+/**
+ * `GET /api/admin/productions/stats` (DI-35) : période + comptes internes,
+ * indépendant des autres filtres de la liste. Bornes servies (`null` = sans borne).
+ */
+export interface AdminProductionStatsDto {
+  preset: SuiviPeriodPreset | null;
+  from: string | null;
+  to: string | null;
+  includeInternal: boolean;
+  candidats: number;
+  compteurs: AdminProductionCompteursDto;
 }
 
 /** Une ligne de la liste, et l'en-tête de la fiche. */

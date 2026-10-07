@@ -88,6 +88,9 @@ class AdminRoutesSecurityIT extends AbstractIntegrationTest {
                 // et signalements — jamais ouverte hors ADMIN.
                 Arguments.of(HttpMethod.GET, "/api/admin/productions"),
                 Arguments.of(HttpMethod.GET, "/api/admin/productions?statut=ECHEC&includeInternal=true"),
+                Arguments.of(HttpMethod.GET, "/api/admin/productions?preset=LAST_7_DAYS"),
+                Arguments.of(HttpMethod.GET, "/api/admin/productions/stats"),
+                Arguments.of(HttpMethod.GET, "/api/admin/productions/stats?preset=TODAY&includeInternal=true"),
                 Arguments.of(HttpMethod.GET, "/api/admin/productions/" + RANDOM_ID),
                 Arguments.of(HttpMethod.POST, "/api/admin/productions/" + RANDOM_ID + "/flags"),
                 Arguments.of(HttpMethod.POST, "/api/admin/productions/flags/" + RANDOM_ID + "/verify"),

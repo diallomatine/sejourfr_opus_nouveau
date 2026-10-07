@@ -30,15 +30,13 @@ export function useUrlListState(defaultSize: number = DEFAULT_PAGE_SIZE) {
     };
   }, [params, defaultSize]);
 
-  const setFilters = useCallback(
-    (patch: Record<string, string | undefined>, options?: { replace?: boolean }) => {
+  /** Écriture libre de filtres (ex. `writePeriod`), ramenée en page 1 dans la même écriture. */
+  const updateFilters = useCallback(
+    (mutate: (next: URLSearchParams) => void, options?: { replace?: boolean }) => {
       setParams(
         (prev) => {
           const next = new URLSearchParams(prev);
-          for (const [key, value] of Object.entries(patch)) {
-            if (value) next.set(key, value);
-            else next.delete(key);
-          }
+          mutate(next);
           next.delete("page");
           return next;
         },
@@ -46,6 +44,17 @@ export function useUrlListState(defaultSize: number = DEFAULT_PAGE_SIZE) {
       );
     },
     [setParams],
+  );
+
+  const setFilters = useCallback(
+    (patch: Record<string, string | undefined>, options?: { replace?: boolean }) =>
+      updateFilters((next) => {
+        for (const [key, value] of Object.entries(patch)) {
+          if (value) next.set(key, value);
+          else next.delete(key);
+        }
+      }, options),
+    [updateFilters],
   );
 
   const setFilter = useCallback(
@@ -91,7 +100,7 @@ export function useUrlListState(defaultSize: number = DEFAULT_PAGE_SIZE) {
     });
   }, [setParams]);
 
-  return { params, page, size, setFilter, setFilters, setPage, setSize, resetFilters };
+  return { params, page, size, setFilter, setFilters, updateFilters, setPage, setSize, resetFilters };
 }
 
 /**

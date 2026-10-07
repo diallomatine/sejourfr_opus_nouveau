@@ -19,7 +19,8 @@ import java.util.UUID;
  * et l'en-tête de la fiche lisent la même expression.
  *
  * <p>Une page = {@link #findPage} + {@link #count} : deux requêtes, quel que
- * soit le nombre de lignes (verrouillé par égalité dans l'IT).
+ * soit le nombre de lignes (verrouillé par égalité dans l'IT). Les compteurs
+ * ({@link #compter}) : une requête.
  */
 public interface AdminProductionReadRepository extends Repository<ProductionSubmission, UUID> {
 
@@ -149,6 +150,47 @@ public interface AdminProductionReadRepository extends Repository<ProductionSubm
                          @Param("sort") String sort,
                          @Param("limit") int limit,
                          @Param("offset") long offset);
+
+    /** Compteurs agrégés (encart et fiche utilisateur) ; {@code null} n'est jamais rendu. */
+    interface Compteurs {
+        Number getTotal();
+        Number getEe();
+        Number getEo();
+        Number getAvecExaminateur();
+        Number getEvaluees();
+        Number getNonEvaluables();
+        Number getEnEchec();
+        Number getEnCours();
+        Number getSignalees();
+        Number getCandidats();
+    }
+
+    /**
+     * Une seule requête, quel que soit le nombre de lignes : mêmes périmètre,
+     * statut IA et état de signalement que la liste (la CTE {@link #BASE}).
+     */
+    @Query(value = BASE + """
+            SELECT count(*) AS total,
+                   count(*) FILTER (WHERE epreuve = 'TCF_EE') AS ee,
+                   count(*) FILTER (WHERE epreuve = 'TCF_EO') AS eo,
+                   count(*) FILTER (WHERE source = 'REALTIME') AS avecExaminateur,
+                   count(*) FILTER (WHERE statut_ia = 'EVALUEE') AS evaluees,
+                   count(*) FILTER (WHERE statut_ia = 'NON_EVALUABLE') AS nonEvaluables,
+                   count(*) FILTER (WHERE statut_ia = 'ECHEC') AS enEchec,
+                   count(*) FILTER (WHERE statut_ia = 'EN_COURS') AS enCours,
+                   count(*) FILTER (WHERE etat_signalement = 'SIGNALE') AS signalees,
+                   count(DISTINCT user_id) AS candidats
+              FROM base
+            """, nativeQuery = true)
+    Compteurs compter(@Param("includeInternal") boolean includeInternal,
+                      @Param("submissionId") UUID submissionId,
+                      @Param("qUuid") UUID qUuid,
+                      @Param("qPattern") String qPattern,
+                      @Param("epreuve") String epreuve,
+                      @Param("tache") Integer tache,
+                      @Param("source") String source,
+                      @Param("fromTs") Instant fromTs,
+                      @Param("toTs") Instant toTs);
 
     @Query(value = BASE + "SELECT count(*) FROM base" + FILTRES, nativeQuery = true)
     long count(@Param("includeInternal") boolean includeInternal,

@@ -18,7 +18,7 @@ interface PeriodPickerProps {
 }
 
 /**
- * Sélecteur de période des écrans de pilotage (Suivi, Activité) : presets du
+ * Sélecteur de période des écrans de pilotage (Suivi, Activité, Productions IA) : presets du
  * serveur, puis « Personnalisé » qui ouvre deux champs date. « Mois » ouvre
  * la liste des 24 derniers mois (le mois courant par défaut). Une plage
  * inversée n'est jamais écrite (elle partirait en 400).

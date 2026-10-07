@@ -7,7 +7,6 @@ import com.sejourfr.app.entity.Transcription;
 import com.sejourfr.app.entity.User;
 import com.sejourfr.app.enums.AdminProductionAnnotationFiltre;
 import com.sejourfr.app.enums.AdminProductionNiveauFiltre;
-import com.sejourfr.app.enums.AdminProductionPeriode;
 import com.sejourfr.app.enums.AdminProductionStatutIa;
 import com.sejourfr.app.enums.AdminProductionTri;
 import com.sejourfr.app.enums.EpreuveType;
@@ -17,6 +16,9 @@ import com.sejourfr.app.manager.AiEvaluationManager;
 import com.sejourfr.app.manager.ProductionSubmissionManager;
 import com.sejourfr.app.manager.TranscriptionManager;
 import com.sejourfr.app.manager.UserManager;
+import com.sejourfr.app.dto.AdminProductionFlagRequest;
+import com.sejourfr.app.enums.MotifSignalement;
+import com.sejourfr.app.service.adminproduction.AdminProductionFlagService;
 import com.sejourfr.app.service.adminproduction.AdminProductionService;
 import com.sejourfr.app.support.AbstractIntegrationTest;
 import com.sejourfr.app.support.AuthTestSupport;
@@ -65,6 +67,7 @@ class AdminProductionControllerIT extends AbstractIntegrationTest {
     @Autowired private AiEvaluationManager aiEvaluationManager;
     @Autowired private TranscriptionManager transcriptionManager;
     @Autowired private UserManager userManager;
+    @Autowired private AdminProductionFlagService flagService;
 
     private AdminProductionFixtures fx;
     private String bearer;
@@ -193,26 +196,41 @@ class AdminProductionControllerIT extends AbstractIntegrationTest {
                                                        Integer tache, AdminProductionNiveauFiltre niveau,
                                                        AdminProductionStatutIa statut) {
         return new AdminProductionService.Filtres(f.q(), epreuve, tache, niveau, statut, f.signalement(),
-                f.annotation(), f.examinateur(), f.periode(), f.from(), f.to(), f.includeInternal());
+                f.annotation(), f.examinateur(), f.preset(), f.from(), f.to(), f.includeInternal());
     }
 
     @Test
-    void filtre_de_periode_en_jours_de_paris() throws Exception {
+    void filtre_de_periode_meme_contrat_que_suivi_en_jours_de_paris() throws Exception {
         User u = fx.candidat("periode");
         Instant now = Instant.now();
         ProductionSubmission auj = fx.production(u, EpreuveType.TCF_EE, 1, SubmissionStatut.EVALUATED, now);
+        ProductionSubmission hier = fx.production(u, EpreuveType.TCF_EO, 1, SubmissionStatut.EVALUATED,
+                now.minus(1, ChronoUnit.DAYS));
         ProductionSubmission dixJours = fx.production(u, EpreuveType.TCF_EE, 1, SubmissionStatut.EVALUATED,
                 now.minus(10, ChronoUnit.DAYS));
-        fx.production(u, EpreuveType.TCF_EE, 1, SubmissionStatut.EVALUATED, now.minus(40, ChronoUnit.DAYS));
+        ProductionSubmission quarante = fx.production(u, EpreuveType.TCF_EE, 1, SubmissionStatut.EVALUATED,
+                now.minus(40, ChronoUnit.DAYS));
+        String sAuj = auj.getId().toString(), sHier = hier.getId().toString(),
+                sDix = dixJours.getId().toString(), sQuarante = quarante.getId().toString();
 
-        assertThat(ids(list("periode", "TODAY"))).containsExactly(auj.getId().toString());
-        assertThat(ids(list("periode", "LAST_7_DAYS"))).containsExactly(auj.getId().toString());
-        assertThat(ids(list("periode", "LAST_30_DAYS")))
-                .containsExactly(auj.getId().toString(), dixJours.getId().toString());
+        assertThat(ids(list("preset", "TODAY"))).containsExactly(sAuj);
+        assertThat(ids(list("preset", "YESTERDAY"))).containsExactly(sHier);
+        assertThat(ids(list("preset", "LAST_7_DAYS"))).containsExactly(sAuj, sHier);
+        assertThat(ids(list("preset", "LAST_30_DAYS"))).containsExactly(sAuj, sHier, sDix);
+        // MONTH = du 1er du mois (Paris) à aujourd'hui : la règle, pas un résultat daté.
+        LocalDate premier = LocalDate.now(FenetreMesure.PARIS).withDayOfMonth(1);
+        List<String> mois = new ArrayList<>();
+        for (ProductionSubmission p : List.of(auj, hier, dixJours, quarante)) {
+            if (!LocalDate.ofInstant(p.getSubmittedAt(), FenetreMesure.PARIS).isBefore(premier)) {
+                mois.add(p.getId().toString());
+            }
+        }
+        assertThat(ids(list("preset", "MONTH"))).containsExactlyElementsOf(mois);
+
         LocalDate jour = LocalDate.ofInstant(now.minus(10, ChronoUnit.DAYS), FenetreMesure.PARIS);
-        assertThat(ids(list("from", jour.toString(), "to", jour.toString())))
-                .containsExactly(dixJours.getId().toString());
-        assertThat(ids(list())).hasSize(3);
+        assertThat(ids(list("from", jour.toString(), "to", jour.toString()))).containsExactly(sDix);
+        // Sans période : aucune borne (« Tout », défaut de l'écran — DI-35).
+        assertThat(ids(list())).containsExactly(sAuj, sHier, sDix, sQuarante);
     }
 
     @Test
@@ -319,13 +337,16 @@ class AdminProductionControllerIT extends AbstractIntegrationTest {
                 new String[]{"sort", "COUT"},
                 new String[]{"examinateur", "REALTIME"},
                 new String[]{"from", "2026-09-01"},
-                new String[]{"from", "2026-13-01", "to", "2026-13-02"})) {
+                new String[]{"from", "2026-13-01", "to", "2026-13-02"},
+                new String[]{"preset", "HIER"},
+                new String[]{"periode", "TODAY", "preset", "SEMAINE"},
+                new String[]{"from", "2026-09-02", "to", "2026-09-01"})) {
             var req = get(URL).header(HttpHeaders.AUTHORIZATION, bearer);
             for (int i = 0; i < p.length; i += 2) req = req.param(p[i], p[i + 1]);
             mockMvc.perform(req).andExpect(status().isBadRequest());
         }
         mockMvc.perform(get(URL).header(HttpHeaders.AUTHORIZATION, bearer)
-                        .param("periode", "TODAY").param("from", "2026-09-01").param("to", "2026-09-02"))
+                        .param("preset", "TODAY").param("from", "2026-09-01").param("to", "2026-09-02"))
                 .andExpect(status().isBadRequest());
     }
 
@@ -363,6 +384,109 @@ class AdminProductionControllerIT extends AbstractIntegrationTest {
         assertThat(page.content()).hasSize(5);
         assertThat(page.totalElements()).isEqualTo(6);
         assertThat(stats.getPrepareStatementCount()).isEqualTo(2);
+    }
+
+    // ------------------------------------------------------------------ encart (DI-35)
+
+    private JsonNode stats(String... params) throws Exception {
+        return get200(URL + "/stats", params);
+    }
+
+    private static long delta(JsonNode apres, JsonNode avant, String champ) {
+        return apres.at("/compteurs/" + champ).asLong() - avant.at("/compteurs/" + champ).asLong();
+    }
+
+    @Test
+    void encart_compteurs_de_la_periode_internes_et_sans_borne() throws Exception {
+        JsonNode avantJour = stats("preset", "TODAY");
+        JsonNode avantJourInternes = stats("preset", "TODAY", "includeInternal", "true");
+        JsonNode avantTout = stats();
+
+        User a = fx.candidat("statsA");
+        User b = fx.candidat("statsB");
+        User interne = fx.candidatInterne("statsI");
+        Instant t = Instant.now();
+        ProductionSubmission eeEval = fx.production(a, EpreuveType.TCF_EE, 1, SubmissionStatut.EVALUATED, t);
+        fx.evaluationV15(eeEval, NiveauCecrl.B1);
+        ProductionSubmission eoExam = fx.tempsReel(fx.production(a, EpreuveType.TCF_EO, 1, SubmissionStatut.EVALUATED, t));
+        fx.evaluationV15(eoExam, NiveauCecrl.A2);
+        fx.nonEvaluable(fx.production(a, EpreuveType.TCF_EO, 2, SubmissionStatut.EVALUATED, t));
+        fx.production(b, EpreuveType.TCF_EE, 2, SubmissionStatut.FAILED, t);
+        fx.production(b, EpreuveType.TCF_EE, 3, SubmissionStatut.EVALUATING, t);
+        fx.production(interne, EpreuveType.TCF_EE, 1, SubmissionStatut.EVALUATED, t);
+        fx.production(a, EpreuveType.TCF_EE, 1, SubmissionStatut.EVALUATED, t.minus(40, ChronoUnit.DAYS));
+        flagService.signaler(eeEval.getId(), testData.admin().getId(),
+                new AdminProductionFlagRequest(MotifSignalement.NIVEAU_INCOHERENT, null));
+
+        JsonNode jour = stats("preset", "TODAY");
+        assertThat(jour.get("preset").asString()).isEqualTo("TODAY");
+        String aujourdhui = LocalDate.now(FenetreMesure.PARIS).toString();
+        assertThat(jour.get("from").asString()).isEqualTo(aujourdhui);
+        assertThat(jour.get("to").asString()).isEqualTo(aujourdhui);
+        assertThat(jour.get("includeInternal").asBoolean()).isFalse();
+        assertThat(delta(jour, avantJour, "total")).isEqualTo(5);
+        assertThat(delta(jour, avantJour, "ee")).isEqualTo(3);
+        assertThat(delta(jour, avantJour, "eo")).isEqualTo(2);
+        assertThat(delta(jour, avantJour, "avecExaminateur")).isEqualTo(1);
+        assertThat(delta(jour, avantJour, "evaluees")).isEqualTo(2);
+        assertThat(delta(jour, avantJour, "nonEvaluables")).isEqualTo(1);
+        assertThat(delta(jour, avantJour, "enEchec")).isEqualTo(1);
+        assertThat(delta(jour, avantJour, "enCours")).isEqualTo(1);
+        assertThat(delta(jour, avantJour, "signalees")).isEqualTo(1);
+        assertThat(jour.get("candidats").asLong() - avantJour.get("candidats").asLong()).isEqualTo(2);
+
+        JsonNode jourInternes = stats("preset", "TODAY", "includeInternal", "true");
+        assertThat(delta(jourInternes, avantJourInternes, "total")).isEqualTo(6);
+        assertThat(jourInternes.get("candidats").asLong() - avantJourInternes.get("candidats").asLong())
+                .isEqualTo(3);
+
+        // Sans période : depuis toujours, la production d'il y a 40 jours comprise.
+        JsonNode tout = stats();
+        assertThat(tout.get("preset").isNull()).isTrue();
+        assertThat(tout.get("from").isNull()).isTrue();
+        assertThat(tout.get("to").isNull()).isTrue();
+        assertThat(delta(tout, avantTout, "total")).isEqualTo(6);
+
+        LocalDate il40 = LocalDate.ofInstant(t.minus(40, ChronoUnit.DAYS), FenetreMesure.PARIS);
+        JsonNode plage = stats("from", il40.toString(), "to", il40.toString());
+        assertThat(plage.get("preset").isNull()).isTrue();
+        assertThat(plage.get("from").asString()).isEqualTo(il40.toString());
+        assertThat(plage.at("/compteurs/total").asLong()).isGreaterThanOrEqualTo(1);
+    }
+
+    @Test
+    void encart_ignore_les_filtres_de_la_liste_et_refuse_une_periode_incoherente() throws Exception {
+        for (String[] p : List.of(
+                new String[]{"preset", "TODAY", "from", "2026-09-01", "to", "2026-09-02"},
+                new String[]{"preset", "HIER"},
+                new String[]{"from", "2026-09-01"},
+                new String[]{"from", "2026-09-02", "to", "2026-09-01"})) {
+            var req = get(URL + "/stats").header(HttpHeaders.AUTHORIZATION, bearer);
+            for (int i = 0; i < p.length; i += 2) req = req.param(p[i], p[i + 1]);
+            mockMvc.perform(req).andExpect(status().isBadRequest());
+        }
+        // Un filtre de la liste passé par erreur ne change rien à l'encart.
+        assertThat(stats("preset", "TODAY", "epreuve", "TCF_EE").get("compteurs"))
+                .isEqualTo(stats("preset", "TODAY").get("compteurs"));
+    }
+
+    /** L'encart coûte UNE requête, quel que soit le nombre de productions : égalité stricte. */
+    @Test
+    void encart_coute_une_requete() {
+        User u = fx.candidat("coutstats");
+        for (int i = 0; i < 6; i++) {
+            fx.production(u, EpreuveType.TCF_EO, 1, SubmissionStatut.EVALUATED, Instant.now().minusSeconds(i));
+        }
+        entityManager.flush();
+        entityManager.clear();
+        Statistics stats = entityManager.getEntityManagerFactory().unwrap(SessionFactory.class).getStatistics();
+        stats.setStatisticsEnabled(true);
+        stats.clear();
+
+        var encart = service.stats(null, null, null, false);
+
+        assertThat(encart.compteurs().total()).isGreaterThanOrEqualTo(6);
+        assertThat(stats.getPrepareStatementCount()).isEqualTo(1);
     }
 
     // ------------------------------------------------------------------ fiche

@@ -43,4 +43,15 @@ class PeriodeAdminTest {
         assertThatThrownBy(() -> PeriodeAdmin.resolve("HIER", null, null, AUJOURDHUI))
                 .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("LAST_30_DAYS");
     }
+
+    @Test
+    @DisplayName("Sans borne (Productions IA) : rien demandé = null ; sinon la même lecture, les mêmes refus")
+    void sansBorne() {
+        assertThat(PeriodeAdmin.resolveOuSansBorne(null, " ", null, AUJOURDHUI)).isNull();
+        assertThat(PeriodeAdmin.resolveOuSansBorne("YESTERDAY", null, null, AUJOURDHUI).window())
+                .isEqualTo(new FenetreMesure(LocalDate.of(2026, 10, 2), LocalDate.of(2026, 10, 2)));
+        assertThat(PeriodeAdmin.resolveOuSansBorne(null, "2026-09-01", "2026-09-02", AUJOURDHUI).preset()).isNull();
+        assertThatThrownBy(() -> PeriodeAdmin.resolveOuSansBorne("TODAY", "2026-09-01", "2026-09-02", AUJOURDHUI))
+                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("pas les deux");
+    }
 }

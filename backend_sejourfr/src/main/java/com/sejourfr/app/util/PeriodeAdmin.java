@@ -5,10 +5,10 @@ import com.sejourfr.app.enums.SuiviPeriodPreset;
 import java.time.LocalDate;
 
 /**
- * Periode demandee a une console de mesure admin (Suivi, Activite) : un preset
- * <b>ou</b> une paire {@code from}/{@code to}, jamais les deux. <b>Autorite
- * unique</b> de cette lecture : les deux ecrans partagent la meme table de
- * presets ({@link SuiviPeriodPreset#window}) et les memes refus.
+ * Periode demandee a une console admin (Suivi, Activite, Productions IA) : un
+ * preset <b>ou</b> une paire {@code from}/{@code to}, jamais les deux.
+ * <b>Autorite unique</b> de cette lecture : les ecrans partagent la meme table
+ * de presets ({@link SuiviPeriodPreset#window}) et les memes refus.
  *
  * @param preset {@code null} pour une periode personnalisee
  * @param window jours couverts, Europe/Paris
@@ -31,6 +31,18 @@ public record PeriodeAdmin(SuiviPeriodPreset preset, FenetreMesure window) {
         }
         SuiviPeriodPreset applied = blank(preset) ? SuiviPeriodPreset.TODAY : SuiviPeriodPreset.parse(preset);
         return new PeriodeAdmin(applied, applied.window(today));
+    }
+
+    /**
+     * Comme {@link #resolve}, mais <b>rien demande = aucune borne</b> ({@code null})
+     * au lieu d'« aujourd'hui » : la liste des productions IA et son encart
+     * (DI-35, decision du proprietaire du 2026-10-07 : « Tout » par defaut).
+     *
+     * @throws IllegalArgumentException (→ 400) memes refus que {@link #resolve}
+     */
+    public static PeriodeAdmin resolveOuSansBorne(String preset, String from, String to, LocalDate today) {
+        if (blank(preset) && blank(from) && blank(to)) return null;
+        return resolve(preset, from, to, today);
     }
 
     private static boolean blank(String value) {

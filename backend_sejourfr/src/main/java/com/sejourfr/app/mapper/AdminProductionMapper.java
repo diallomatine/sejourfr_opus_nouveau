@@ -1,6 +1,7 @@
 package com.sejourfr.app.mapper;
 
 import com.sejourfr.app.dto.AdminActeurDto;
+import com.sejourfr.app.dto.AdminProductionCompteursDto;
 import com.sejourfr.app.dto.AdminProductionDetailDto;
 import com.sejourfr.app.dto.AdminProductionFlagDto;
 import com.sejourfr.app.dto.AdminProductionListItemDto;
@@ -36,6 +37,17 @@ public class AdminProductionMapper {
     static final String AUDIO_MOTIF =
             "Audio non conservé : l'enregistrement ne sert qu'à produire la transcription, "
                     + "puis il est supprimé (décision de consentement).";
+
+    public AdminProductionCompteursDto compteurs(AdminProductionReadRepository.Compteurs c) {
+        return new AdminProductionCompteursDto(
+                n(c.getTotal()), n(c.getEe()), n(c.getEo()), n(c.getAvecExaminateur()),
+                n(c.getEvaluees()), n(c.getNonEvaluables()), n(c.getEnEchec()), n(c.getEnCours()),
+                n(c.getSignalees()));
+    }
+
+    private static long n(Number value) {
+        return value == null ? 0 : value.longValue();
+    }
 
     public AdminProductionListItemDto listItem(AdminProductionReadRepository.Ligne l) {
         AdminProductionContexte contexte = AdminProductionContexte.of(

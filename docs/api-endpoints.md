@@ -1077,7 +1077,7 @@ Audit : `docs/admin/productions_corrections/audit-admin-productions-ia.md` ; dé
 (EO temps réel comprise) — ni diagnostic, ni petits sujets Compétences. DTO **propres à l'admin** :
 aucun DTO candidat ne change. Tout est servi (statut, libellés, calcul) : le front ne recalcule rien.
 
-- `GET /api/admin/productions?q=&epreuve=&tache=&niveau=&statut=&signalement=&annotation=&examinateur=&periode=&from=&to=&includeInternal=&sort=&page=&size=`
+- `GET /api/admin/productions?q=&epreuve=&tache=&niveau=&statut=&signalement=&annotation=&examinateur=&preset=&from=&to=&includeInternal=&sort=&page=&size=`
   → `PageResponse<AdminProductionListItemDto>` (`page` indexée à 0, `size` défaut **25**, bornée
   `[1, 100]`).
   - `q` : UUID complet ⇒ id de production **ou** id utilisateur ; sinon email « contient »,
@@ -1088,18 +1088,30 @@ aucun DTO candidat ne change. Tout est servi (statut, libellés, calcul) : le fr
     `signalement=SIGNALEES|VERIFIEES|NON_SIGNALEES` (actif non vérifié / actif vérifié / aucun
     actif — un signalement retiré ne compte plus) ; `annotation=ANNOTEES|NON_ANNOTEES` (note
     humaine de calibration) ; `examinateur=AVEC|SANS` (`source` `REALTIME` = EO temps réel avec
-    l'examinateur IA / `ASYNC` = production classique, EE comprise) ; `periode=TODAY|LAST_7_DAYS|LAST_30_DAYS` (jours Europe/Paris)
-    **ou** `from`/`to` (`yyyy-MM-dd`, inclus, les deux, 365 j max, `FenetreMesure`) ;
+    l'examinateur IA / `ASYNC` = production classique, EE comprise) ; période au **contrat de
+    Suivi** (`PeriodeAdmin`, DI-35) : `preset=TODAY|YESTERDAY|LAST_7_DAYS|LAST_30_DAYS|MONTH`
+    (jours Europe/Paris, `SuiviPeriodPreset.window`) **ou** `from`/`to` (`yyyy-MM-dd`, inclus,
+    les deux, 365 j max, `FenetreMesure`) ; **aucun des deux = sans borne** (« Tout », défaut de
+    l'écran). L'ancien `periode=` n'existe plus (ignoré comme paramètre inconnu) ;
     `includeInternal=false` (comptes `is_internal` exclus par défaut) ;
     `sort=DATE_DESC|DATE_ASC|NIVEAU_DESC|NIVEAU_ASC|EPREUVE` (défaut `DATE_DESC`, toujours
     complété par `submitted_at DESC, id DESC` ; sans niveau en dernier). Valeur inconnue,
-    épreuve hors EE/EO, tâche hors 1-3, `periode` + `from`/`to`, borne seule ⇒ **400**.
+    épreuve hors EE/EO, tâche hors 1-3, `preset` + `from`/`to`, borne seule ⇒ **400**.
   - Ligne : `id, submittedAt, userId, userEmail, userInternal, epreuve, tache, source
     (ASYNC|REALTIME), contexte (ENTRAINEMENT|EXAMEN_BLANC|EXAMEN_COMPLET) + contexteLabel,
     niveauObserve (nullable), statutIa + statutIaLabel, etatSignalement (AUCUN|SIGNALE|VERIFIE)
     + etatSignalementLabel, annotee`.
   - **Coût figé : 2 requêtes par page** (contenu + comptage), verrouillé par égalité dans
     `AdminProductionControllerIT`.
+- `GET /api/admin/productions/stats?preset=&from=&to=&includeInternal=` → `AdminProductionStatsDto`
+  (encart de la liste, DI-35) : **période + comptes internes seulement**, les autres filtres de la
+  liste n'y entrent pas. Même contrat de période que la liste (sans période = depuis toujours ;
+  `preset` + `from`/`to`, preset inconnu, borne seule ⇒ **400**). Réponse : `preset` (nullable),
+  `from`/`to` (jours appliqués, `null` sans borne), `includeInternal`, `candidats` (comptes
+  distincts), `compteurs` = `AdminProductionCompteursDto {total, ee, eo, avecExaminateur
+  (source REALTIME), evaluees, nonEvaluables, enEchec, enCours, signalees (actif non vérifié)}` —
+  même périmètre, même statut IA et même état de signalement que la liste ; `evaluees +
+  nonEvaluables + enEchec + enCours = total`. **1 requête**, verrouillée par égalité.
 - `GET /api/admin/productions/{submissionId}` → `AdminProductionDetailDto` : `entete` (la ligne),
   `sujet` (tel que reçu, sans la fiche examinateur), `reponse` (texte + mots, ou transcription
   recollée + durée + `transcriptionInfo` ; `audioConserve: false` + motif — **aucun audio**),

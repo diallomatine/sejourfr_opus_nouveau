@@ -358,7 +358,8 @@ de police dans la feature). Décisions : `docs/admin/decisions-suivi.md`.
   virgule décimale, `—` pour l'absent. Montants en centimes.
 - **Période** : Aujourd'hui / Hier / 7 jours / **30 jours** (`LAST_30_DAYS`) / Mois /
   Personnalisé, lue et écrite par `lib/period.ts` et choisie par
-  `components/ui/PeriodPicker` (partagés avec Activité). **Mois** ouvre la liste des 24
+  `components/ui/PeriodPicker` (partagés avec Activité et Productions IA ; seul Productions IA
+  offre « Tout » et en fait son défaut — Suivi et Activité restent sur « Aujourd'hui »). **Mois** ouvre la liste des 24
   derniers mois (`lib/dates.ts` `monthOptions`, partagée avec Abonnements), le mois courant
   par défaut : courant ⇒ preset `MONTH` (à date), mois passé ⇒ `?month=yyyy-MM`, envoyé en
   plage `from`/`to` du 1er au dernier jour.
@@ -514,17 +515,23 @@ format : `docs/question-audio/audit-questions-co-images.md` §4.
 ### Productions IA (`features/productions/`)
 
 Contrôler une production EE/EO corrigée par IA : **repérer → ouvrir → comprendre → signaler**
-(brief, audit et journal DI-01 → DI-34 : `docs/admin/productions_corrections/`). Maquette
+(brief, audit et journal DI-01 → DI-35 : `docs/admin/productions_corrections/`). Maquette
 `sejourfr-admin-productions-ia-v3.html` : design repris, données fictives NON reproduites
 (pas de €, pas de /4, pas de « Prononciation », pas de lecteur audio).
 
 - **Routes** : `/productions-ia` (liste) et `/productions-ia/:id` (fiche). Entrée de nav
   « Génération IA › Productions IA » (F-8).
+- **En tête** (DI-35) : `PeriodPicker` + `lib/period.ts` (mêmes presets que Suivi, précédés de
+  **« Tout », le défaut de l'écran** : sans `period` dans l'URL = aucune borne ; `readOpenPeriod`,
+  `writePeriod(…, "all")`) et la case « Inclure les comptes internes » (pèse sur l'encart ET la
+  liste). Puis l'**encart** (`components/ProductionStats`, 7 `StatTile` neutres) servi par
+  `GET /api/admin/productions/stats` : période + internes seulement, indépendant des autres filtres
+  (`["adminProductions", "stats", {range, includeInternal}]`).
 - **Liste** : pagination serveur **25** par défaut (F-9 révisé, `useUrlListState(25)`, sélecteur en bas), état dans l'URL
-  (`useProductionListParams` : `?q&epreuve&tache&niveau&statut&signalement&annotation&examinateur&periode|from+to&internes&sort&page&size`),
-  comptes internes exclus par défaut (case « Inclure les comptes internes », F-7). Plage
-  personnalisée = `from`/`to` posés ensemble (aujourd'hui Paris par défaut), jamais avec
-  `periode`. Recherche : email « contient » ou **UUID complet** (production ou utilisateur).
+  (`useProductionListParams` : `?q&epreuve&tache&niveau&statut&signalement&annotation&examinateur&period&from&to&month&internes&sort&page&size`),
+  bornée par la même période (envoyée en `preset` OU `from`/`to`, rien pour « Tout »), comptes
+  internes exclus par défaut (F-7). Recherche : email « contient » ou **UUID complet** (production
+  ou utilisateur).
   Filtre « Examinateur IA » (`examinateur=AVEC|SANS`, DI-34) : lu côté serveur sur la `source`
   servie (`REALTIME` = EO temps réel) ; badge neutre « Examinateur IA » sur la ligne et la fiche.
 - 🛑 **Rien n'est recalculé** : statut IA (4 états, F-6), contexte, état de signalement, calcul

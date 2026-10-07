@@ -4,11 +4,11 @@ import com.sejourfr.app.dto.AdminProductionDetailDto;
 import com.sejourfr.app.dto.AdminProductionFlagDto;
 import com.sejourfr.app.dto.AdminProductionFlagRequest;
 import com.sejourfr.app.dto.AdminProductionListItemDto;
+import com.sejourfr.app.dto.AdminProductionStatsDto;
 import com.sejourfr.app.dto.PageResponse;
 import com.sejourfr.app.enums.AdminProductionAnnotationFiltre;
 import com.sejourfr.app.enums.AdminProductionExaminateurFiltre;
 import com.sejourfr.app.enums.AdminProductionNiveauFiltre;
-import com.sejourfr.app.enums.AdminProductionPeriode;
 import com.sejourfr.app.enums.AdminProductionSignalementFiltre;
 import com.sejourfr.app.enums.AdminProductionStatutIa;
 import com.sejourfr.app.enums.AdminProductionTri;
@@ -57,7 +57,7 @@ public class AdminProductionController {
             @RequestParam(required = false) AdminProductionSignalementFiltre signalement,
             @RequestParam(required = false) AdminProductionAnnotationFiltre annotation,
             @RequestParam(required = false) AdminProductionExaminateurFiltre examinateur,
-            @RequestParam(required = false) AdminProductionPeriode periode,
+            @RequestParam(required = false) String preset,
             @RequestParam(required = false) String from,
             @RequestParam(required = false) String to,
             @RequestParam(defaultValue = "false") boolean includeInternal,
@@ -66,8 +66,18 @@ public class AdminProductionController {
             @RequestParam(defaultValue = "25") int size) {
         return productionService.list(
                 new AdminProductionService.Filtres(q, epreuve, tache, niveau, statut, signalement, annotation,
-                        examinateur, periode, from, to, includeInternal),
+                        examinateur, preset, from, to, includeInternal),
                 sort, page, size);
+    }
+
+    /** Encart de la liste : période (même contrat que Suivi) + comptes internes (DI-35). */
+    @GetMapping("/stats")
+    public AdminProductionStatsDto stats(
+            @RequestParam(required = false) String preset,
+            @RequestParam(required = false) String from,
+            @RequestParam(required = false) String to,
+            @RequestParam(defaultValue = "false") boolean includeInternal) {
+        return productionService.stats(preset, from, to, includeInternal);
     }
 
     @GetMapping("/{submissionId}")
