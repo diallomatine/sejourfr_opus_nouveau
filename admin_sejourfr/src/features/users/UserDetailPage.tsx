@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useLocation, useParams } from "react-router-dom";
+import { Link, useLocation, useParams } from "react-router-dom";
 import { HttpError, httpErrorMessage } from "../../api/http";
 import { usersApi } from "../../api/usersApi";
 import { Avatar } from "../../components/ui/Avatar";
@@ -14,6 +14,7 @@ import { Tag } from "../../components/ui/Tag";
 import { formatParisDate, formatParisDateTime } from "../../lib/dates";
 import type {
   AdminAccessProductDto,
+  AdminProductionCompteursDto,
   AdminRealtimeEoSessionsDto,
   AdminUserAccessDto,
   AdminUserDetailDto,
@@ -170,6 +171,7 @@ export function UserDetailPage() {
                 {d.progression.map((p) => (
                   <ProgressionBox key={p.module} progression={p} />
                 ))}
+                <ProductionsBox userId={d.account.id} productions={d.productions} />
               </div>
             </Section>
 
@@ -432,6 +434,40 @@ function ProgressionBox({ progression: p }: { progression: AdminUserProgressionD
         )}
         <Info label="Cycles historisés">{p.historisedCycles}</Info>
       </dl>
+    </article>
+  );
+}
+
+/** Lien vers la liste Productions IA de ce compte : depuis toujours, comptes internes compris (D-57). */
+function productionsLink(userId: string, avecExaminateur: boolean): string {
+  const params = new URLSearchParams({ q: userId, internes: "1" });
+  if (avecExaminateur) params.set("examinateur", "AVEC");
+  return `/productions-ia?${params.toString()}`;
+}
+
+/** Productions EE/EO corrigées par IA, servies (D-57) : le front n'additionne rien. */
+function ProductionsBox({ userId, productions: p }: { userId: string; productions: AdminProductionCompteursDto }) {
+  return (
+    <article className={styles.progressBox}>
+      <h3 className={styles.progressTitle}>Productions IA (EE / EO)</h3>
+      <div className={styles.productionFigures}>
+        <Link to={productionsLink(userId, false)} className={styles.productionFigure}>
+          <strong>{p.total}</strong>
+          <span>{plural(p.total, "soumise")}</span>
+        </Link>
+        <Link to={productionsLink(userId, true)} className={styles.productionFigure}>
+          <strong>{p.avecExaminateur}</strong>
+          <span>avec examinateur IA</span>
+        </Link>
+      </div>
+      {p.total > 0 && (
+        <p className={styles.productionBreakdown}>
+          EE {p.ee} · EO {p.eo} — {p.evaluees} {plural(p.evaluees, "évaluée")} · {p.nonEvaluables} non{" "}
+          {plural(p.nonEvaluables, "évaluable")} · {p.enEchec} en échec
+          {p.enCours > 0 && ` · ${p.enCours} en cours`}
+          {p.signalees > 0 && ` · ${p.signalees} ${plural(p.signalees, "signalée")}`}
+        </p>
+      )}
     </article>
   );
 }

@@ -139,6 +139,15 @@ public class AdminProductionService {
                 mapper.compteurs(c));
     }
 
+    /**
+     * Productions d'un candidat, depuis toujours, comptes internes compris (D-57) :
+     * exactement ce que montre {@code /productions-ia?q=<userId>&internes=1} (sans période = tout).
+     * Une requête, quel que soit le nombre de productions.
+     */
+    public AdminProductionCompteursDto compteursDuCandidat(UUID userId) {
+        return mapper.compteurs(readManager.compter(true, userId, null, null));
+    }
+
     /** Fiche d'une production du périmètre ; 404 si inconnue ou hors périmètre (diagnostic…). */
     public AdminProductionDetailDto detail(UUID submissionId) {
         AdminProductionReadRepository.Ligne ligne = readManager.findLigne(submissionId)

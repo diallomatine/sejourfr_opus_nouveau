@@ -255,6 +255,10 @@ Maquette : `docs/admin/utilisateurs/maquette-admin-utilisateurs-mvp.html` (donn�
   `["adminAccessProducts"]`, `["adminUserAccessPreview", id, requête]`. Une action réussie
   invalide le préfixe `["adminUsers"]` (liste + fiche) ; l'aperçu a sa propre clé pour ne pas
   être rejoué.
+- **Productions IA** (D-57) : carte compacte dans « Progression », `productions` servi
+  (`AdminProductionCompteursDto`, depuis toujours, internes compris) — soumises (lien
+  `/productions-ia?q=<userId>&internes=1`) et avec examinateur IA (`&examinateur=AVEC`), puis la
+  répartition servie (EE/EO, statuts, signalées). Rien n'est additionné côté front.
 - Aucun achat n'est modifiable ici ; la console `/subscriptions` reste l'écran transverse des
   achats (résiliation, solde de sessions EO) — pas un doublon (D-28).
 

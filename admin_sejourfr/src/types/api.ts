@@ -923,6 +923,8 @@ export interface AdminUserDetailDto {
   accesses: AdminUserAccessDto[];
   purchases: AdminUserPurchaseDto[];
   progression: AdminUserProgressionDto[];
+  /** Productions IA du compte, depuis toujours, comptes internes compris (D-57). */
+  productions: AdminProductionCompteursDto;
   history: AdminAccessHistoryEntryDto[];
   accessVersion: string;
 }

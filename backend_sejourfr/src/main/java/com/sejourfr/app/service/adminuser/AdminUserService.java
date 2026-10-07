@@ -23,6 +23,7 @@ import com.sejourfr.app.manager.UserManager;
 import com.sejourfr.app.mapper.AdminUserMapper;
 import com.sejourfr.app.repository.AdminUserReadRepository;
 import com.sejourfr.app.service.SubscriptionService;
+import com.sejourfr.app.service.adminproduction.AdminProductionService;
 import com.sejourfr.app.service.access.AccesEffectifResolver;
 import com.sejourfr.app.service.access.AccesEffectifResolver.EtatProduit;
 import com.sejourfr.app.specification.UserSpecifications;
@@ -74,6 +75,7 @@ public class AdminUserService {
     private final AdminUserMapper mapper;
     private final AdminAccessOperationService operationService;
     private final RealtimeProperties realtimeProperties;
+    private final AdminProductionService productionService;
 
     public List<AdminAccessProductDto> products() {
         return mapper.products(realtimeProperties.getAdminGrantMaxSessions());
@@ -140,6 +142,7 @@ public class AdminUserService {
                 operationService.accesses(etats, d, now),
                 achats,
                 progression(userId),
+                productionService.compteursDuCandidat(userId),
                 historique(userId),
                 VersionAcces.de(d));
     }

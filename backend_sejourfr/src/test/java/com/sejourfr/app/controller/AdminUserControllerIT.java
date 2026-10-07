@@ -3,6 +3,12 @@ package com.sejourfr.app.controller;
 import com.sejourfr.app.entity.User;
 import com.sejourfr.app.entity.UserSubscription;
 import com.sejourfr.app.enums.ModuleAccess;
+import com.sejourfr.app.entity.ProductionSubmission;
+import com.sejourfr.app.enums.EpreuveType;
+import com.sejourfr.app.enums.NiveauCecrl;
+import com.sejourfr.app.enums.SubmissionStatut;
+import com.sejourfr.app.manager.AiEvaluationManager;
+import com.sejourfr.app.manager.ProductionSubmissionManager;
 import com.sejourfr.app.manager.UserManager;
 import com.sejourfr.app.support.AbstractIntegrationTest;
 import com.sejourfr.app.support.AccesAdminFixtures;
@@ -57,6 +63,8 @@ class AdminUserControllerIT extends AbstractIntegrationTest {
     @Autowired private JdbcTemplate jdbc;
     @Autowired private EntityManager em;
     @Autowired private UserManager userManager;
+    @Autowired private ProductionSubmissionManager submissionManager;
+    @Autowired private AiEvaluationManager aiEvaluationManager;
 
     private User admin;
     private String bearer;
@@ -499,6 +507,60 @@ class AdminUserControllerIT extends AbstractIntegrationTest {
             agir(u, "GRANT", "CIVIQUE", null, null, AccesAdminFixtures.jour(4));
         }
         long grande = requetes(() -> liste("q", tag, "filter", "TCF_ACTIVE"));
+
+        assertThat(petite).isPositive();
+        assertThat(grande).isEqualTo(petite);
+    }
+
+    // ------------------------------------------------ productions IA (D-57)
+
+    @Test
+    @DisplayName("Fiche : productions IA du compte depuis toujours — soumises, statuts, EE/EO, examinateur ; hors diagnostic")
+    void ficheProductionsIa() throws Exception {
+        AdminProductionFixtures pfx = new AdminProductionFixtures(data, submissionManager, aiEvaluationManager, userManager);
+        User u = pfx.candidatInterne("fiche");
+        Instant t = Instant.now();
+        ProductionSubmission ee = pfx.production(u, EpreuveType.TCF_EE, 1, SubmissionStatut.EVALUATED,
+                t.minus(JOUR.multipliedBy(400)));
+        pfx.evaluationV15(ee, NiveauCecrl.B1);
+        ProductionSubmission eo = pfx.tempsReel(pfx.production(u, EpreuveType.TCF_EO, 1, SubmissionStatut.EVALUATED, t));
+        pfx.evaluationV15(eo, NiveauCecrl.A2);
+        pfx.nonEvaluable(pfx.production(u, EpreuveType.TCF_EO, 2, SubmissionStatut.EVALUATED, t));
+        pfx.tempsReel(pfx.production(u, EpreuveType.TCF_EO, 3, SubmissionStatut.FAILED, t));
+        ProductionSubmission diag = pfx.production(u, EpreuveType.TCF_EE, 2, SubmissionStatut.EVALUATED, t);
+        diag.setDiagnostic(true);
+        submissionManager.save(diag);
+        pfx.production(pfx.candidat("autre"), EpreuveType.TCF_EE, 1, SubmissionStatut.EVALUATED, t);
+
+        JsonNode p = detail(u).get("productions");
+        assertThat(p.get("total").asLong()).isEqualTo(4);
+        assertThat(p.get("ee").asLong()).isEqualTo(1);
+        assertThat(p.get("eo").asLong()).isEqualTo(3);
+        assertThat(p.get("avecExaminateur").asLong()).isEqualTo(2);
+        assertThat(p.get("evaluees").asLong()).isEqualTo(2);
+        assertThat(p.get("nonEvaluables").asLong()).isEqualTo(1);
+        assertThat(p.get("enEchec").asLong()).isEqualTo(1);
+        assertThat(p.get("enCours").asLong()).isZero();
+        assertThat(p.get("signalees").asLong()).isZero();
+
+        JsonNode vide = detail(data.user()).get("productions");
+        assertThat(vide.get("total").asLong()).isZero();
+        assertThat(vide.get("avecExaminateur").asLong()).isZero();
+    }
+
+    @Test
+    @DisplayName("Fiche : coût constant, 1 production ou 6 (égalité du nombre de requêtes)")
+    void ficheCoutConstant() throws Exception {
+        AdminProductionFixtures pfx = new AdminProductionFixtures(data, submissionManager, aiEvaluationManager, userManager);
+        User peu = pfx.candidat("peu");
+        User beaucoup = pfx.candidat("beaucoup");
+        pfx.production(peu, EpreuveType.TCF_EE, 1, SubmissionStatut.EVALUATED, Instant.now());
+        for (int i = 0; i < 6; i++) {
+            pfx.production(beaucoup, i % 2 == 0 ? EpreuveType.TCF_EE : EpreuveType.TCF_EO, 1,
+                    SubmissionStatut.EVALUATED, Instant.now().minusSeconds(i));
+        }
+        long petite = requetes(() -> detail(peu));
+        long grande = requetes(() -> detail(beaucoup));
 
         assertThat(petite).isPositive();
         assertThat(grande).isEqualTo(petite);

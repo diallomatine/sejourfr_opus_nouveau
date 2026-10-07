@@ -1266,7 +1266,11 @@ recalcule rien.
   (`externalReference` : identifiant d'origine, entier sauf purchaseToken Google tronqué ;
   `recurring`), `progression[]` (TCF puis Civique :
   diagnostic clos + date, cycle en cours, cycles historisés — lecture en tables, jamais
-  `JourneyService.lire()`), `history[]` (une entrée par action, `changes[]` en phrases),
+  `JourneyService.lire()`), `productions` (`AdminProductionCompteursDto`, D-57 : productions
+  EE/EO corrigées par IA du compte **depuis toujours**, comptes internes compris, hors diagnostic
+  — exactement la liste `/productions-ia?q=<userId>&internes=1` ; une soumission compte une fois
+  quel que soit son statut ; `avecExaminateur` = `source REALTIME` ; 1 requête, coût de la fiche
+  constant), `history[]` (une entrée par action, `changes[]` en phrases),
   `accessVersion`. Inconnu ⇒ 404.
 - `GET /api/admin/access-products` → `AdminAccessProductDto[]` : `CIVIQUE` (Civique) puis
   `INTEGRAL` (TCF + Civique). Pas de produit « TCF » seul. `maxRealtimeEoSessions` : plafond des

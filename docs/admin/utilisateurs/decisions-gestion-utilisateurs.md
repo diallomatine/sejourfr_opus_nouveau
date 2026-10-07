@@ -976,3 +976,24 @@ d'aperçu mimées.
   `AdminUserControllerIT.listeExclutLesComptesSupprimes`.
 - **Réversibilité** : facile (retirer le prédicat).
 
+### D-57 — Fiche : productions IA du compte (soumises, avec examinateur IA)
+
+- **Contexte** : demande du propriétaire (2026-10-07) — voir sur la fiche combien de productions
+  corrigées par IA la personne a soumises, et combien en temps réel avec l'examinateur IA.
+- **Choix retenu** : `AdminUserDetailDto.productions` = `AdminProductionCompteursDto` (le même
+  bloc que l'encart de « Productions IA », DI-35), calculé par `AdminProductionService.
+  compteursDuCandidat` sur la CTE de la liste Productions IA : **depuis toujours, comptes internes
+  compris, hors diagnostic**, recherche par UUID utilisateur. Le compteur est donc exactement ce
+  que montre le lien `/productions-ia?q=<userId>&internes=1` (et `&examinateur=AVEC` pour le
+  temps réel) — aucune seconde définition du périmètre.
+  - **On compte des soumissions** : une production compte une fois quel que soit son statut
+    (évaluée, non évaluable, en échec, en cours) ; la répartition par statut est servie à côté
+    (`evaluees + nonEvaluables + enEchec + enCours = total`), avec EE / EO et les signalées.
+  - « Avec examinateur IA » = `source = REALTIME` (DI-34).
+  - Front : carte compacte dans « Progression » (deux chiffres-liens + une ligne de répartition),
+    le front n'additionne rien.
+- **Coût** : une requête de plus, constante — `AdminUserControllerIT.ficheCoutConstant` (1 ou 6
+  productions, égalité du nombre de requêtes ; il n'existait pas de test de coût de la fiche).
+- **Impact** : `AdminUserDetailDto`, `AdminUserService`, `AdminProductionService`,
+  `AdminProductionReadRepository.compter`, `types/api.ts`, `UserDetailPage`. DTO admin seulement.
+- **Réversibilité** : facile.
