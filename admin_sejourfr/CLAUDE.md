@@ -69,6 +69,15 @@ src/
 │                        ouvert `c` dans l'URL. Une sélection posée reste
 │                        ouverte même si le fil sort du filtre (plus de
 │                        cascade de « marquer lu »). Suppression via `Modal`.
+│                        « Nouveau message » (en-tête) : `components/
+│                        ComposeMessageModal` (+ `RecipientPicker`, combobox
+│                        sur `GET /api/admin/users?q=`) écrit à un COMPTE —
+│                        objet + texte, aperçu du vrai gabarit serveur
+│                        (`iframe sandbox`), envoi = nouvelle conversation +
+│                        mail `ADMIN_MESSAGE` (D-58). Composant PARTAGÉ :
+│                        la fiche `/users/:id` l'importe (destinataire fixé).
+│                        Une réponse dans un fil rattaché à un compte part
+│                        aussi par email (`ADMIN_MESSAGE`).
 │   ├── productions/         « Productions IA » : liste `/productions-ia` et fiche
 │   │                        `/productions-ia/:id` des productions EE/EO corrigées
 │   │                        par IA, signalement. Détail dans la section plus bas.
@@ -182,7 +191,8 @@ Endpoints utilisés actuellement :
   `PATCH /api/admin/production-tasks/{id}/titre` (feature `productionTasks/` —
   intitulés éditoriaux des sujets EE/EO)
 - `GET /api/admin/users?q=&filter=&page=&size=`, `GET /api/admin/users/{id}`,
-  `GET /api/admin/access-products`, `POST /api/admin/users/{id}/access-operations`
+  `GET /api/admin/access-products`, `POST /api/admin/users/{id}/access-operations`,
+  `POST /api/admin/users/{id}/messages[/preview]` (écrire à un compte, D-58)
   (feature `users/`, contrat complet : `docs/api-endpoints.md` § « Admin — Utilisateurs »)
 - `GET /api/admin/civic-notions`,
   `GET /api/admin/civic-notions/questions?theme=…&tagged=false&limit=&offset=`,
@@ -216,7 +226,7 @@ d'Ariane seulement).
 ### Utilisateurs (`features/users/`)
 
 Retrouver, comprendre et dépanner un compte (spec `docs/admin/utilisateurs/spec-admin-utilisateurs-v2.md`,
-GO du propriétaire, décisions `docs/admin/utilisateurs/decisions-gestion-utilisateurs.md` D-01 → D-39 ;
+GO du propriétaire, décisions `docs/admin/utilisateurs/decisions-gestion-utilisateurs.md` D-01 → D-58 ;
 refonte visuelle D-35 → D-39).
 Maquette : `docs/admin/utilisateurs/maquette-admin-utilisateurs-mvp.html` (données fictives).
 
@@ -259,6 +269,11 @@ Maquette : `docs/admin/utilisateurs/maquette-admin-utilisateurs-mvp.html` (donn�
   (`AdminProductionCompteursDto`, depuis toujours, internes compris) — soumises (lien
   `/productions-ia?q=<userId>&internes=1`) et avec examinateur IA (`&examinateur=AVEC`), puis la
   répartition servie (EE/EO, statuts, signalées). Rien n'est additionné côté front.
+- **« Envoyer un message »** (D-58) : bouton du héros, masqué pour un compte supprimé. Ouvre
+  `features/conversations/components/ComposeMessageModal` avec le destinataire fixé (le composant
+  vit dans `conversations/`, propriétaire de la ressource ; `users/` l'importe, jamais de copie).
+  `POST /api/admin/users/{id}/messages` (201, conversation créée) et `…/messages/preview` ; 409 =
+  compte supprimé. Après envoi, la modale propose « Ouvrir la conversation ».
 - Aucun achat n'est modifiable ici ; la console `/subscriptions` reste l'écran transverse des
   achats (résiliation, solde de sessions EO) — pas un doublon (D-28).
 

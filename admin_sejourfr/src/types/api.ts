@@ -929,6 +929,24 @@ export interface AdminUserDetailDto {
   accessVersion: string;
 }
 
+/**
+ * POST /api/admin/users/{id}/messages (201 → ConversationDetailDto) et
+ * POST /api/admin/users/{id}/messages/preview (→ AdminMessagePreviewDto), D-58.
+ * Objet 3–150, message 1–5000 (blancs de bord exclus) ; 409 si le compte est supprimé.
+ */
+export interface AdminUserMessageRequest {
+  subject: string;
+  body: string;
+}
+
+/** Le mail tel que le compte le recevra, rendu par le vrai gabarit serveur. */
+export interface AdminMessagePreviewDto {
+  recipient: string;
+  subject: string;
+  html: string;
+  text: string;
+}
+
 /** POST /api/admin/users/{id}/access-operations. Dates yyyy-MM-dd (jours Paris). */
 export interface AdminAccessOperationRequest {
   operation: AdminAccessOperationType;

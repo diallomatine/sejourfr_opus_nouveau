@@ -1,10 +1,11 @@
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
 import { conversationsApi } from "../../api/conversationsApi";
 import { httpErrorMessage } from "../../api/http";
 import { Button } from "../../components/ui/Button";
 import { Chips } from "../../components/ui/Chips";
+import { Icon } from "../../components/ui/Icon";
 import { InlineError } from "../../components/ui/InlineError";
 import { PageHeader } from "../../components/ui/PageHeader";
 import { Pagination } from "../../components/ui/Pagination";
@@ -13,6 +14,7 @@ import { SearchField } from "../../components/ui/SearchField";
 import { Spinner } from "../../components/ui/Spinner";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
 import { oneOf, useClampPage, useUrlListState, useUrlSearchInput } from "../../hooks/useUrlListState";
+import { ComposeMessageModal } from "./components/ComposeMessageModal";
 import { ConversationDetail } from "./components/ConversationDetail";
 import { ConversationList } from "./components/ConversationList";
 import { MESSAGE_STATUSES, STATUS_LABELS } from "./conversationLabels";
@@ -43,6 +45,7 @@ export function ConversationsPage() {
   const { params, page, size, setFilter, setPage, resetFilters } = useUrlListState(LIST_SIZE);
   const [, setSearchParams] = useSearchParams();
   const split = useMediaQuery(SPLIT_QUERY);
+  const [composing, setComposing] = useState(false);
 
   const status = oneOf(params.get("status"), MESSAGE_STATUSES);
   const unreadOnly = params.get("unread") === "1";
@@ -217,7 +220,17 @@ export function ConversationsPage() {
       <PageHeader
         title="Conversations"
         description="Les messages du formulaire de contact, invités sans compte compris, et les échanges avec les utilisateurs. Une réponse part par email au contact."
+        actions={
+          <Button variant="primary" onClick={() => setComposing(true)}>
+            <Icon name="plus" size={15} />
+            Nouveau message
+          </Button>
+        }
       />
+
+      {composing && (
+        <ComposeMessageModal onClose={() => setComposing(false)} onSent={(c) => select(c.id)} />
+      )}
 
       {split ? (
         <div className={styles.split}>

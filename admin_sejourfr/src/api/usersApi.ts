@@ -3,9 +3,12 @@ import type {
   AdminAccessOperationRequest,
   AdminAccessOperationResponse,
   AdminAccessProductDto,
+  AdminMessagePreviewDto,
   AdminUserDetailDto,
   AdminUserFilters,
   AdminUserListItemDto,
+  AdminUserMessageRequest,
+  ConversationDetailDto,
   PageResponse,
 } from "../types/api";
 
@@ -36,5 +39,21 @@ export const usersApi = {
       `/api/admin/users/${id}/access-operations`,
       { method: "POST", body: request },
     );
+  },
+
+  /** Écrit au compte : crée la conversation et envoie le mail (D-58). */
+  sendMessage(id: string, request: AdminUserMessageRequest) {
+    return apiRequest<ConversationDetailDto>(`/api/admin/users/${id}/messages`, {
+      method: "POST",
+      body: request,
+    });
+  },
+
+  /** Aperçu du mail par le gabarit serveur ; n'écrit et n'envoie rien. */
+  previewMessage(id: string, request: AdminUserMessageRequest) {
+    return apiRequest<AdminMessagePreviewDto>(`/api/admin/users/${id}/messages/preview`, {
+      method: "POST",
+      body: request,
+    });
   },
 };

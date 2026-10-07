@@ -1,0 +1,107 @@
+.picker {
+  position: relative;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.listbox {
+  position: absolute;
+  z-index: 5;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  max-height: 300px;
+  margin: 0;
+  padding: 6px;
+  overflow-y: auto;
+  list-style: none;
+  background: var(--surface);
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+}
+
+.option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.active {
+  background: var(--blue-soft);
+}
+
+.optionText,
+.selectedText {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.name {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.email {
+  font-size: 12px;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.state {
+  padding: 10px;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+
+.hint {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.selected {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border: 1px solid var(--blue-line);
+  border-radius: 11px;
+  background: var(--blue-50);
+}
+
+.change {
+  margin-left: auto;
+  flex-shrink: 0;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  font-family: var(--font-ui);
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--blue);
+  cursor: pointer;
+}
+
+.change:hover {
+  background: var(--blue-soft);
+}
+
+.change:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}

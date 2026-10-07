@@ -21,6 +21,7 @@ import type {
   AdminUserProgressionDto,
   AdminUserPurchaseDto,
 } from "../../types/api";
+import { ComposeMessageModal } from "../conversations/components/ComposeMessageModal";
 import { ACCESS_STATUS_TONE, OPERATION_VARIANT, RESTRICTIVE_OPERATIONS } from "./accessTones";
 import { AccessOperationModal } from "./components/AccessOperationModal";
 import type { AccessOperationIntent } from "./components/AccessOperationModal";
@@ -49,6 +50,7 @@ export function UserDetailPage() {
   const location = useLocation();
   const listSearch = (location.state as { listSearch?: string } | null)?.listSearch ?? "";
   const [intent, setIntent] = useState<AccessOperationIntent | null>(null);
+  const [composing, setComposing] = useState(false);
 
   const detailQuery = useQuery({
     queryKey: ["adminUsers", "detail", id],
@@ -130,6 +132,12 @@ export function UserDetailPage() {
                       Mise à jour…
                     </span>
                   )}
+                  {d.account.accountStatus !== "DELETED" && (
+                    <Button size="sm" onClick={() => setComposing(true)}>
+                      <Icon name="send" size={15} />
+                      Envoyer un message
+                    </Button>
+                  )}
                   <Button variant="primary" size="sm" onClick={grant}>
                     <Icon name="plus" size={15} />
                     Donner un accès
@@ -200,6 +208,13 @@ export function UserDetailPage() {
           </Panel>
         </div>
       </div>
+
+      {composing && (
+        <ComposeMessageModal
+          recipient={{ id: d.account.id, email: d.account.email, displayName: d.account.displayName }}
+          onClose={() => setComposing(false)}
+        />
+      )}
 
       {intent && (
         <AccessOperationModal
