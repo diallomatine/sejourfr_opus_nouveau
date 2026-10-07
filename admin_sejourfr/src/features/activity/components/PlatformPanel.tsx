@@ -33,7 +33,7 @@ export function PlatformPanel({ data }: { data: AdminActivityResponse }) {
         >
           <thead>
             <tr>
-              <th>Plateforme</th>
+              <th className={styles.labelCol}>Plateforme</th>
               <th className={styles.num}>Actifs uniques</th>
               <th className={styles.num}>Comptes connectés</th>
               <th className={styles.num}>Connexions</th>

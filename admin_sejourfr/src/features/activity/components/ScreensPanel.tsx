@@ -71,7 +71,7 @@ export function ScreensPanel({ data }: { data: AdminActivityResponse }) {
           >
             <thead>
               <tr>
-                <th>{tab === "web" ? "Page" : "Écran"}</th>
+                <th className={styles.labelCol}>{tab === "web" ? "Page" : "Écran"}</th>
                 <th className={styles.num}>Vues</th>
                 <th className={styles.num}>Visiteurs uniques</th>
                 <th className={styles.num}>Comptes (partiel)</th>

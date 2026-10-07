@@ -208,6 +208,17 @@
   white-space: nowrap;
 }
 
+/* L'en-tête d'une colonne chiffrée s'aligne sur ses valeurs : sans ce
+   sélecteur plus précis, `.table th { text-align: left }` l'emporte. */
+thead th.num {
+  text-align: right;
+}
+
+/* Le libellé prend 40 % ; les colonnes chiffrées se partagent le reste. */
+thead th.labelCol {
+  width: 40%;
+}
+
 .totalRow td {
   font-weight: 800;
   background: var(--surface-2);
