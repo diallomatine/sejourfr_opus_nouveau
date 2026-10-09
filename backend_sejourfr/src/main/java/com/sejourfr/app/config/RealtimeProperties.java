@@ -27,7 +27,16 @@ public class RealtimeProperties {
     private String provider = "gemini";
 
     /** Version du gabarit de persona charge par {@code RealtimePersonaBuilder}. */
-    private String personaVersion = "v1";
+    private String personaVersion = "v4";
+
+    /**
+     * Version du JSON de conduite servi aux clients
+     * ({@code prompts/realtime-conduct-<v>.json}) : amorce, delais, messages
+     * entre crochets. Liee a la persona (chaque JSON declare les personas qu'il
+     * sait piloter, controle au BOOT) : un retour arriere de persona se fait
+     * avec sa conduite (v3 ↔ v0, v4 ↔ v1).
+     */
+    private String conductVersion = "v1";
 
     /**
      * Plafond de sécurité des sessions EO temps réel qu'une action admin peut
@@ -45,6 +54,9 @@ public class RealtimeProperties {
 
     public String getPersonaVersion() { return personaVersion; }
     public void setPersonaVersion(String personaVersion) { this.personaVersion = personaVersion; }
+
+    public String getConductVersion() { return conductVersion; }
+    public void setConductVersion(String conductVersion) { this.conductVersion = conductVersion; }
 
     public int getAdminGrantMaxSessions() { return adminGrantMaxSessions; }
     public void setAdminGrantMaxSessions(int adminGrantMaxSessions) { this.adminGrantMaxSessions = adminGrantMaxSessions; }
@@ -161,10 +173,15 @@ public class RealtimeProperties {
      * reglage le plus lent, mais {@code HIGH} couperait un apprenant A2 en pleine
      * hesitation — et il n'y a pas de troisieme choix. {@code startSensitivity=HIGH}
      * detecte vite le DEBUT de parole. Une SEULE fenetre de silence pour tous les
-     * niveaux ({@code silenceDurationMs}), a 500 ms = plancher recommande par
-     * Google (500-800) — ne pas descendre sous 500 sous peine de fragmenter un
-     * enonce sur ses pauses naturelles. C'est elle, et non la sensibilite, qui
-     * reste le levier de reactivite reellement disponible.
+     * niveaux ({@code silenceDurationMs}). C'est elle, et non la sensibilite, qui
+     * reste le levier de patience reellement disponible.
+     *
+     * <p><b>1 500 ms depuis le 2026-10-09</b> (audit de l'examinateur IA, F01) :
+     * a 500 ms, une hesitation de 1 a 2 s d'un apprenant (« euh… je… ») cloturait
+     * son tour et donnait la parole a l'examinateur. 500 ms avait ete pose le
+     * 2026-07-04 pour repondre plus vite ; l'arbitrage s'inverse en faveur du
+     * candidat qui cherche ses mots. Retour arriere :
+     * {@code REALTIME_GEMINI_VAD_SILENCE_DURATION_MS=500}.
      *
      * <p>Les cinq valeurs sont surchargeables par variable d'environnement
      * ({@code REALTIME_GEMINI_VAD_*}) : essayer un autre reglage ne demande pas
@@ -189,11 +206,10 @@ public class RealtimeProperties {
         private int prefixPaddingMs = 300;
         /**
          * Fenetre de silence (ms) avant de considerer le tour du candidat fini.
-         * 500 = bas de la fourchette Google recommandee (500-800, defaut serveur
-         * ~800) : reduit ~de moitie l'attente avant que l'examinateur reponde,
-         * sans fragmenter la parole (ne pas descendre sous ~500).
+         * 1 500 : ne prend plus la parole sur une hesitation (cf. javadoc de
+         * classe). Ne pas descendre sous ~500 (fragmenterait la parole).
          */
-        private int silenceDurationMs = 500;
+        private int silenceDurationMs = 1500;
 
         public boolean isDisabled() { return disabled; }
         public void setDisabled(boolean disabled) { this.disabled = disabled; }

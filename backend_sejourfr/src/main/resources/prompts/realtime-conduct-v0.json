@@ -1,0 +1,11 @@
+{
+  "version": "v0",
+  "personas": ["v1", "v2", "v3"],
+  "welcomePrimer": "Bonjour.",
+  "welcomeGuardMs": 8000,
+  "halfDuplexHoldMs": 120,
+  "voiceActivity": { "energyThreshold": 0.02, "minSpeechMs": 200, "hangoverMs": 600 },
+  "silenceRelance": { "afterMs": 7000, "maxConsecutive": 0, "disabledLastSec": 15, "message": "" },
+  "timeUp": { "graceMaxMs": 0, "message": "[Le temps de cette partie est écoulé. Remerciez brièvement le candidat et concluez maintenant.]", "closeIdleMs": 1200, "closeMaxMs": 12000 },
+  "resume": { "message": "", "contextTurns": 0 }
+}

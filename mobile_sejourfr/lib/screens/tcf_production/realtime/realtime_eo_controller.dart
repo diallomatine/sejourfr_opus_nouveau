@@ -147,12 +147,10 @@ class RealtimeEoController extends StateNotifier<RealtimeEoState> {
   // délai fixe — sinon silence mort ou coupure en plein mot.
   bool _heardClose = false;
 
-  /// Repos de silence après la conclusion avant de couper (ms).
-  static const _settleMs = 1200;
-
-  /// Plafond de sécurité après 0:00 : borne le cas où l'examinateur ne conclut
-  /// jamais ou divague.
-  static const _capSeconds = 12;
+  /// Conduite servie (repos de silence après la conclusion avant de couper,
+  /// `timeUp.closeIdleMs` ; plafond après 0:00 si l'examinateur ne conclut
+  /// jamais, `timeUp.closeMaxMs`).
+  RealtimeConductConfig get _conduct => _args.descriptor.conduct;
 
   /// Repli de DERNIER RECOURS quand le backend n'envoie pas
   /// `targetDurationSec`. La valeur canonique est
@@ -257,7 +255,8 @@ class RealtimeEoController extends StateNotifier<RealtimeEoState> {
           _settleTimer?.cancel();
           _settleTimer = null;
         } else if (_heardClose && _settleTimer == null) {
-          _settleTimer = Timer(const Duration(milliseconds: _settleMs),
+          _settleTimer = Timer(
+              Duration(milliseconds: _conduct.timeUpCloseIdleMs),
               () => finish(cause: RealtimeEndCause.timeUp));
         }
       },
@@ -313,7 +312,7 @@ class RealtimeEoController extends StateNotifier<RealtimeEoState> {
       // cas où l'examinateur ne conclut pas.
       _ticker?.cancel();
       _client?.notifyTimeUp();
-      _capTimer = Timer(const Duration(seconds: _capSeconds),
+      _capTimer = Timer(Duration(milliseconds: _conduct.timeUpCloseMaxMs),
           () => finish(cause: RealtimeEndCause.timeUp));
     }
   }

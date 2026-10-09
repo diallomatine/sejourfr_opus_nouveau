@@ -1,6 +1,7 @@
 package com.sejourfr.app.dto;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import tools.jackson.databind.JsonNode;
 
 import java.util.UUID;
 
@@ -39,7 +40,11 @@ public record RealtimeSessionDescriptor(
         Integer resumptionsRemaining,
         // Duree (s) pendant laquelle ce token peut encore ouvrir une connexion.
         // Passe ce delai, il faut redemander une reprise au serveur.
-        Integer connectWindowSec
+        Integer connectWindowSec,
+        // Parametres de CONDUITE cote client (prompts/realtime-conduct-<v>.json,
+        // RealtimeConductConfig), servis tels quels : amorce, delais, messages
+        // entre crochets. Absent en ASYNC_FALLBACK ; un client ancien l'ignore.
+        JsonNode conduct
 ) {
     public static final String MODE_REALTIME = "REALTIME";
     public static final String MODE_ASYNC_FALLBACK = "ASYNC_FALLBACK";
@@ -49,6 +54,6 @@ public record RealtimeSessionDescriptor(
                                                           int sessionsRemaining) {
         return new RealtimeSessionDescriptor(
                 MODE_ASYNC_FALLBACK, null, null, null, null, null, null, null, null, null,
-                tacheNumero, targetDurationSec, sessionsRemaining, false, null, null);
+                tacheNumero, targetDurationSec, sessionsRemaining, false, null, null, null);
     }
 }

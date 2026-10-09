@@ -18,7 +18,10 @@ dédiée plus bas). Ici, uniquement de quoi se repérer.
 
 - **Versions actives** : rubriques `production-rubrics-v15.json`, tool-schema de
   sortie `production-evaluation-tool-schema-v9.json`, persona vocale
-  `realtime-personas-v3.json`. **v14/v8, v13/v7, v12/v6, v9/v5, v8/v5, v7/v4, v6/v3, v5/v3,
+  `realtime-personas-v4.json` + JSON de conduite client `realtime-conduct-v1.json`
+  (chantier examinateur IA, 2026-10-09, `docs/examinateur-ia/`). Persona et conduite
+  vont par paire, contrôlée au BOOT (`RealtimeConductConfig`) : retour arrière =
+  `REALTIME_PERSONA_VERSION=v3` + `REALTIME_CONDUCT_VERSION=v0`. **v14/v8, v13/v7, v12/v6, v9/v5, v8/v5, v7/v4, v6/v3, v5/v3,
   v4.2/v2, v4.1/v2, v4/v2 et v3/v2 restent chargeables et validées** : un retour arrière
   change la paire `EVAL_RUBRICS_VERSION` + `EVAL_PROMPT_VERSION`, aucune migration.
   **On versionne, on ne réécrit jamais** une rubrique livrée. **v10 et v11 sont
@@ -564,9 +567,13 @@ dédiée plus bas). Ici, uniquement de quoi se repérer.
     (`kRealtimeUnavailableMessage` ⇄ `REALTIME_UNAVAILABLE_MESSAGE`, miroirs mot
     pour mot) : on continue de ne **jamais** le bloquer, mais on ne le dépose
     plus sur l'enregistreur solo comme s'il l'avait choisi.
-    `silence-duration-ms` reste à **500** (plancher Google, en dessous les pauses
-    naturelles fragmentent l'énoncé) et `prefix-padding-ms` à **300** (sinon la
-    première syllabe est rognée). Les 5 valeurs sont surchargeables par env.
+    `silence-duration-ms` passe à **1 500** le 2026-10-09 (audit examinateur IA,
+    F01 : à 500, une hésitation de 1-2 s clôturait le tour et l'examinateur
+    reprenait la parole ; jamais sous ~500, l'énoncé se fragmente) et
+    `prefix-padding-ms` reste à **300** (sinon la première syllabe est rognée). Les
+    5 valeurs sont surchargeables par env, la température aussi
+    (`REALTIME_GEMINI_TEMPERATURE`). Chaque session trace la valeur effective
+    (`realtime_sessions.vad_silence_ms`, V090).
   - **Reprise de session** (`sessionResumption` + `contextWindowCompression`,
     V032 additive, `POST /api/realtime/eo/sessions/{id}/resume`). Le token vise
     l'endpoint **contraint** : le client ne peut poser **aucun** champ de setup,
@@ -753,8 +760,9 @@ dédiée plus bas). Ici, uniquement de quoi se repérer.
     production 8,33 % contre 14,58 % et 10,42 % ; pièges 7/8 contre 4/8 et 5/8. v10
     remontait en plus un hors-sujet de `A1_NON_ATTEINT` à `A1` : le bloc ajouté
     (+4197 caractères) **diluait la sévérité du reste**. Elles restent chargeables.
-  - **Persona `realtime-personas-v3.json`** (défaut) = v2 + verrou de langue dans la
-    system instruction. **Biais, pas garantie**, et non mesurable au banc.
+  - **Persona `realtime-personas-v3.json`** = v2 + verrou de langue dans la
+    system instruction. **Biais, pas garantie**, et non mesurable au banc. La **v4**
+    (défaut depuis le 2026-10-09) reprend ce verrou mot pour mot.
   - Frontières assumées : la purge ne se déclenche que sur un marqueur d'une **liste
     fermée** (une formulation qui y échappe passe) ; `MOTS_OUTILS_ETRANGERS` couvre 6
     langues, une vraie production en turc ou polonais n'est protégée que par le

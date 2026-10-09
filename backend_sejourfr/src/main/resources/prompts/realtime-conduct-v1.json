@@ -1,0 +1,11 @@
+{
+  "version": "v1",
+  "personas": ["v4"],
+  "welcomePrimer": "Bonjour.",
+  "welcomeGuardMs": 8000,
+  "halfDuplexHoldMs": 120,
+  "voiceActivity": { "energyThreshold": 0.02, "minSpeechMs": 200, "hangoverMs": 600 },
+  "silenceRelance": { "afterMs": 7000, "maxConsecutive": 2, "disabledLastSec": 15, "message": "[SILENCE]" },
+  "timeUp": { "graceMaxMs": 10000, "message": "[FIN]", "closeIdleMs": 1200, "closeMaxMs": 15000 },
+  "resume": { "message": "[REPRISE]", "contextTurns": 3 }
+}

@@ -3,6 +3,7 @@
 import {useCallback, useEffect, useRef, useState} from "react";
 import {ChevronDown, Mic, MessagesSquare, Square, Volume2, WifiOff, X} from "lucide-react";
 import {ApiException, realtimeApi} from "@/lib/api";
+import {resolveConduct} from "@/lib/realtime/conduct-config";
 import {GeminiLiveSession, type GeminiLiveState, type TurnTiming} from "@/lib/realtime/geminiLive";
 import {
     needsRealtimeAcknowledgement,
@@ -27,16 +28,6 @@ import type {
 } from "@/lib/types";
 import {useScreenWakeLock} from "@/lib/use-screen-wake-lock";
 import {TranscriptDialogue} from "./TranscriptDialogue";
-
-/**
- * Clôture après le temps écoulé. On ne coupe plus l'examinateur au bout d'un
- * délai fixe : à 0:00 on lui signale la fin (il prononce sa phrase de clôture),
- * puis on clôture DÈS QU'IL REDEVIENT SILENCIEUX (`CLOSE_SETTLE_MS` de repos
- * après avoir parlé) — pas de silence mort ni de coupure en plein milieu. Le
- * plafond `CLOSE_CAP_SEC` borne le cas où il divague ou ne conclut jamais.
- */
-const CLOSE_SETTLE_MS = 1200;
-const CLOSE_CAP_SEC = 12;
 
 /**
  * Période de relais du transcript vers le backend. Valeur commune web ⇄ mobile
@@ -127,6 +118,12 @@ export function RealtimeEoRunner({
 }) {
     const sessionId = descriptor.sessionId ?? "";
     const target = descriptor.targetDurationSec ?? DEFAULT_TARGET_SEC;
+    // Clôture après le temps écoulé : à 0:00 on signale la fin à l'examinateur
+    // (il prononce sa phrase de clôture), puis on clôture DÈS QU'IL REDEVIENT
+    // SILENCIEUX (`timeUp.closeIdleMs` de repos après avoir parlé) — pas de
+    // silence mort ni de coupure en plein milieu. `timeUp.closeMaxMs` borne le
+    // cas où il divague ou ne conclut jamais. Valeurs servies (conduite).
+    const conduct = resolveConduct(descriptor);
 
     const [state, setState] = useState<GeminiLiveState>("connecting");
     const [elapsed, setElapsed] = useState(0);
@@ -495,11 +492,11 @@ export function RealtimeEoRunner({
                 // La clôture réelle est pilotée par la fin de parole (effet plus
                 // bas) ; le plafond borne le cas où l'examinateur ne conclut pas.
                 liveRef.current?.notifyTimeUp();
-                capTimerRef.current = setTimeout(() => void finish("TIME_UP"), CLOSE_CAP_SEC * 1000);
+                capTimerRef.current = setTimeout(() => void finish("TIME_UP"), conduct.timeUp.closeMaxMs);
             }
         }, 1000);
         return () => clearInterval(id);
-    }, [state, target, finish, reconnecting]);
+    }, [state, target, finish, reconnecting, conduct.timeUp.closeMaxMs]);
 
     // Clôture pilotée par la parole de l'examinateur après 0:00 : on attend qu'il
     // ait prononcé sa conclusion (a parlé au moins une fois) PUIS qu'il se taise
@@ -514,9 +511,9 @@ export function RealtimeEoRunner({
                 settleTimerRef.current = null;
             }
         } else if (heardCloseRef.current && !settleTimerRef.current) {
-            settleTimerRef.current = setTimeout(() => void finish("TIME_UP"), CLOSE_SETTLE_MS);
+            settleTimerRef.current = setTimeout(() => void finish("TIME_UP"), conduct.timeUp.closeIdleMs);
         }
-    }, [timeUp, examinerSpeaking, finish]);
+    }, [timeUp, examinerSpeaking, finish, conduct.timeUp.closeIdleMs]);
 
     // Panneau ouvert / nouveau tour → on colle le dialogue en bas.
     useEffect(() => {

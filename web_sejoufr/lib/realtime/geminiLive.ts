@@ -14,7 +14,8 @@
 // alignée sur EoRecordingForm (même UX d'autorisation).
 // ============================================================================
 
-import type {RealtimeSessionDescriptor} from "../types";
+import type {RealtimeConductConfig, RealtimeSessionDescriptor} from "../types";
+import {resolveConduct} from "./conduct-config";
 
 export type GeminiLiveState = "connecting" | "welcoming" | "live" | "closed" | "error";
 
@@ -43,11 +44,6 @@ const PLAYBACK_PREROLL_SEC = 0.12;
  *  tôt le micro rouvrait sur la voix de l'examinateur (écho → faux tour
  *  candidat), trop tard les premiers mots du candidat étaient jetés. */
 const SPEAK_GUARD_MARGIN_SEC = 0.1;
-
-/** Tenue du micro après la fin de parole de l'examinateur. 120 ms (et non 300)
- *  depuis que la fin de parole suit la position de lecture RÉELLE : les 300 ms
- *  compensaient l'imprécision de l'estimation qu'on vient de supprimer. */
-const MIC_HOLD_AFTER_SPEECH_MS = 120;
 
 /**
  * Horodatage d'un tour, en ms depuis l'établissement de la connexion
@@ -187,6 +183,11 @@ export class GeminiLiveSession {
     private readonly inputRate: number;
     private readonly outputRate: number;
     private readonly inputMime: string;
+    /** Conduite servie à l'ouverture (amorce, délais, messages). Fixée pour
+     *  toute la session : une reprise ne la change pas. La tenue du micro après
+     *  la fin de parole de l'examinateur (`halfDuplexHoldMs`, 120 ms) suit la
+     *  position de lecture RÉELLE. */
+    readonly conduct: RealtimeConductConfig;
 
     private ws: WebSocket | null = null;
     private micStream: MediaStream | null = null;
@@ -249,6 +250,7 @@ export class GeminiLiveSession {
         this.inputRate = descriptor.inputSampleRate ?? 16000;
         this.outputRate = descriptor.outputSampleRate ?? 24000;
         this.inputMime = descriptor.inputAudioMimeType ?? "audio/pcm;rate=16000";
+        this.conduct = resolveConduct(descriptor);
     }
 
     /** Ouvre le micro + le WebSocket et démarre la conversation. */
@@ -408,9 +410,10 @@ export class GeminiLiveSession {
                 // premier tour utilisateur « Bonjour. » — l'examinateur enchaîne
                 // aussitôt (fin de l'attente « il met du temps à arriver »).
                 this.sendOpeningTrigger();
-                // Garde-fou : si rien sous ~8 s, on libère le micro et on passe en
-                // conversation (un greeting audio manquant ne doit pas bloquer le candidat).
-                this.welcomeTimer = setTimeout(() => this.beginConversation(), 8000);
+                // Garde-fou : si rien sous `welcomeGuardMs`, on libère le micro et on
+                // passe en conversation (un greeting audio manquant ne doit pas
+                // bloquer le candidat).
+                this.welcomeTimer = setTimeout(() => this.beginConversation(), this.conduct.welcomeGuardMs);
             }
             return;
         }
@@ -499,16 +502,26 @@ export class GeminiLiveSession {
 
     /**
      * Amorce l'entretien : Gemini ne prend pas la parole tout seul après le setup.
-     * On envoie un vrai tour utilisateur « Bonjour. » ({@code clientContent} +
-     * {@code turnComplete}) — l'examinateur enchaîne son accueil (dicté par la
-     * persona verrouillée dans le token). Ce tour texte n'est PAS de l'audio micro
-     * → il n'apparaît pas dans la transcription du candidat.
+     * On envoie un vrai tour utilisateur (`welcomePrimer`, « Bonjour. ») —
+     * l'examinateur enchaîne son accueil (dicté par la persona verrouillée dans
+     * le token). Ce tour texte n'est PAS de l'audio micro → il n'apparaît pas
+     * dans la transcription du candidat.
      */
     private sendOpeningTrigger(): void {
-        if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
+        this.sendTextTurn(this.conduct.welcomePrimer);
+    }
+
+    /**
+     * Envoie un VRAI tour utilisateur texte ({@code clientContent} +
+     * {@code turnComplete}) : amorce, message de l'application entre crochets.
+     * Un {@code realtimeInput.text} n'est pas un tour de dialogue et serait
+     * ignoré. Un texte vide n'envoie rien (mécanisme désactivé par la conduite).
+     */
+    sendTextTurn(text: string): void {
+        if (!text || !this.ws || this.ws.readyState !== WebSocket.OPEN) return;
         this.ws.send(JSON.stringify({
             clientContent: {
-                turns: [{role: "user", parts: [{text: "Bonjour."}]}],
+                turns: [{role: "user", parts: [{text}]}],
                 turnComplete: true,
             },
         }));
@@ -680,7 +693,7 @@ export class GeminiLiveSession {
     private endSpeaking(): void {
         if (!this.speaking) return;
         this.speaking = false;
-        this.micHoldUntilMs = Date.now() + MIC_HOLD_AFTER_SPEECH_MS;
+        this.micHoldUntilMs = Date.now() + this.conduct.halfDuplexHoldMs;
         this.cb.onSpeakingChange?.(false);
     }
 
@@ -718,32 +731,16 @@ export class GeminiLiveSession {
     }
 
     /**
-     * Signale au modèle que le temps de la tâche est écoulé : un vrai tour
-     * utilisateur ({@code clientContent} + {@code turnComplete}) — c'est ce qui
-     * déclenche la phrase de clôture de la persona. Un {@code realtimeInput.text}
-     * n'est PAS un tour de dialogue et serait ignoré.
-     *
-     * ⚠️ Texte MIROIR du mobile (`_timeUpPrompt` dans `gemini_live_client.dart`) :
-     * il est actionnable (il dit au modèle quoi faire) et c'est lui qui déclenche
-     * la phrase de clôture de la persona — deux textes = deux fins d'entretien
-     * selon le front.
+     * Signale au modèle que le temps de la tâche est écoulé (`timeUp.message`,
+     * `[FIN]` en conduite v1, servi par le backend : un seul texte pour les deux
+     * fronts) — c'est ce qui déclenche la phrase de clôture de la persona.
      */
     notifyTimeUp(): void {
         // Le candidat ne parle plus : on coupe son micro pour que le seul tour
         // restant soit la clôture de l'examinateur (évite qu'un dernier mot du
         // candidat relance un échange après le temps).
         this.inputMuted = true;
-        if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-            this.ws.send(JSON.stringify({
-                clientContent: {
-                    turns: [{
-                        role: "user",
-                        parts: [{text: "[Le temps de cette partie est écoulé. Remerciez brièvement le candidat et concluez maintenant.]"}],
-                    }],
-                    turnComplete: true,
-                },
-            }));
-        }
+        this.sendTextTurn(this.conduct.timeUp.message);
     }
 
     /** Coupe tout : micro, WebSocket, lecture. */

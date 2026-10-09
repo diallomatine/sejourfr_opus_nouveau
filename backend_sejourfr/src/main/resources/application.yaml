@@ -1148,7 +1148,18 @@ sejourfr:
     # EvaluationOralArtifactFilter (volet LANGUE), livré ACTIF. La voie
     # « écrire une consigne de plus » a été tentée (rubriques v10 et v11) et
     # mesurée moins bonne que v9 — cf. rubrics-version plus haut.
-    persona-version: ${REALTIME_PERSONA_VERSION:v3}
+    #
+    # v4 (2026-10-09, chantier examinateur IA, docs/examinateur-ia/) = règles de
+    # temps de parole et de neutralité réécrites, cas prévus avec leur phrase,
+    # messages de l'application entre crochets ([SILENCE], [FIN], [REPRISE]),
+    # ouvertures courtes, T2 non passive. Le verrou de langue de la v3 est repris.
+    persona-version: ${REALTIME_PERSONA_VERSION:v4}
+    # JSON de conduite servi aux clients (prompts/realtime-conduct-<v>.json) :
+    # amorce, délais, messages entre crochets, relance sur silence, fin de temps.
+    # Chaque JSON déclare les personas qu'il sait piloter (contrôle au BOOT) :
+    # v1 ↔ persona v4, v0 ↔ personas v1-v3 (comportement d'avant). Retour
+    # arrière = REALTIME_PERSONA_VERSION=v3 + REALTIME_CONDUCT_VERSION=v0.
+    conduct-version: ${REALTIME_CONDUCT_VERSION:v1}
     gemini:
       # Clé Google AI (Gemini API). Absente -> temps réel désactivé (fallback async).
       api-key: ${GEMINI_API_KEY:}
@@ -1165,7 +1176,7 @@ sejourfr:
       # pas le modèle.
       model: ${REALTIME_GEMINI_MODEL:gemini-live-2.5-flash-native-audio}
       voice: ${REALTIME_GEMINI_VOICE:Aoede}
-      temperature: 0.7
+      temperature: ${REALTIME_GEMINI_TEMPERATURE:0.7}
       # VAD verrouillée dans le token (realtimeInputConfig.automaticActivityDetection).
       # 🛑 Chaque sensibilité n'admet que TROIS valeurs : ..._UNSPECIFIED,
       # ..._LOW, ..._HIGH. IL N'Y A PAS DE « MEDIUM ». Posé du 2026-08-12 au
@@ -1180,9 +1191,11 @@ sejourfr:
       #     assumé : le seul autre choix est HIGH, qui couperait un apprenant A2
       #     en pleine hésitation. Le vrai levier de réactivité est
       #     silence-duration-ms, pas cette enum.
-      #   * silence-duration-ms 500 = PLANCHER recommandé par Google (500-800) :
-      #     en dessous, un énoncé se fragmente sur ses pauses naturelles. Ne pas
-      #     descendre.
+      #   * silence-duration-ms 1500 (2026-10-09, audit examinateur IA F01) : à
+      #     500 (posé le 2026-07-04 pour répondre plus vite), une hésitation de
+      #     1-2 s d'un apprenant clôturait son tour et l'examinateur prenait la
+      #     parole. Retour arrière : REALTIME_GEMINI_VAD_SILENCE_DURATION_MS=500.
+      #     Ne jamais descendre sous ~500 (l'énoncé se fragmente).
       #   * prefix-padding-ms 300 : plus bas, la première syllabe est coupée.
       #   * start-sensitivity HIGH = détection rapide du DÉBUT de parole.
       # Les cinq valeurs sont surchargeables par env : essayer HIGH ne demande
@@ -1192,7 +1205,7 @@ sejourfr:
         start-sensitivity: ${REALTIME_GEMINI_VAD_START_SENSITIVITY:START_SENSITIVITY_HIGH}
         end-sensitivity: ${REALTIME_GEMINI_VAD_END_SENSITIVITY:END_SENSITIVITY_LOW}
         prefix-padding-ms: ${REALTIME_GEMINI_VAD_PREFIX_PADDING_MS:300}
-        silence-duration-ms: ${REALTIME_GEMINI_VAD_SILENCE_DURATION_MS:500}
+        silence-duration-ms: ${REALTIME_GEMINI_VAD_SILENCE_DURATION_MS:1500}
       # REPRISE DE SESSION après coupure réseau (sessionResumption du setup
       # verrouillé). Sans elle, un WebSocket qui tombe (métro, ascenseur, appli
       # en arrière-plan) détruisait la session ET le slot déjà débité : le

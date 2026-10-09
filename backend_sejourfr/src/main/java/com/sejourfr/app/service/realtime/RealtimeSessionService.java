@@ -79,6 +79,7 @@ public class RealtimeSessionService {
     private final ProductionAccessService accessService;
     private final RealtimeProperties props;
     private final RealtimeMesureManager mesureManager;
+    private final RealtimeConductConfig conductConfig;
 
     /** Ouverture sans plateforme déclarée ({@link ClientPlatform#UNKNOWN}). */
     public RealtimeSessionDescriptor start(User user, StartRealtimeSessionRequest req) {
@@ -121,7 +122,7 @@ public class RealtimeSessionService {
 
         RealtimeTokenBroker.MintedSession minted;
         try {
-            minted = tokenBroker.mint(personaBuilder.build(task), null);
+            minted = tokenBroker.mint(personaBuilder.build(task, examenBlanc(attempt)), null);
         } catch (RuntimeException e) {
             // Mint en echec : on ne bloque pas, on bascule en async.
             log.warn("Mint token realtime echoue, bascule async : {}", e.getMessage());
@@ -145,6 +146,7 @@ public class RealtimeSessionService {
         session.setPersonaVersion(props.getPersonaVersion());
         session.setClientPlatform(platform == null ? ClientPlatform.UNKNOWN : platform);
         session.setVadSilenceMs(props.getGemini().getVad().getSilenceDurationMs());
+        session.setConductConfigVersion(conductConfig.version());
         session = sessionManager.save(session);
 
         // Slot reserve par cette session -> on l'enleve de l'affichage.
@@ -187,7 +189,8 @@ public class RealtimeSessionService {
         applyResumptionHandle(session, req == null ? null : req.resumptionHandle());
         RealtimeTokenBroker.MintedSession minted;
         try {
-            minted = tokenBroker.mint(personaBuilder.build(task), session.getResumptionHandle());
+            minted = tokenBroker.mint(personaBuilder.build(task, examenBlanc(session.getAttempt())),
+                    session.getResumptionHandle());
         } catch (RuntimeException e) {
             // Meme philosophie qu'au demarrage : on ne bloque pas le candidat.
             log.warn("Reprise de session {} impossible (mint KO) : {}", session.getId(), e.getMessage());
@@ -299,8 +302,17 @@ public class RealtimeSessionService {
                 resumable
                         ? Math.max(0, gemini.getSessionResumption().getMaxResumptions() - session.getResumptionCount())
                         : 0,
-                gemini.getNewSessionExpireSeconds()
+                gemini.getNewSessionExpireSeconds(),
+                conductConfig.client()
         );
+    }
+
+    /**
+     * Tâche jouée dans un examen blanc (d'épreuve ou complet) : la T2 s'ouvre
+     * sur l'en-tête d'enchaînement. Même autorité que les quotas d'examen.
+     */
+    private static boolean examenBlanc(Attempt attempt) {
+        return attempt != null && ProductionAccessService.isExamSession(attempt);
     }
 
     /**

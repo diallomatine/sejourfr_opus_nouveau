@@ -49,9 +49,9 @@ class GeminiTokenBrokerTest {
         // ci-dessous) : l'avoir cru a coute 4 jours de temps reel.
         assertThat(aad.get("endOfSpeechSensitivity")).isEqualTo("END_SENSITIVITY_LOW");
         assertThat(aad.get("prefixPaddingMs")).isEqualTo(300);
-        // Plancher recommande par le fournisseur (500-800) : en dessous, un
-        // enonce se fragmente sur ses pauses naturelles.
-        assertThat(aad.get("silenceDurationMs")).isEqualTo(500);
+        // 1 500 ms depuis le 2026-10-09 (audit examinateur IA, F01) : a 500, une
+        // hesitation de 1-2 s cloturait le tour du candidat.
+        assertThat(aad.get("silenceDurationMs")).isEqualTo(1500);
     }
 
     /**

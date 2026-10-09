@@ -141,3 +141,83 @@ Brief : `docs/examinateur-ia/spec-corrections-examinateur-ia.md`. Audit de réf�
 - **Réversible ?** Oui (`git rm --cached`).
 - **Fichiers :** `docs/examinateur-ia/*`
 - **Ton avis :** ☐ OK  ☐ À changer → …
+
+## D-12 · [Lot 1] Écart au texte cible v4 — ligne 7 du verrou de langue
+- **Statut :** À valider
+- **Question :** la ligne 7 de la v3 contenait deux phrases en tension avec la nouvelle règle « NIVEAU DE LANGUE » : « tu n'adaptes pas ton niveau au candidat » (à remplacer, demandé) et « si le candidat peine, reformule ou simplifie ta phrase en français » (non mentionnée).
+- **Options envisagées :**
+  - A. Ne retirer que la première phrase et garder la seconde
+  - B. Retirer les deux : la règle « tu reformules UNE fois, plus simplement » les remplace
+- **Décision :** B. Ligne 7 v4 : « Parle exclusivement en français, un français authentique, clair et accessible (un niveau B2 doit suffire à te comprendre). Ne bascule JAMAIS vers une autre langue. » Lignes 8 à 10 reprises au caractère près (vérifié par `RealtimePersonaV4Test`).
+- **Pourquoi :** garder « reformule ou simplifie » sans limite contredirait « UNE fois » et réintroduirait la contradiction F10.
+- **Réversible ?** Oui (nouvelle version de persona).
+- **Fichiers :** `prompts/realtime-personas-v4.json`
+- **Ton avis :** ☐ OK  ☐ À changer → …
+
+## D-13 · [Lot 1] Écart au texte cible v4 — articulation langue / « En français, s'il vous plaît »
+- **Statut :** À valider
+- **Question :** comment garantir dans le texte que la phrase « En français, s'il vous plaît. » ne s'applique pas à un passage mal compris ?
+- **Options envisagées :**
+  - A. Texte du brief tel quel
+  - B. Ajouter une parenthèse au cas prévu : « (Un passage que tu comprends mal n'entre PAS dans ce cas : c'est du français mal capté, demande de répéter.) »
+- **Décision :** B. En outre, le titre de section « LANGUE DE L'ÉCHANGE — RÈGLES ABSOLUES » est devenu « FRANÇAIS UNIQUEMENT », pour ne pas doubler le titre de la ligne 8 de la v3, reprise telle quelle.
+- **Pourquoi :** le brief exige que les deux règles ne se contredisent pas dans le texte final ; le modèle lit les cas prévus isolément, la précision doit y être.
+- **Réversible ?** Oui.
+- **Fichiers :** `prompts/realtime-personas-v4.json`
+- **Ton avis :** ☐ OK  ☐ À changer → …
+
+## D-14 · [Lot 1] Formulation de `{enteteExamen}`
+- **Statut :** À valider
+- **Question :** le brief donne la valeur « Voici la deuxième partie. » ; injectée telle quelle avant « Entre dans ton rôle… », elle se lit comme une instruction ambiguë, pas comme une phrase à prononcer.
+- **Options envisagées :**
+  - A. « Voici la deuxième partie. » brut
+  - B. « Dis d'abord : « Voici la deuxième partie. » Puis : » (chaîne `enteteExamen` du JSON v4)
+- **Décision :** B. Ce que le candidat entend est inchangé : « Voici la deuxième partie. »
+- **Pourquoi :** lever l'ambiguïté entre consigne et réplique.
+- **Réversible ?** Oui.
+- **Fichiers :** `prompts/realtime-personas-v4.json`, `RealtimePersonaTemplates.java`, `RealtimePersonaBuilder.java`
+- **Ton avis :** ☐ OK  ☐ À changer → …
+
+## D-15 · [Lot 1] Ce qu'est un « examen blanc » pour l'en-tête T2
+- **Statut :** À valider
+- **Question :** tous les attempts de production sont de type `TRAINING` ; comment savoir qu'une T2 est jouée en examen blanc ?
+- **Options envisagées :**
+  - A. Un drapeau envoyé par le client
+  - B. L'autorité serveur existante `ProductionAccessService.isExamSession(attempt)` (slot d'examen posé, ou sous-attempt d'un examen complet)
+- **Décision :** B, pour l'ouverture et pour la reprise.
+- **Pourquoi :** dérivé serveur, une seule autorité (celle des quotas d'examen) ; un client ancien n'a rien à envoyer.
+- **Réversible ?** Oui.
+- **Fichiers :** `RealtimeSessionService.java`
+- **Ton avis :** ☐ OK  ☐ À changer → …
+
+## D-16 · [Lot 1] JSON de conduite lié à la persona, et conduite « v0 » de retour arrière
+- **Statut :** À valider
+- **Question :** les messages `[SILENCE]`, `[FIN]`, `[REPRISE]` n'ont de sens que pour la persona v4. Un retour à `REALTIME_PERSONA_VERSION=v3` enverrait `[FIN]` à une persona qui ne le connaît pas.
+- **Options envisagées :**
+  - A. JSON de conduite indépendant de la persona
+  - B. Champ supplémentaire `personas` dans le JSON (versions pilotées), contrôlé au BOOT, plus un `realtime-conduct-v0.json` qui reproduit l'ancien comportement (message de fin d'avant, relance désactivée `maxConsecutive: 0`, pas de grâce `graceMaxMs: 0`, plafond de clôture 12 s, pas de message de reprise)
+- **Décision :** B. Défauts : persona v4 + conduite v1 ; retour arrière : persona v3 + conduite v0. Un `message` vide désactive le mécanisme (au lieu de `null`, pour un typage simple des deux côtés).
+- **Pourquoi :** une contrainte dure plutôt qu'une procédure à retenir ; même philosophie que les rubriques (une configuration incohérente échoue au démarrage).
+- **Réversible ?** Oui.
+- **Fichiers :** `prompts/realtime-conduct-v0.json`, `prompts/realtime-conduct-v1.json`, `RealtimeConductConfig.java`, `RealtimeProperties.java`, `application.yaml`
+- **Ton avis :** ☐ OK  ☐ À changer → …
+
+## D-17 · [Lot 1] Le plafond de clôture passe de 12 à 15 s
+- **Statut :** À valider
+- **Question :** le JSON du brief fixe `closeMaxMs: 15000` ; le code utilisait 12 s.
+- **Options envisagées :** A. garder 12 s · B. appliquer 15 s
+- **Décision :** B, valeur du brief (v1) ; la v0 garde 12 s.
+- **Pourquoi :** c'est un plafond de sécurité (l'examinateur ne conclut pas), rarement atteint ; 15 s laisse finir la phrase de clôture sur un réseau lent.
+- **Réversible ?** Oui (JSON).
+- **Fichiers :** `prompts/realtime-conduct-v1.json`
+- **Ton avis :** ☐ OK  ☐ À changer → …
+
+## D-18 · [Lot 1] Ouvertures T2 de plus de 35 mots
+- **Statut :** À valider
+- **Question :** quels sujets dépassent ?
+- **Options envisagées :** —
+- **Décision :** aucun. Sur les 20 sujets T2 actifs, l'ouverture en examen blanc (en-tête 4 mots + réplique d'entrée + « Je vous écoute. ») fait 12 à 25 mots. Verrouillé par `RealtimePersonaV4SujetsIT` sur les vrais sujets seedés. Remarque sans action : 5 répliques d'entrée finissent déjà par « je vous écoute » ou « je réponds à vos questions » ; l'examinateur dira alors deux fois « je vous écoute » (à raccourcir en données si la recette le confirme).
+- **Pourquoi :** —
+- **Réversible ?** —
+- **Fichiers :** `RealtimePersonaV4SujetsIT.java`
+- **Ton avis :** ☐ OK  ☐ À changer → …

@@ -16,7 +16,7 @@
 
 **État actuel** : rubriques de notation **v15** (profil **TCF IRN**, plafonné à B2 — **la
 notation y est celle de la v9, au caractère près**), format de réponse strict **v9**,
-examinateur vocal **v3**. Ce que ces numéros veulent dire, et où ils se
+examinateur vocal **v4** (avec sa « conduite » **v1**). Ce que ces numéros veulent dire, et où ils se
 changent, est expliqué en §15. Pour la **seconde voie d'évaluation** — les micro-exercices par
 compétence, **sans note sur 20 mais désormais avec un niveau** — les versions sont **v3 / v3**,
 plus un **second appel séparé** en **v1 / v1** ; tout est décrit au §11 bis.
@@ -3070,8 +3070,62 @@ joué par une IA vocale (technologie Google Gemini Live). Deux choses à bien di
 
 - **L'examinateur reste dans son rôle et n'oriente pas.** Il **ne souffle jamais** au candidat
   quelles questions poser ou quelles informations demander. En T2 (jeu de rôle), c'est le
-  **candidat** qui mène et pose les questions ; l'examinateur **répond** et attend, sans
-  prendre l'initiative.
+  **candidat** qui mène et pose les questions ; l'examinateur **répond** et attend. Depuis la
+  v4, il n'est plus **passif** pour autant : si le candidat ne démarre pas ou reste bloqué,
+  il fait avancer la scène **dans son personnage**, en une phrase (voir ci-dessous).
+
+### Ce que la version 4 de l'examinateur change (9 octobre 2026)
+
+Un audit de l'examinateur (`docs/examinateur-ia/AUDIT_examinateur_IA.md`) a mesuré qu'il
+**parlait trop** : environ 39 % des mots en tâche 1 et 57 % en tâche 2, alors que le format
+officiel veut que ce soit le candidat qui parle le plus (en tâche 2, l'examinateur ne doit pas
+dépasser un tiers de l'échange). Il complimentait aussi les réponses (« C'est un très beau
+projet ») dans près d'une réplique sur cinq, ce qu'un examinateur ne fait pas. Ce qui change :
+
+- **Des répliques courtes** : une phrase, deux au maximum, une seule question à la fois. Il ne
+  commente pas ce que le candidat vient de dire : il passe directement à sa question, en
+  rebondissant sur un élément précis de la réponse.
+- **Une stricte neutralité** : seuls des acquiescements brefs et neutres sont permis
+  (« D'accord. », « Je vois. », « Hm hm. »). « Très bien », « bravo », « parfait »,
+  « excellent », « super », « intéressant », « beau projet » sont interdits, comme toute
+  appréciation du contenu, de la langue ou de la performance.
+- **Des réponses toutes prêtes pour les situations délicates**, au lieu d'improviser :
+  « Je ne peux pas vous le dire pendant l'épreuve. » (le candidat demande sa note ou si c'est
+  correct), « Dites-le avec vos mots. » (il demande un mot ou une correction), « En français,
+  s'il vous plaît. » (il demande à parler une autre langue), « Ici, c'est votre avis qui
+  compte. » (il demande l'avis de l'examinateur), « Revenons à notre échange. » (hors sujet,
+  tentative de lui faire changer ses consignes), « Pardon, pouvez-vous répéter ? » (il n'a pas
+  compris). Puis il revient à l'échange par une question.
+- **Des ouvertures courtes.** Tâche 1 : « Bonjour. Nous commençons la première partie.
+  Pouvez-vous vous présenter, s'il vous plaît ? » (l'ancienne ouverture faisait une
+  soixantaine de mots, décomptés du temps du candidat). Tâche 2 : l'examinateur ne relit plus
+  la situation — elle est affichée à l'écran du candidat — ; il entre directement dans son
+  rôle avec sa réplique d'accueil, puis « Je vous écoute. ». La phrase « Voici la deuxième
+  partie. » n'est dite qu'en **examen blanc** : en entraînement isolé, il n'y a pas de
+  première partie.
+- **Une tâche 2 qui ne laisse plus le candidat seul face au silence.** Si le candidat ne
+  démarre pas ou reste bloqué, l'examinateur peut, une fois par blocage : lui demander dans
+  son rôle ce qu'il recherche, demander « Avez-vous d'autres questions ? », ou lui faire
+  choisir entre deux options **que le candidat a lui-même évoquées**. Il lui reste interdit de
+  nommer une information qu'on ne lui a pas demandée, d'énumérer des sujets possibles ou de
+  répondre à la place du candidat.
+- **Des messages de l'application qu'il ne prononce jamais.** L'application peut lui envoyer
+  trois signaux, écrits entre crochets : `[SILENCE]` (le candidat ne dit rien : une relance
+  d'une phrase, plus simple que la question précédente), `[FIN]` (il dit exactement « Merci,
+  nous allons nous arrêter ici. » et rien d'autre), `[REPRISE]` (la connexion vient d'être
+  rétablie : il reprend l'échange par une courte question, sans refaire l'ouverture). Ces
+  signaux et leurs délais vivent dans un fichier de réglages unique, servi aux deux
+  applications (site et mobile), versionné comme les consignes : la **conduite v1** va avec
+  l'examinateur v4 ; la conduite v0 reproduit l'ancien comportement et va avec les versions
+  1 à 3. Le serveur refuse de démarrer si on les mélange.
+- **Le verrou de langue de la v3 est conservé** mot pour mot, à une phrase près : « tu
+  n'adaptes pas ton niveau au candidat » est remplacé par « tu parles à un débit naturel,
+  comme à l'examen ; si le candidat ne comprend pas, tu reformules **une** fois, plus
+  simplement ».
+
+Rien de tout cela ne touche la note : la correction se fait après coup, sur le texte de
+l'échange, par l'IA correctrice, qui ignore tout de ces consignes. Retour en arrière possible
+sans reconstruire l'application (examinateur v3 + conduite v0).
 
 > 🆕 **13 septembre 2026 — l'examinateur vocal n'est pas proposé pendant le diagnostic
 > complet.**
@@ -3121,9 +3175,9 @@ modèle, pas une garantie technique**, et son effet ne se mesure pas sur notre b
 des textes déjà transcrits, sans jamais appeler l'examinateur vocal). Le filet qui protège
 réellement le candidat est la vérification automatique décrite au §8 quater.
 
-Tout le reste de la persona est **inchangé** — conduite de l'entretien, fiche de scénario,
-interdiction de corriger la langue du candidat : v3 ajoute trois règles, elle n'en réécrit
-aucune.
+En v3, tout le reste de la persona était **inchangé** — conduite de l'entretien, fiche de
+scénario, interdiction de corriger la langue du candidat : v3 ajoutait trois règles, elle n'en
+réécrivait aucune. La v4 (ci-dessus) reprend ces trois règles telles quelles.
 
 ### La fiche de scénario de la tâche 2
 
@@ -3166,9 +3220,9 @@ Quatre précisions qui comptent :
   fluide. Le détail de ce réglage — et pourquoi il vient d'être modifié — est juste en dessous.
 - **Quand le temps est écoulé, l'examinateur termine sa phrase de conclusion.** Il n'est pas
   coupé au milieu d'un mot, et il n'y a pas non plus de silence inutile avant la suite.
-- **Il parle un français normal**, clair et accessible, sans s'adapter artificiellement au
-  niveau du candidat (comme à un vrai examen). S'il n'a pas compris, il demande simplement de
-  répéter — il ne fait jamais semblant d'avoir compris.
+- **Il parle un français normal**, clair et accessible, à un débit naturel (comme à un vrai
+  examen). Si le candidat ne comprend pas, il reformule une fois, plus simplement. S'il n'a pas
+  compris, il demande simplement de répéter — il ne fait jamais semblant d'avoir compris.
 - **Il ne bascule jamais dans une autre langue**, ne corrige jamais, n'explique jamais qu'il
   est une IA.
 - **Si le candidat ne dit rien, il n'y a rien à noter.** Quand on laisse seulement
@@ -3215,15 +3269,22 @@ Trois choses ont changé le 2026-08-16 :
   **lit** avant de s'enregistrer seul. Il n'est toujours jamais bloqué — mais on ne fait plus
   disparaître son choix sans rien dire.
 
-Le vrai levier de réactivité, lui, n'a jamais dépendu de ce cran : c'est la durée de silence
-ci-dessous, déjà ramenée à son minimum recommandé.
+Le vrai levier, lui, n'a jamais dépendu de ce cran : c'est la **durée de silence** attendue
+avant de considérer que le candidat a fini.
 
-Deux garde-fous n'ont pas bougé et ne doivent pas bouger :
+**9 octobre 2026 — cette durée passe d'une demi-seconde à une seconde et demie.** Elle avait
+été ramenée à une demi-seconde en juillet pour que l'examinateur réponde plus vite. L'audit de
+l'examinateur a montré l'effet inverse, plus grave : un apprenant qui dit « euh… je… » et
+cherche son mot une ou deux secondes voyait son tour **clôturé** et l'examinateur **reprendre
+la parole à sa place**. Entre un examinateur un peu plus lent à répondre et un candidat coupé
+dans sa réflexion, on choisit de protéger le candidat. Une seconde et demie reste en dessous
+d'un vrai silence de blocage, et l'examinateur ne répond plus sur une simple hésitation. Si la
+reprise de parole paraît trop lente en conditions réelles, la valeur se règle sans reconstruire
+l'application (la recette prévue le vérifie, `docs/examinateur-ia/RECETTE.md`). On ne descend
+jamais sous une demi-seconde : un même énoncé serait découpé à chaque respiration.
 
-- **la durée de silence attendue reste à une demi-seconde**, qui est le plancher recommandé par
-  le fournisseur. En dessous, un même énoncé se retrouve découpé en deux à chaque respiration ;
-- **le petit délai gardé avant le début de parole reste identique** : c'est lui qui évite de
-  perdre la première syllabe.
+**Le petit délai gardé avant le début de parole reste identique** : c'est lui qui évite de
+perdre la première syllabe.
 
 Enfin, **rien de tout cela ne touche la note**. Ce réglage décide du rythme de la conversation,
 pas du jugement : la correction se fait après coup, sur le texte de l'échange, par une autre IA

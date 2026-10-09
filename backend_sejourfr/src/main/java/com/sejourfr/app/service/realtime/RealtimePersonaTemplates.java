@@ -36,6 +36,11 @@ import java.util.Map;
  * {@code enums/AgentRelation}). Absents — c'est le cas de la v1 — le builder rend
  * la T2 exactement comme avant : aucun sujet existant ne se degrade.
  *
+ * <p>Depuis la v4, un champ OPTIONNEL {@code enteteExamen} (chaîne) porte la
+ * consigne d'en-tête T2 propre à l'EXAMEN BLANC (« Voici la deuxième partie »),
+ * injectée à la place de {@code {enteteExamen}} ; en entraînement, et sur les
+ * versions qui ne la portent pas, le placeholder disparaît.
+ *
  * <p>Fichier absent/illisible = erreur de config bloquante (fail-fast au boot),
  * comme les rubriques : la persona verrouillee dans le token en depend.
  */
@@ -52,6 +57,7 @@ public class RealtimePersonaTemplates {
     private String t1 = "";
     private String t2 = "";
     private String t2Fiche = "";
+    private String enteteExamen = "";
     private Map<String, String> relations = Map.of();
 
     public RealtimePersonaTemplates(RealtimeProperties props, ObjectMapper objectMapper) {
@@ -71,6 +77,7 @@ public class RealtimePersonaTemplates {
             this.t2 = joinLines(root, "t2");
             this.t2Fiche = joinOptionalLines(root, "t2Fiche");
             this.relations = readMap(root, "relations");
+            this.enteteExamen = root.hasNonNull("enteteExamen") ? root.get("enteteExamen").asString() : "";
             log.info("Persona realtime chargee ({}) : regles {} c., t1 {} c., t2 {} c., fiche T2 {} c. ({} registres).",
                     version, regles.length(), t1.length(), t2.length(), t2Fiche.length(), relations.size());
         } catch (Exception e) {
@@ -101,6 +108,11 @@ public class RealtimePersonaTemplates {
      */
     public String t2Fiche() {
         return t2Fiche;
+    }
+
+    /** En-tête T2 de l'examen blanc (v4+). Vide si la version ne le porte pas. */
+    public String enteteExamen() {
+        return enteteExamen;
     }
 
     /** Libelle de registre par {@code AgentRelation}. Vide si la version ne le porte pas. */

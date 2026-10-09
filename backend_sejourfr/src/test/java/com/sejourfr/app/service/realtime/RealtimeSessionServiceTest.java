@@ -52,6 +52,7 @@ class RealtimeSessionServiceTest {
 
     @Mock private RealtimeSessionManager sessionManager;
     @Mock private com.sejourfr.app.manager.RealtimeMesureManager mesureManager;
+    @Mock private RealtimeConductConfig conductConfig;
     @Mock private RealtimeQuotaService quotaService;
     @Mock private RealtimePersonaBuilder personaBuilder;
     @Mock private RealtimeTokenBroker tokenBroker;
@@ -81,7 +82,7 @@ class RealtimeSessionServiceTest {
                 freeExamEntitlementService);
         service = new RealtimeSessionService(sessionManager, quotaService, personaBuilder,
                 tokenBroker, productionTaskManager, attemptManager, productionEvaluationService,
-                accessService, props, mesureManager);
+                accessService, props, mesureManager, conductConfig);
         user = new User();
         user.setId(UUID.randomUUID());
     }
@@ -116,7 +117,7 @@ class RealtimeSessionServiceTest {
         when(productionTaskManager.findActiveById(taskId)).thenReturn(Optional.of(eoTask((short) 1)));
         when(tokenBroker.isConfigured()).thenReturn(true);
         when(tokenBroker.provider()).thenReturn("gemini");
-        when(personaBuilder.build(any())).thenReturn("persona");
+        when(personaBuilder.build(any(), org.mockito.ArgumentMatchers.anyBoolean())).thenReturn("persona");
         when(tokenBroker.mint("persona", null))
             .thenReturn(new RealtimeTokenBroker.MintedSession("tok", "wss://g", "model-x"));
         when(sessionManager.save(any())).thenAnswer(inv -> {
@@ -222,7 +223,7 @@ class RealtimeSessionServiceTest {
         when(productionTaskManager.findActiveById(taskId)).thenReturn(Optional.of(eoTask((short) 1)));
         when(quotaService.evaluate(user.getId())).thenReturn(quota(true, 2));
         when(tokenBroker.isConfigured()).thenReturn(true);
-        when(personaBuilder.build(any())).thenReturn("persona");
+        when(personaBuilder.build(any(), org.mockito.ArgumentMatchers.anyBoolean())).thenReturn("persona");
         when(tokenBroker.mint("persona", null)).thenThrow(new RuntimeException("mint KO"));
 
         RealtimeSessionDescriptor d = service.start(user, new StartRealtimeSessionRequest(taskId, null));
@@ -239,7 +240,7 @@ class RealtimeSessionServiceTest {
         when(tokenBroker.isConfigured()).thenReturn(true);
         when(tokenBroker.provider()).thenReturn("gemini");
         when(tokenBroker.supportsResumption()).thenReturn(true);
-        when(personaBuilder.build(any())).thenReturn("persona");
+        when(personaBuilder.build(any(), org.mockito.ArgumentMatchers.anyBoolean())).thenReturn("persona");
         when(tokenBroker.mint("persona", null))
             .thenReturn(new RealtimeTokenBroker.MintedSession("tok", "wss://g", "model-x"));
         UUID sessionId = UUID.randomUUID();
@@ -516,7 +517,7 @@ class RealtimeSessionServiceTest {
         session.setResumptionHandle("handle-serveur");
         when(tokenBroker.provider()).thenReturn("gemini");
         when(tokenBroker.supportsResumption()).thenReturn(true);
-        when(personaBuilder.build(any())).thenReturn("persona");
+        when(personaBuilder.build(any(), org.mockito.ArgumentMatchers.anyBoolean())).thenReturn("persona");
         when(tokenBroker.mint("persona", "handle-client"))
             .thenReturn(new RealtimeTokenBroker.MintedSession("tok2", "wss://g", "model-x"));
         when(quotaService.remaining(user.getId())).thenReturn(2);
@@ -544,7 +545,7 @@ class RealtimeSessionServiceTest {
         session.setResumptionHandle("handle-serveur");
         when(tokenBroker.provider()).thenReturn("gemini");
         when(tokenBroker.supportsResumption()).thenReturn(true);
-        when(personaBuilder.build(any())).thenReturn("persona");
+        when(personaBuilder.build(any(), org.mockito.ArgumentMatchers.anyBoolean())).thenReturn("persona");
         when(tokenBroker.mint("persona", "handle-serveur"))
             .thenReturn(new RealtimeTokenBroker.MintedSession("tok2", "wss://g", "model-x"));
         when(quotaService.remaining(user.getId())).thenReturn(1);
@@ -590,7 +591,7 @@ class RealtimeSessionServiceTest {
     void resume_bascule_async_si_le_mint_echoue() {
         RealtimeSession session = activeResumableSession();
         when(tokenBroker.supportsResumption()).thenReturn(true);
-        when(personaBuilder.build(any())).thenReturn("persona");
+        when(personaBuilder.build(any(), org.mockito.ArgumentMatchers.anyBoolean())).thenReturn("persona");
         when(tokenBroker.mint(eq("persona"), any())).thenThrow(new RuntimeException("mint KO"));
         when(quotaService.remaining(user.getId())).thenReturn(2);
 
@@ -802,7 +803,7 @@ class RealtimeSessionServiceTest {
 
         when(tokenBroker.isConfigured()).thenReturn(true);
         when(quotaService.evaluate(user.getId())).thenReturn(quota(true, 2));
-        when(personaBuilder.build(any())).thenReturn("persona");
+        when(personaBuilder.build(any(), org.mockito.ArgumentMatchers.anyBoolean())).thenReturn("persona");
         when(tokenBroker.mint("persona", null)).thenThrow(new RuntimeException("mint KO"));
         service.start(user, new StartRealtimeSessionRequest(taskId, null));
         verify(mesureManager).tracerRepli(user.getId(), taskId, null, (short) 2,
@@ -844,7 +845,7 @@ class RealtimeSessionServiceTest {
         RealtimeSession session = activeResumableSession();
         when(tokenBroker.provider()).thenReturn("gemini");
         when(tokenBroker.supportsResumption()).thenReturn(true);
-        when(personaBuilder.build(any())).thenReturn("persona");
+        when(personaBuilder.build(any(), org.mockito.ArgumentMatchers.anyBoolean())).thenReturn("persona");
         when(tokenBroker.mint("persona", "h1"))
             .thenReturn(new RealtimeTokenBroker.MintedSession("tok2", "wss://g", "model-x"));
 
@@ -859,7 +860,7 @@ class RealtimeSessionServiceTest {
         RealtimeSession session = activeResumableSession();
         when(tokenBroker.provider()).thenReturn("gemini");
         when(tokenBroker.supportsResumption()).thenReturn(true);
-        when(personaBuilder.build(any())).thenReturn("persona");
+        when(personaBuilder.build(any(), org.mockito.ArgumentMatchers.anyBoolean())).thenReturn("persona");
         when(tokenBroker.mint("persona", null))
             .thenReturn(new RealtimeTokenBroker.MintedSession("tok2", "wss://g", "model-x"));
 
@@ -873,7 +874,7 @@ class RealtimeSessionServiceTest {
     void resume_mint_en_echec_trace_le_repli() {
         RealtimeSession session = activeResumableSession();
         when(tokenBroker.supportsResumption()).thenReturn(true);
-        when(personaBuilder.build(any())).thenReturn("persona");
+        when(personaBuilder.build(any(), org.mockito.ArgumentMatchers.anyBoolean())).thenReturn("persona");
         when(tokenBroker.mint("persona", null)).thenThrow(new RuntimeException("KO"));
 
         service.resume(user, session.getId(), null);
@@ -940,5 +941,50 @@ class RealtimeSessionServiceTest {
 
         assertThat(session.getEndCause()).isEqualTo(com.sejourfr.app.enums.RealtimeEndCause.USER_FINISH);
         verify(mesureManager, never()).ajouterEvenement(any(), any(), any(), any());
+    }
+
+    // ----- conduite et mode examen (lot 1) -----
+
+    @Test
+    void start_sert_le_json_de_conduite_et_trace_sa_version() {
+        when(quotaService.evaluate(user.getId())).thenReturn(quota(true, 3));
+        mintOk(UUID.randomUUID());
+        tools.jackson.databind.JsonNode conduite = new tools.jackson.databind.ObjectMapper()
+            .readTree("{\"version\":\"v1\",\"timeUp\":{\"message\":\"[FIN]\"}}");
+        when(conductConfig.client()).thenReturn(conduite);
+        when(conductConfig.version()).thenReturn("v1");
+        org.mockito.ArgumentCaptor<RealtimeSession> saved = org.mockito.ArgumentCaptor.forClass(RealtimeSession.class);
+
+        RealtimeSessionDescriptor d = service.start(user, new StartRealtimeSessionRequest(taskId, null));
+
+        assertThat(d.conduct()).isSameAs(conduite);
+        verify(sessionManager).save(saved.capture());
+        assertThat(saved.getValue().getConductConfigVersion()).isEqualTo("v1");
+    }
+
+    @Test
+    void start_en_examen_blanc_construit_la_persona_en_mode_examen() {
+        Attempt examen = new Attempt();
+        examen.setId(UUID.randomUUID());
+        examen.setUser(user);
+        examen.setEpreuve(EpreuveType.TCF_EO);
+        examen.setSlotNumber(1);
+        when(attemptManager.findById(examen.getId())).thenReturn(Optional.of(examen));
+        when(quotaService.evaluate(user.getId())).thenReturn(quota(true, 3));
+        mintOk(UUID.randomUUID());
+
+        service.start(user, new StartRealtimeSessionRequest(taskId, examen.getId()));
+
+        verify(personaBuilder).build(any(), eq(true));
+    }
+
+    @Test
+    void start_en_entrainement_construit_la_persona_hors_mode_examen() {
+        when(quotaService.evaluate(user.getId())).thenReturn(quota(true, 3));
+        mintOk(UUID.randomUUID());
+
+        service.start(user, new StartRealtimeSessionRequest(taskId, null));
+
+        verify(personaBuilder).build(any(), eq(false));
     }
 }

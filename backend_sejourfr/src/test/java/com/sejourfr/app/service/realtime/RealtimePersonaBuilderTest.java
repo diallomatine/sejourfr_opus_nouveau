@@ -22,7 +22,8 @@ class RealtimePersonaBuilderTest {
 
     @BeforeEach
     void setUp() {
-        RealtimeProperties props = new RealtimeProperties(); // persona-version = v1
+        RealtimeProperties props = new RealtimeProperties();
+        props.setPersonaVersion("v1");
         RealtimePersonaTemplates templates = new RealtimePersonaTemplates(props, new ObjectMapper());
         templates.load();
         builder = new RealtimePersonaBuilder(templates);

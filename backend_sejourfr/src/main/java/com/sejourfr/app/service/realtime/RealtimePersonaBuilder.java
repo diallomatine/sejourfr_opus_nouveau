@@ -17,11 +17,12 @@ import java.util.List;
  * ne note pas, ne corrige pas, ne donne aucun indice. La notation reste faite
  * apres coup par le pipeline existant a partir du transcript.
  *
- * <p>Le comportement est IDENTIQUE en entrainement et en examen — seul
- * l'emballage (enchainement, chrono, quota) differe, invisible pour le candidat.
- * L'examinateur parle un francais normal a tout le monde : il n'adapte PAS son
- * registre au niveau vise (ce n'est pas son rôle — l'epreuve est adaptative, pas
- * lui). Le niveau cible ne sert qu'a la VAD (patience serveur), pas a la persona.
+ * <p>Le comportement est IDENTIQUE en entrainement et en examen, a une phrase
+ * pres : en EXAMEN BLANC, la T2 s'ouvre sur « Voici la deuxième partie » (v4,
+ * {@code {enteteExamen}}) ; en entrainement isole il n'y a pas de premiere
+ * partie a enchainer. L'examinateur parle un francais normal a tout le monde ;
+ * le niveau vise n'entre ni dans la persona ni dans la VAD (une seule fenetre
+ * de silence, {@code sejourfr.realtime.gemini.vad.silence-duration-ms}).
  * On injecte : la duree cible ({@code dureeSec}), et pour la T2 le rôle
  * examinateur ({@code contexte}) + la situation candidat ({@code consigne}).
  *
@@ -39,6 +40,7 @@ public class RealtimePersonaBuilder {
 
     private static final int DEFAULT_DUREE_SEC = 180;
     private static final String FICHE_PLACEHOLDER = "{ficheScenario}";
+    private static final String ENTETE_PLACEHOLDER = "{enteteExamen}";
     private static final String PUCE = "- ";
 
     private final RealtimePersonaTemplates templates;
@@ -51,20 +53,30 @@ public class RealtimePersonaBuilder {
      * @return la system instruction complete (regles + tache), en francais.
      */
     public String build(ProductionTask task) {
+        return build(task, false);
+    }
+
+    /**
+     * @param examenBlanc vrai quand la tâche est jouée dans un examen blanc
+     *                    (régime {@code EXAMEN} de l'attempt) : la T2 s'ouvre
+     *                    alors sur l'en-tête d'enchaînement.
+     */
+    public String build(ProductionTask task, boolean examenBlanc) {
         int dureeSec = task.getDureeMaxSec() != null ? task.getDureeMaxSec() : DEFAULT_DUREE_SEC;
         short tache = task.getTacheNumero() != null ? task.getTacheNumero() : 1;
 
         String regles = fill(templates.regles(), dureeSec, null, null);
         String corps = (tache == 2)
-                ? buildT2(task, dureeSec)
+                ? buildT2(task, dureeSec, examenBlanc)
                 : fill(templates.t1(), dureeSec, null, null);
         return regles + "\n\n" + corps;
     }
 
-    private String buildT2(ProductionTask task, int dureeSec) {
+    private String buildT2(ProductionTask task, int dureeSec, boolean examenBlanc) {
         String t2 = fill(templates.t2(), dureeSec,
                 nullSafe(task.getContexte(), "Tu joues le rôle indiqué dans la consigne."),
                 nullSafe(task.getConsigne(), ""));
+        t2 = t2.replace(ENTETE_PLACEHOLDER, examenBlanc ? templates.enteteExamen() : "");
         return injectFiche(t2, renderFiche(task.getAgentRoleCard()));
     }
 

@@ -2904,6 +2904,27 @@ export interface RealtimeSessionDescriptor {
     /** Secondes pendant lesquelles ce token peut encore ouvrir une connexion ;
      *  au-delà, il faut redemander une reprise. ⚠️ Absent du JSON quand nul. */
     connectWindowSec?: number | null;
+    /** Paramètres de conduite (lot 1 examinateur IA). Absent en
+     *  `ASYNC_FALLBACK` et sur un backend antérieur → `resolveConduct`. */
+    conduct?: RealtimeConductConfig | null;
+}
+
+/** Paramètres de CONDUITE côté client de l'examinateur temps réel, servis tels
+ *  quels par le backend (`prompts/realtime-conduct-<v>.json`). Un `message`
+ *  vide désactive le mécanisme correspondant (conduite v0). */
+export interface RealtimeConductConfig {
+    version: string;
+    /** Tour texte qui amorce l'accueil de l'examinateur. */
+    welcomePrimer: string;
+    /** Micro ouvert quand même si l'examinateur n'a rien dit passé ce délai. */
+    welcomeGuardMs: number;
+    /** Micro tenu fermé après la fin de lecture de l'examinateur (anti-écho). */
+    halfDuplexHoldMs: number;
+    /** Détection LOCALE de voix sur l'énergie du micro (après annulation d'écho). */
+    voiceActivity: {energyThreshold: number; minSpeechMs: number; hangoverMs: number};
+    silenceRelance: {afterMs: number; maxConsecutive: number; disabledLastSec: number; message: string};
+    timeUp: {graceMaxMs: number; message: string; closeIdleMs: number; closeMaxMs: number};
+    resume: {message: string; contextTurns: number};
 }
 
 /** Qui a clos une session temps réel (mesure, V090). */

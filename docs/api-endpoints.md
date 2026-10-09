@@ -862,7 +862,11 @@ le client ouvre lui-même le WebSocket du fournisseur sur l'endpoint **contraint
 - `POST /api/realtime/eo/sessions` → `RealtimeSessionDescriptor`. `mode=REALTIME`
   (token + endpoint WS) ou `ASYNC_FALLBACK` (quota épuisé, pass non éligible,
   temps réel non configuré, mint en échec) — le candidat n'est jamais bloqué.
-  Le descripteur porte `resumable`, `resumptionsRemaining` et `connectWindowSec`.
+  Le descripteur porte `resumable`, `resumptionsRemaining` et `connectWindowSec`,
+  et `conduct` (lot 1 examinateur IA) : le JSON de conduite servi tel quel
+  (`prompts/realtime-conduct-<v>.json` — amorce, délais, messages `[SILENCE]` /
+  `[FIN]` / `[REPRISE]`, relance sur silence, fin de temps douce). Absent en
+  `ASYNC_FALLBACK` ; les fronts n'ont qu'un repli identique à la v1.
 - `POST /api/realtime/eo/sessions/{id}/resume` → **reprise après coupure réseau**.
   Corps facultatif `{resumptionHandle}` (repli sur le dernier handle connu du
   serveur). Renvoie un **nouveau** `RealtimeSessionDescriptor` sur la **même**

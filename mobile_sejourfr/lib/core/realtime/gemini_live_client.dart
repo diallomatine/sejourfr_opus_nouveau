@@ -44,26 +44,6 @@ const int _feedBatchSamples = 8000;
 /// candidat étaient jetés.
 const int _speakGuardMarginMs = 100;
 
-/// Tenue du micro après la fin de parole de l'examinateur. 120 ms (et non 300)
-/// depuis que la fin de parole suit la position de lecture RÉELLE : les 300 ms
-/// compensaient l'imprécision de l'estimation qu'on vient de supprimer.
-const int _micHoldAfterSpeechMs = 120;
-
-/// Garde-fou d'accueil : si l'examinateur ne dit rien passé ce délai APRÈS
-/// `setupComplete`, on ouvre quand même le micro. Armé à `setupComplete` (et
-/// non à l'appel de `start()`, comme le web) : c'est le seul instant où la
-/// session est réellement établie — l'armer plus tôt faisait courir le délai
-/// pendant le handshake.
-const Duration _welcomeTimeout = Duration(seconds: 8);
-
-/// Signal de fin de tâche envoyé au modèle. Texte ACTIONNABLE (il dit au modèle
-/// quoi faire) : c'est lui qui déclenche la phrase de clôture de la persona.
-/// Doit rester identique au web — deux textes = deux fins d'entretien selon le
-/// front.
-const String _timeUpPrompt =
-    '[Le temps de cette partie est écoulé. Remerciez brièvement le candidat '
-    'et concluez maintenant.]';
-
 /// Horodatage d'un tour, en ms depuis l'établissement de la connexion
 /// (`setupComplete`, première connexion — une reprise ne remet pas le zéro).
 /// Mesure seulement (V090) : rien ne s'en sert pour conduire l'échange.
@@ -212,6 +192,13 @@ class GeminiLiveClient {
   // même flux peuvent tirer coup sur coup.
   bool _socketDownNotified = false;
 
+  /// Conduite servie à l'ouverture (amorce, délais, messages). Fixée pour toute
+  /// la session : une reprise ne la change pas. La tenue du micro après la fin
+  /// de parole de l'examinateur (`halfDuplexHoldMs`, 120 ms) suit la position de
+  /// lecture RÉELLE ; le garde-fou d'accueil (`welcomeGuardMs`) est armé à
+  /// `setupComplete`, seul instant où la session est réellement établie.
+  late final RealtimeConductConfig conduct = descriptor.conduct;
+
   int get _outRate => descriptor.outputSampleRate ?? 24000;
   String get _inMime => descriptor.inputAudioMimeType ?? 'audio/pcm;rate=16000';
   int get _inRate => descriptor.inputSampleRate ?? 16000;
@@ -355,18 +342,27 @@ class GeminiLiveClient {
     onListeningStart?.call();
   }
 
-  /// Signale au modèle que le temps est écoulé pour qu'il prononce sa clôture.
-  /// Coupe aussi le micro candidat : le seul tour restant est la conclusion de
-  /// l'examinateur (évite qu'un dernier mot du candidat relance un échange).
+  /// Signale au modèle que le temps est écoulé (`timeUp.message`, `[FIN]` en
+  /// conduite v1, servi par le backend : un seul texte pour les deux fronts)
+  /// pour qu'il prononce sa clôture. Coupe aussi le micro candidat : le seul
+  /// tour restant est la conclusion de l'examinateur.
   void notifyTimeUp() {
     _inputMuted = true;
+    sendTextTurn(conduct.timeUpMessage);
+  }
+
+  /// Envoie un VRAI tour utilisateur texte (`clientContent` + `turnComplete`) :
+  /// amorce, message de l'application entre crochets. Un texte vide n'envoie
+  /// rien (mécanisme désactivé par la conduite).
+  void sendTextTurn(String text) {
+    if (text.isEmpty) return;
     _send({
       'clientContent': {
         'turns': [
           {
             'role': 'user',
             'parts': [
-              {'text': _timeUpPrompt}
+              {'text': text}
             ]
           }
         ],
@@ -632,7 +628,7 @@ class GeminiLiveClient {
       // Fin de parole : tenue courte du micro (anti faux barge-in par écho —
       // un trou de jitter entre deux lots ne doit pas rouvrir le micro en
       // pleine phrase de l'examinateur).
-      _micHoldUntilMs = _clock.elapsedMilliseconds + _micHoldAfterSpeechMs;
+      _micHoldUntilMs = _clock.elapsedMilliseconds + conduct.halfDuplexHoldMs;
       _speakGuard?.cancel();
       _speakGuard = null;
       _guardRemainingRef = -1;
@@ -723,7 +719,8 @@ class GeminiLiveClient {
         // établie (aligné sur le web) : un greeting audio manquant ne doit pas
         // bloquer le candidat, mais le handshake ne doit pas consommer le délai.
         _welcomeTimer?.cancel();
-        _welcomeTimer = Timer(_welcomeTimeout, _beginConversation);
+        _welcomeTimer = Timer(
+            Duration(milliseconds: conduct.welcomeGuardMs), _beginConversation);
       }
       return;
     }
@@ -841,24 +838,11 @@ class GeminiLiveClient {
   int? elapsedMs() => _relMs(_clock.elapsedMilliseconds);
 
   /// Amorce l'entretien : Gemini ne prend pas la parole seul après le setup. On
-  /// envoie un vrai tour utilisateur « Bonjour. » ; l'examinateur enchaîne son
-  /// accueil (dicté par la persona verrouillée dans le token). Ce tour texte
-  /// n'est PAS de l'audio micro → il n'apparaît pas dans la transcription candidat.
-  void _sendOpeningTrigger() {
-    _send({
-      'clientContent': {
-        'turns': [
-          {
-            'role': 'user',
-            'parts': [
-              {'text': 'Bonjour.'}
-            ]
-          }
-        ],
-        'turnComplete': true,
-      }
-    });
-  }
+  /// envoie un vrai tour utilisateur (`welcomePrimer`, « Bonjour. ») ;
+  /// l'examinateur enchaîne son accueil (dicté par la persona verrouillée dans
+  /// le token). Ce tour texte n'est PAS de l'audio micro → il n'apparaît pas
+  /// dans la transcription candidat.
+  void _sendOpeningTrigger() => sendTextTurn(conduct.welcomePrimer);
 
   void _onWsDone() {
     if (_closed) return;
