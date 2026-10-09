@@ -270,8 +270,10 @@ export class ConductController {
 /**
  * Détection LOCALE de voix sur l'énergie RMS du micro (après annulation d'écho).
  * Début confirmé après `minSpeechMs` au-dessus du seuil ; fin après `hangoverMs`
- * en dessous. Un seul détecteur par session, réutilisé par la fin de temps et la
- * relance.
+ * en dessous. Un seul détecteur par session, réutilisé par la fin de temps, la
+ * relance et la mesure (D-07). `sinceMs` dit depuis combien de temps la
+ * transition a RÉELLEMENT eu lieu : le début est confirmé `minSpeechMs` après le
+ * premier paquet au-dessus du seuil, la fin `hangoverMs` après le dernier.
  */
 export class VoiceActivityDetector {
     private active = false;
@@ -279,9 +281,12 @@ export class VoiceActivityDetector {
     private belowMs = 0;
     private lastAbove = false;
     private readonly voice: RealtimeConductConfig["voiceActivity"];
-    private readonly onChange: (active: boolean) => void;
+    private readonly onChange: (active: boolean, sinceMs: number) => void;
 
-    constructor(voice: RealtimeConductConfig["voiceActivity"], onChange: (active: boolean) => void) {
+    constructor(
+        voice: RealtimeConductConfig["voiceActivity"],
+        onChange: (active: boolean, sinceMs: number) => void,
+    ) {
         this.voice = voice;
         this.onChange = onChange;
     }
@@ -294,14 +299,14 @@ export class VoiceActivityDetector {
             this.belowMs = 0;
             if (!this.active && this.aboveMs >= this.voice.minSpeechMs) {
                 this.active = true;
-                this.onChange(true);
+                this.onChange(true, this.aboveMs);
             }
         } else {
             this.belowMs += frameMs;
             this.aboveMs = 0;
             if (this.active && this.belowMs >= this.voice.hangoverMs) {
                 this.active = false;
-                this.onChange(false);
+                this.onChange(false, this.belowMs);
             }
         }
     }
@@ -314,11 +319,12 @@ export class VoiceActivityDetector {
     /** Remet à zéro (l'examinateur parle : ce que capte le micro n'est pas le candidat). */
     reset(): void {
         const wasActive = this.active;
+        const since = this.belowMs;
         this.active = false;
         this.aboveMs = 0;
         this.belowMs = 0;
         this.lastAbove = false;
-        if (wasActive) this.onChange(false);
+        if (wasActive) this.onChange(false, since);
     }
 }
 

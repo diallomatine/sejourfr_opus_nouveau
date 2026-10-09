@@ -817,7 +817,7 @@ class RealtimeSessionServiceTest {
         service.appendTranscript(user, session.getId(),
             new AppendTranscriptRequest("EXAMINER", "  Bonjour, presentez-vous  ", 0, null, 1200, 4800));
 
-        verify(mesureManager).ajouterTour(session.getId(), 0, "EXAMINER", "Bonjour, presentez-vous", 1200, 4800);
+        verify(mesureManager).ajouterTour(session.getId(), 0, "EXAMINER", "Bonjour, presentez-vous", 1200, 4800, null, null);
     }
 
     @Test
@@ -827,7 +827,7 @@ class RealtimeSessionServiceTest {
         service.appendTranscript(user, session.getId(), new AppendTranscriptRequest("CANDIDATE", "Bonjour", 0, null));
 
         assertThat(session.getTranscript()).isEqualTo("Candidat : Bonjour");
-        verify(mesureManager).ajouterTour(session.getId(), 0, "CANDIDATE", "Bonjour", null, null);
+        verify(mesureManager).ajouterTour(session.getId(), 0, "CANDIDATE", "Bonjour", null, null, null, null);
     }
 
     @Test
@@ -837,7 +837,7 @@ class RealtimeSessionServiceTest {
 
         service.appendTranscript(user, session.getId(), new AppendTranscriptRequest("CANDIDATE", "Bonjour", 3, null, 10, 20));
 
-        verify(mesureManager, never()).ajouterTour(any(), any(), any(), any(), any(), any());
+        verify(mesureManager, never()).ajouterTour(any(), any(), any(), any(), any(), any(), any(), any());
     }
 
     @Test
@@ -990,5 +990,27 @@ class RealtimeSessionServiceTest {
         service.start(user, new StartRealtimeSessionRequest(taskId, null));
 
         verify(personaBuilder).build(any(), eq(false));
+    }
+
+    // ----- temps candidat de la détection locale (D-07, V091) -----
+
+    @Test
+    void appendTranscript_conserve_les_temps_vad_du_candidat() {
+        RealtimeSession session = pendingSession(subscription());
+
+        service.appendTranscript(user, session.getId(),
+            new AppendTranscriptRequest("CANDIDATE", "Je travaille a Lille", 1, null, 4300, 9100, 4000, 8700));
+
+        verify(mesureManager).ajouterTour(session.getId(), 1, "CANDIDATE", "Je travaille a Lille", 4300, 9100, 4000, 8700);
+    }
+
+    @Test
+    void appendTranscript_ignore_des_temps_vad_poses_sur_un_tour_examinateur() {
+        RealtimeSession session = pendingSession(subscription());
+
+        service.appendTranscript(user, session.getId(),
+            new AppendTranscriptRequest("EXAMINER", "D'accord.", 0, null, 100, 900, 50, 800));
+
+        verify(mesureManager).ajouterTour(session.getId(), 0, "EXAMINER", "D'accord.", 100, 900, null, null);
     }
 }

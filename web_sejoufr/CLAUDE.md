@@ -5634,3 +5634,8 @@ Mots : `lib/plan-unlock.ts` (`PLAN_UNLOCK_NON_EVALUE*`, `planUnlockGroupeMeta`, 
   ⚠️ Pas de propriété de paramètre (`private readonly x` dans un constructeur) : le runner de
   tests Node n'accepte que la syntaxe effaçable.
 - `notifyTimeUp` est supprimé : `muteInput()` + `sendTextTurn(message)`.
+- **Temps candidat au micro (D-07, V091)** : `TurnTiming.startedAtMsVad` / `endedAtMsVad`, à
+  côté de la référence (transcription). `VoiceActivityDetector.onChange(active, sinceMs)` rend
+  l'écart à l'instant réel de la transition ; `appendTranscript(…, startedAtMsVad, endedAtMsVad)`.
+- 🧪 **Tests par exception du propriétaire** (D-02, 2026-10-09) : `lib/realtime-conduct.test.ts`,
+  les 9 cas du §4.4 du brief, **limitée à ce module** ; miroir mobile `test/realtime_conduct_test.dart`.

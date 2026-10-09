@@ -479,6 +479,8 @@ class RealtimeEoController extends StateNotifier<RealtimeEoState> {
       int index,
       int? startedAtMs,
       int? endedAtMs,
+      int? startedAtMsVad,
+      int? endedAtMsVad,
     })>[];
     for (final frag in batch) {
       if (segments.isNotEmpty && segments.last.speaker == frag.speaker) {
@@ -490,6 +492,8 @@ class RealtimeEoController extends StateNotifier<RealtimeEoState> {
           index: last.index,
           startedAtMs: last.startedAtMs ?? frag.timing.startedAtMs,
           endedAtMs: frag.timing.endedAtMs ?? last.endedAtMs,
+          startedAtMsVad: last.startedAtMsVad ?? frag.timing.startedAtMsVad,
+          endedAtMsVad: frag.timing.endedAtMsVad ?? last.endedAtMsVad,
         );
       } else {
         segments.add((
@@ -499,6 +503,8 @@ class RealtimeEoController extends StateNotifier<RealtimeEoState> {
           index: _turnIndex++,
           startedAtMs: frag.timing.startedAtMs,
           endedAtMs: frag.timing.endedAtMs,
+          startedAtMsVad: frag.timing.startedAtMsVad,
+          endedAtMsVad: frag.timing.endedAtMsVad,
         ));
       }
     }
@@ -531,6 +537,8 @@ class RealtimeEoController extends StateNotifier<RealtimeEoState> {
               resumptionHandle: handle,
               startedAtMs: seg.startedAtMs,
               endedAtMs: seg.endedAtMs,
+              startedAtMsVad: seg.startedAtMsVad,
+              endedAtMsVad: seg.endedAtMsVad,
             );
             if (handle != null) _handleRelayed = handle;
             sent = true;

@@ -4893,3 +4893,8 @@ existe dès que le rapide est clos », `planIndisponible` et `prep.planDisponibl
   `RealtimeEoState.conductPhase` pilote les libellés de fin (`kRtTimeUpGraceStatus` /
   `kRtTimeUpClosingStatus`).
 - `notifyTimeUp` est supprimé : `muteInput()` + `sendTextTurn(message)`.
+- **Temps candidat au micro (D-07, V091)** : `TurnTiming.startedAtMsVad` / `endedAtMsVad`, à
+  côté de la référence (transcription). Le callback de `VoiceActivityDetector` rend `sinceMs`,
+  l'écart à l'instant réel de la transition ; `appendTranscript(startedAtMsVad:, endedAtMsVad:)`.
+- 🧪 **Tests par exception du propriétaire** (D-02, 2026-10-09) : `test/realtime_conduct_test.dart`,
+  les 9 cas du §4.4 du brief, **limitée à ce module** ; miroir web `lib/realtime-conduct.test.ts`.

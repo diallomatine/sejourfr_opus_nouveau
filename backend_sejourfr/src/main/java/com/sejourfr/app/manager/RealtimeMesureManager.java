@@ -33,7 +33,8 @@ public class RealtimeMesureManager {
      * ligne de la session : c'est lui qui rend le {@code seq} sans collision.
      */
     public RealtimeSessionTurn ajouterTour(UUID sessionId, Integer turnIndex, String speaker, String text,
-                                           Integer startedAtMs, Integer endedAtMs) {
+                                           Integer startedAtMs, Integer endedAtMs,
+                                           Integer startedAtMsVad, Integer endedAtMsVad) {
         RealtimeSessionTurn turn = new RealtimeSessionTurn();
         turn.setId(UUID.randomUUID());
         turn.setSessionId(sessionId);
@@ -44,6 +45,8 @@ public class RealtimeMesureManager {
         turn.setWordCount(compterMots(text));
         turn.setStartedAtMs(startedAtMs);
         turn.setEndedAtMs(endedAtMs);
+        turn.setStartedAtMsVad(startedAtMsVad);
+        turn.setEndedAtMsVad(endedAtMsVad);
         turn.setCreatedAt(Instant.now());
         return turnRepository.save(turn);
     }

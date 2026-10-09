@@ -57,10 +57,21 @@ const int _speakGuardMarginMs = 100;
 ///   donc le délai « fin candidat → début examinateur » est sous-estimé d'autant
 ///   (DECISIONS D-07). Miroir : `TurnTiming` dans `geminiLive.ts`.
 class TurnTiming {
-  const TurnTiming({this.startedAtMs, this.endedAtMs});
+  const TurnTiming({
+    this.startedAtMs,
+    this.endedAtMs,
+    this.startedAtMsVad,
+    this.endedAtMsVad,
+  });
 
   final int? startedAtMs;
   final int? endedAtMs;
+
+  /// Candidat seulement (D-07) : début et fin de parole mesurés sur l'énergie
+  /// du micro par la détection locale, à côté de la référence ci-dessus (qui
+  /// reste la transcription, pour la comparaison avec la base d'avant le lot 2).
+  final int? startedAtMsVad;
+  final int? endedAtMsVad;
 }
 
 /// Encapsule TOUT le protocole WebSocket Gemini Live pour une session EO temps
@@ -129,7 +140,10 @@ class GeminiLiveClient {
 
   // Détection locale de voix, alimentée par les paquets micro (cf. `_startMic`).
   late final VoiceActivityDetector _vad =
-      VoiceActivityDetector(conduct, (active) => onCandidateVoice?.call(active));
+      VoiceActivityDetector(conduct, (active, sinceMs) {
+    _noteCandidateVoice(active, sinceMs);
+    onCandidateVoice?.call(active);
+  });
 
   // Reprise SANS contexte restauré : tour texte à envoyer dès que le nouveau
   // socket est établi (`[REPRISE]` + derniers tours), à la place de l'amorce.
@@ -139,6 +153,10 @@ class GeminiLiveClient {
   int? _connectedAtMs;
   int? _candidateStartMs;
   int? _candidateEndMs;
+  // Même tour, mesuré au micro (D-07) : première prise de parole et dernière fin.
+  int? _candidateVadStartMs;
+  int? _candidateVadEndMs;
+  bool _candidateVadActive = false;
   int? _examinerStartMs;
 
   final AudioRecorder _recorder = AudioRecorder();
@@ -854,10 +872,28 @@ class GeminiLiveClient {
       final timing = TurnTiming(
         startedAtMs: _relMs(_candidateStartMs),
         endedAtMs: _relMs(_candidateEndMs),
+        startedAtMsVad: _relMs(_candidateVadStartMs),
+        endedAtMsVad: _relMs(_candidateVadActive
+            ? _clock.elapsedMilliseconds
+            : _candidateVadEndMs),
       );
       _candidateStartMs = null;
       _candidateEndMs = null;
+      _candidateVadStartMs = null;
+      _candidateVadEndMs = null;
       if (text.isNotEmpty) onCandidateTranscript?.call(text, timing);
+    }
+  }
+
+  /// Parole du candidat mesurée au micro, ramenée à l'instant réel de la
+  /// transition.
+  void _noteCandidateVoice(bool active, double sinceMs) {
+    final at = _clock.elapsedMilliseconds - sinceMs.round();
+    _candidateVadActive = active;
+    if (active) {
+      _candidateVadStartMs ??= at;
+    } else {
+      _candidateVadEndMs = at;
     }
   }
 

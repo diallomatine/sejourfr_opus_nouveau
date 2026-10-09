@@ -296,12 +296,15 @@ class ConductController {
 /// Détection LOCALE de voix sur l'énergie RMS du micro (après annulation
 /// d'écho). Début confirmé après `voiceMinSpeechMs` au-dessus du seuil ; fin
 /// après `voiceHangoverMs` en dessous. Un seul détecteur par session, réutilisé
-/// par la fin de temps et la relance.
+/// par la fin de temps, la relance et la mesure (D-07). `sinceMs` dit depuis
+/// combien de temps la transition a RÉELLEMENT eu lieu : le début est confirmé
+/// `voiceMinSpeechMs` après le premier paquet au-dessus du seuil, la fin
+/// `voiceHangoverMs` après le dernier.
 class VoiceActivityDetector {
   VoiceActivityDetector(this._conduct, this._onChange);
 
   final RealtimeConductConfig _conduct;
-  final void Function(bool active) _onChange;
+  final void Function(bool active, double sinceMs) _onChange;
 
   bool _active = false;
   double _aboveMs = 0;
@@ -316,14 +319,14 @@ class VoiceActivityDetector {
       _belowMs = 0;
       if (!_active && _aboveMs >= _conduct.voiceMinSpeechMs) {
         _active = true;
-        _onChange(true);
+        _onChange(true, _aboveMs);
       }
     } else {
       _belowMs += frameMs;
       _aboveMs = 0;
       if (_active && _belowMs >= _conduct.voiceHangoverMs) {
         _active = false;
-        _onChange(false);
+        _onChange(false, _belowMs);
       }
     }
   }
@@ -336,11 +339,12 @@ class VoiceActivityDetector {
   /// candidat).
   void reset() {
     final wasActive = _active;
+    final since = _belowMs;
     _active = false;
     _aboveMs = 0;
     _belowMs = 0;
     _lastAbove = false;
-    if (wasActive) _onChange(false);
+    if (wasActive) _onChange(false, since);
   }
 }
 

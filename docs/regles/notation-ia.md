@@ -582,7 +582,10 @@ dédiée plus bas). Ici, uniquement de quoi se repérer.
     micro (après annulation d'écho), jamais la transcription. `RealtimeSessionDescriptor
     .contextRestored` (reprise) dit si un handle a été verrouillé : `false` ⇒ le client
     envoie `[REPRISE]` + les 3 derniers tours. Chaque relance et chaque grâce de fin de
-    temps est tracée (`realtime_session_events`, V090).
+    temps est tracée (`realtime_session_events`, V090). Le même détecteur mesure les
+    temps de parole du candidat (`realtime_session_turns.started_at_ms_vad` /
+    `ended_at_ms_vad`, V091, nullables), à CÔTÉ de la référence tirée de la
+    transcription (décision D-07 : la référence reste comparable avant / après le lot 2).
   - **Reprise de session** (`sessionResumption` + `contextWindowCompression`,
     V032 additive, `POST /api/realtime/eo/sessions/{id}/resume`). Le token vise
     l'endpoint **contraint** : le client ne peut poser **aucun** champ de setup,

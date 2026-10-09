@@ -3100,7 +3100,9 @@ projet ») dans près d'une réplique sur cinq, ce qu'un examinateur ne fait pas
   Pouvez-vous vous présenter, s'il vous plaît ? » (l'ancienne ouverture faisait une
   soixantaine de mots, décomptés du temps du candidat). Tâche 2 : l'examinateur ne relit plus
   la situation — elle est affichée à l'écran du candidat — ; il entre directement dans son
-  rôle avec sa réplique d'accueil, puis « Je vous écoute. ». La phrase « Voici la deuxième
+  rôle avec sa réplique d'accueil, puis « Je vous écoute. » — sauf si sa réplique d'accueil
+  invite déjà le candidat à parler (« … je vous écoute », « … que puis-je pour vous ? »), pour ne
+  pas le dire deux fois. La phrase « Voici la deuxième
   partie. » n'est dite qu'en **examen blanc** : en entraînement isolé, il n'y a pas de
   première partie.
 - **Une tâche 2 qui ne laisse plus le candidat seul face au silence.** Si le candidat ne

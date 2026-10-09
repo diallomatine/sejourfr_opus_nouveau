@@ -61,7 +61,8 @@ class RealtimeRepository {
   /// l'autre. [resumptionHandle] voyage ici plutôt que dans un appel dédié : le
   /// client POSTe déjà toutes les 1,2 s, le serveur reste à jour gratuitement.
   /// [startedAtMs]/[endedAtMs] : horodatage du segment (mesure seulement), en
-  /// ms depuis l'établissement de la connexion.
+  /// ms depuis l'établissement de la connexion. [startedAtMsVad]/[endedAtMsVad] :
+  /// la même parole du candidat mesurée au micro (D-07).
   Future<void> appendTranscript({
     required String sessionId,
     required RealtimeSpeaker speaker,
@@ -70,6 +71,8 @@ class RealtimeRepository {
     String? resumptionHandle,
     int? startedAtMs,
     int? endedAtMs,
+    int? startedAtMsVad,
+    int? endedAtMsVad,
   }) async {
     await _client.dio.post<void>(
       '/api/realtime/eo/sessions/$sessionId/transcript',
@@ -80,6 +83,8 @@ class RealtimeRepository {
         if (resumptionHandle != null) 'resumptionHandle': resumptionHandle,
         if (startedAtMs != null) 'startedAtMs': startedAtMs,
         if (endedAtMs != null) 'endedAtMs': endedAtMs,
+        if (startedAtMsVad != null) 'startedAtMsVad': startedAtMsVad,
+        if (endedAtMsVad != null) 'endedAtMsVad': endedAtMsVad,
       },
     );
   }

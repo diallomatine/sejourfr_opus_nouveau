@@ -116,10 +116,11 @@ class RealtimeMesureIT extends AbstractIntegrationTest {
         em.flush();
 
         List<Map<String, Object>> tours = jdbc.queryForList(
-                "SELECT seq, turn_index, started_at_ms, ended_at_ms FROM realtime_session_turns "
+                "SELECT seq, turn_index, started_at_ms, ended_at_ms, started_at_ms_vad FROM realtime_session_turns "
                         + "WHERE session_id = ? ORDER BY seq", s.getId());
         assertThat(tours).hasSize(2);
-        assertThat(tours.get(0)).containsEntry("started_at_ms", null).containsEntry("ended_at_ms", null);
+        assertThat(tours.get(0)).containsEntry("started_at_ms", null).containsEntry("ended_at_ms", null)
+                .containsEntry("started_at_ms_vad", null);
         assertThat(tours.get(1)).containsEntry("seq", 1).containsEntry("turn_index", null);
         assertThat(jdbc.queryForObject("SELECT end_cause FROM realtime_sessions WHERE id = ?", String.class, s.getId()))
                 .isNull();
@@ -145,22 +146,30 @@ class RealtimeMesureIT extends AbstractIntegrationTest {
         sessions.appendTranscript(u, s.getId(), new AppendTranscriptRequest(
                 "EXAMINER", "Très bien. Et vos loisirs ?", 0, null, 0, 2000));
         sessions.appendTranscript(u, s.getId(), new AppendTranscriptRequest(
-                "CANDIDATE", "Je fais du sport le week-end", 1, null, 3000, 9000));
+                "CANDIDATE", "Je fais du sport le week-end", 1, null, 3000, 9000, 2600, 8500));
+        sessions.appendTranscript(u, s.getId(), new AppendTranscriptRequest(
+                "EXAMINER", "D'accord. Lequel ?", 2, null, 10000, 11500));
         sessions.finish(u, s.getId(), new FinishRealtimeSessionRequest("USER_FINISH", null));
         em.flush();
 
         List<String> requetes = requetes();
-        assertThat(requetes).hasSizeGreaterThanOrEqualTo(8);
+        assertThat(requetes).hasSizeGreaterThanOrEqualTo(9);
         for (String sql : requetes) {
             jdbc.queryForList(sql);
         }
 
         Map<String, Object> parole = jdbc.queryForList(requetes.get(0)).stream()
                 .filter(r -> "v-test".equals(r.get("persona_version"))).findFirst().orElseThrow();
-        assertThat(parole.get("pct_temps_examinateur").toString()).isEqualTo("25.0");
+        // Examinateur 2 000 + 1 500 ms, candidat 6 000 ms (référence : transcription).
+        assertThat(parole.get("pct_temps_examinateur").toString()).isEqualTo("36.8");
         Map<String, Object> interdits = jdbc.queryForList(requetes.get(6)).stream()
                 .filter(r -> "v-test".equals(r.get("persona_version"))).findFirst().orElseThrow();
         assertThat(((Number) interdits.get("avec_terme_interdit")).intValue()).isEqualTo(1);
+        // D-07 : délai mesuré au micro (fin 8 500 → reprise 10 000) à côté de la référence.
+        Map<String, Object> micro = jdbc.queryForList(requetes.get(9)).stream()
+                .filter(r -> "v-test".equals(r.get("persona_version"))).findFirst().orElseThrow();
+        assertThat(((Number) micro.get("avec_mesure_micro")).intValue()).isEqualTo(1);
+        assertThat(micro.get("delai_median_micro_sec").toString()).isEqualTo("1.50");
     }
 
     /** Les requêtes du fichier, commentaires retirés, dans l'ordre. */

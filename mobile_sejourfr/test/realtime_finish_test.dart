@@ -249,6 +249,8 @@ class _FakeRealtimeRepository implements RealtimeRepository {
     String? resumptionHandle,
     int? startedAtMs,
     int? endedAtMs,
+    int? startedAtMsVad,
+    int? endedAtMsVad,
   }) async {
     appendCalls++;
     if (appendThrows || turnIndex == failTurnIndex) {

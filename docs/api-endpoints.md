@@ -882,7 +882,9 @@ le client ouvre lui-même le WebSocket du fournisseur sur l'endpoint **contraint
   `PENDING -> ACTIVE`, sous verrou de ligne : **une seule fois par session**.
   Champs **facultatifs** de mesure (V090) : `startedAtMs`, `endedAtMs` — ms depuis
   l'établissement de la connexion côté client ; chaque segment est aussi conservé
-  dans `realtime_session_turns`. La plateforme est lue sur `X-Sejourfr-Client`
+  dans `realtime_session_turns`. Tour **candidat** seulement (V091) :
+  `startedAtMsVad`, `endedAtMsVad` — la même parole mesurée au micro par la
+  détection locale (ignorés sur un tour examinateur). La plateforme est lue sur `X-Sejourfr-Client`
   à l'ouverture.
 - `POST /api/realtime/eo/sessions/{id}/finish` → clôture + déclenche la notation.
   Corps **facultatif** (V090) : `{endCause?, events?[]}` — `endCause` ∈

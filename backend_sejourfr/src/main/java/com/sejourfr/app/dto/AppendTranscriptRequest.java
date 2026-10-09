@@ -30,6 +30,11 @@ import jakarta.validation.constraints.PositiveOrZero;
  *                         premier fragment de transcription. {@code null} =
  *                         client qui ne mesure pas (accepte, comme avant).
  * @param endedAtMs        fin du segment, meme reference ; {@code null} admis.
+ * @param startedAtMsVad   candidat seulement : debut de parole detecte sur
+ *                         l'energie du micro (V091, mesure seulement). La
+ *                         reference reste {@code startedAtMs} (transcription).
+ * @param endedAtMsVad     candidat seulement : fin de parole detectee sur
+ *                         l'energie du micro ; {@code null} admis.
  */
 public record AppendTranscriptRequest(
         @NotBlank String speaker,
@@ -37,11 +42,19 @@ public record AppendTranscriptRequest(
         @PositiveOrZero Integer turnIndex,
         String resumptionHandle,
         @PositiveOrZero Integer startedAtMs,
-        @PositiveOrZero Integer endedAtMs
+        @PositiveOrZero Integer endedAtMs,
+        @PositiveOrZero Integer startedAtMsVad,
+        @PositiveOrZero Integer endedAtMsVad
 ) {
 
     /** Forme d'avant la mesure (V090) : segment sans horodatage. */
     public AppendTranscriptRequest(String speaker, String text, Integer turnIndex, String resumptionHandle) {
-        this(speaker, text, turnIndex, resumptionHandle, null, null);
+        this(speaker, text, turnIndex, resumptionHandle, null, null, null, null);
+    }
+
+    /** Forme du lot M (V090) : horodatage de transcription seulement. */
+    public AppendTranscriptRequest(String speaker, String text, Integer turnIndex, String resumptionHandle,
+                                   Integer startedAtMs, Integer endedAtMs) {
+        this(speaker, text, turnIndex, resumptionHandle, startedAtMs, endedAtMs, null, null);
     }
 }

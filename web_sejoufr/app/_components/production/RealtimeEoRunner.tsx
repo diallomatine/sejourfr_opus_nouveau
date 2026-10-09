@@ -224,6 +224,8 @@ export function RealtimeEoRunner({
                 last.turns += 1;
                 last.startedAtMs = last.startedAtMs ?? turn.startedAtMs;
                 last.endedAtMs = turn.endedAtMs ?? last.endedAtMs;
+                last.startedAtMsVad = last.startedAtMsVad ?? turn.startedAtMsVad;
+                last.endedAtMsVad = turn.endedAtMsVad ?? last.endedAtMsVad;
             } else {
                 segments.push({...turn, turns: 1, index: turnIndexRef.current++});
             }
@@ -253,6 +255,8 @@ export function RealtimeEoRunner({
                             handle,
                             seg.startedAtMs,
                             seg.endedAtMs,
+                            seg.startedAtMsVad,
+                            seg.endedAtMsVad,
                         );
                         if (handle) handleRelayedRef.current = handle;
                         sent = true;

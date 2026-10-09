@@ -9,7 +9,7 @@
 
 ## 0. Préparation
 
-1. Backend en dev sur la branche `feat/examinateur-ia-v4` (la migration V090 s'applique au
+1. Backend en dev sur la branche `feat/examinateur-ia-v4` (les migrations V090 et V091 s'appliquent au
    démarrage). Vérifier dans les logs de démarrage :
    `Persona realtime chargee (v4)` et `Conduite realtime chargée (v1) pour la persona v4`.
 2. Un compte avec des simulations temps réel (pass Intégral ou GRANT admin).
@@ -61,7 +61,7 @@ Cocher OK / KO par plateforme, et noter une remarque en cas de KO.
 | # | Vérification | Web | Android | iOS | Remarque |
 |---|---|---|---|---|---|
 | L1-1 | Ouverture T1 = « Bonjour. Nous commençons la première partie. Pouvez-vous vous présenter, s'il vous plaît ? » (≤ 25 mots) | | | | |
-| L1-2 | Ouverture T2 en **entraînement** : réplique d'entrée du rôle + « Je vous écoute. », **sans** « Voici la deuxième partie », **sans** relire la situation | | | | |
+| L1-2 | Ouverture T2 en **entraînement** : réplique d'entrée du rôle + « Je vous écoute. » (**pas** de second « je vous écoute » quand la réplique invite déjà à parler, D-18), **sans** « Voici la deuxième partie », **sans** relire la situation | | | | |
 | L1-3 | Ouverture T2 en **examen blanc** : « Voici la deuxième partie. » puis la réplique d'entrée | | | | |
 | L1-4 | S1 — hésitation de 1 à 2 s (P2) : l'examinateur **attend**, ne reprend pas la parole | | | | |
 | L1-5 | La reprise de parole après une vraie fin de phrase n'est **pas perçue comme lente** (P1) | | | | |
@@ -114,6 +114,7 @@ Requêtes : `docs/examinateur-ia/indicateurs.sql` (numéros entre parenthèses).
 | Réplique médiane / max, mots (2) | ≤ 25 | | | |
 | Répliques > 25 mots (2) | 0 % | | | |
 | Délai médian fin candidat → examinateur (3) | ≈ 1,5–2,5 s | | | |
+| Même délai, fin de parole mesurée au micro (9) | ≈ 1,5–2,5 s | — | — | |
 | Reprises de parole < 1,5 s (3) | ↓ | | | |
 | Relances par session (4) | 0–2 | — | — | |
 | Causes de fin (5a) | — | | | |

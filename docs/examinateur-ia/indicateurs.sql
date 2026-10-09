@@ -168,3 +168,29 @@ JOIN realtime_session_events ev ON ev.session_id = s.id
 WHERE s.persona_version IS NOT NULL
 GROUP BY 1, 2, 3
 ORDER BY 1, 2, 3;
+
+-- 9. Délai entre la fin de parole du candidat MESURÉE AU MICRO et la reprise de parole
+--    de l'examinateur (temps de détection locale, V091, à partir du lot 2 — DECISIONS D-07).
+--    Complète la requête 3 sans la remplacer : la 3 reste la référence (transcription),
+--    comparable avant / après. Couverture = part des reprises de parole qui ont une mesure micro.
+SELECT s.tache_numero,
+       s.persona_version,
+       COALESCE(s.client_platform, 'UNKNOWN')                                        AS plateforme,
+       count(*)                                                                      AS reprises_de_parole,
+       count(*) FILTER (WHERE c.ended_at_ms_vad IS NOT NULL)                         AS avec_mesure_micro,
+       round((percentile_cont(0.5) WITHIN GROUP (ORDER BY e.started_at_ms - c.ended_at_ms_vad)
+              / 1000.0)::numeric, 2)                                                 AS delai_median_micro_sec,
+       round((percentile_cont(0.9) WITHIN GROUP (ORDER BY e.started_at_ms - c.ended_at_ms_vad)
+              / 1000.0)::numeric, 2)                                                 AS delai_p90_micro_sec,
+       round(100.0 * count(*) FILTER (WHERE e.started_at_ms - c.ended_at_ms_vad < 1500)
+             / NULLIF(count(*) FILTER (WHERE c.ended_at_ms_vad IS NOT NULL), 0), 1)  AS pct_moins_de_1_5_sec_micro,
+       round((percentile_cont(0.5) WITHIN GROUP (ORDER BY c.ended_at_ms_vad - c.started_at_ms_vad)
+              / 1000.0)::numeric, 1)                                                 AS parole_candidat_mediane_micro_sec
+FROM realtime_sessions s
+JOIN realtime_session_turns e ON e.session_id = s.id AND e.speaker = 'EXAMINER'
+JOIN realtime_session_turns c ON c.session_id = s.id AND c.seq = e.seq - 1 AND c.speaker = 'CANDIDATE'
+WHERE s.status = 'COMPLETED'
+  AND s.persona_version IS NOT NULL
+  AND e.started_at_ms IS NOT NULL
+GROUP BY 1, 2, 3
+ORDER BY 1, 2, 3;

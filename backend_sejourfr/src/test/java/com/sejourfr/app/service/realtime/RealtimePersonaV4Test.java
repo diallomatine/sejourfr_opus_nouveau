@@ -68,7 +68,10 @@ class RealtimePersonaV4Test {
         return texte.isBlank() ? 0 : texte.strip().split("\\s+").length;
     }
 
-    /** Ouverture T2 telle que le candidat l'entend : en-tête éventuel + réplique d'entrée + « Je vous écoute. ». */
+    /**
+     * Ouverture T2 telle que le candidat l'entend, au PIRE cas : en-tête éventuel + réplique d'entrée
+     * + « Je vous écoute. » (omis par la persona quand la réplique invite déjà à parler, D-18).
+     */
     static int motsOuvertureT2(String phraseOuverture, boolean examenBlanc) {
         return (examenBlanc ? mots("Voici la deuxième partie.") : 0) + mots(phraseOuverture) + mots("Je vous écoute.");
     }
@@ -113,6 +116,9 @@ class RealtimePersonaV4Test {
         assertThat(examen).contains("« Voici la deuxième partie. »");
         assertThat(entrainement).doesNotContain("deuxième partie");
         assertThat(entrainement).contains("Entre dans ton rôle avec ta réplique d'entrée");
+        // D-18 : pas de « Je vous écoute. » redondant quand la réplique d'entrée invite déjà à parler.
+        assertThat(entrainement).contains("puis « Je vous écoute. », sauf si ta réplique d'entrée "
+                + "invite déjà le candidat à parler.");
         assertThat(examen).contains("« Service après-vente, bonjour, que puis-je pour vous ? »");
         // La fiche ne fait plus relire le cadre.
         assertThat(examen).doesNotContain("une fois le cadre annoncé").doesNotContain("Posez-moi vos questions");

@@ -50,6 +50,14 @@ public class RealtimeSessionTurn {
     @Column(name = "ended_at_ms")
     private Integer endedAtMs;
 
+    /** Candidat : début de parole détecté sur l'énergie du micro (V091), {@code null} = non mesuré. */
+    @Column(name = "started_at_ms_vad")
+    private Integer startedAtMsVad;
+
+    /** Candidat : fin de parole détectée sur l'énergie du micro (V091), {@code null} = non mesuré. */
+    @Column(name = "ended_at_ms_vad")
+    private Integer endedAtMsVad;
+
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 }

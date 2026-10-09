@@ -2346,6 +2346,8 @@ export const realtimeApi = {
         resumptionHandle?: string | null,
         startedAtMs?: number | null,
         endedAtMs?: number | null,
+        startedAtMsVad?: number | null,
+        endedAtMsVad?: number | null,
     ): Promise<void> {
         return apiFetch<void>(
             `/api/realtime/eo/sessions/${sessionId}/transcript`,
@@ -2358,6 +2360,8 @@ export const realtimeApi = {
                     ...(resumptionHandle ? {resumptionHandle} : {}),
                     ...(startedAtMs == null ? {} : {startedAtMs}),
                     ...(endedAtMs == null ? {} : {endedAtMs}),
+                    ...(startedAtMsVad == null ? {} : {startedAtMsVad}),
+                    ...(endedAtMsVad == null ? {} : {endedAtMsVad}),
                 },
                 auth: true,
             },

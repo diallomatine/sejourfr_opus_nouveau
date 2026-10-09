@@ -61,6 +61,11 @@ const SPEAK_GUARD_MARGIN_SEC = 0.1;
 export interface TurnTiming {
     startedAtMs: number | null;
     endedAtMs: number | null;
+    /** Candidat seulement (D-07) : début et fin de parole mesurés sur l'énergie
+     *  du micro par la détection locale, à côté de la référence ci-dessus (qui
+     *  reste la transcription, pour la comparaison avec la base d'avant le lot 2). */
+    startedAtMsVad?: number | null;
+    endedAtMsVad?: number | null;
 }
 
 export interface GeminiLiveCallbacks {
@@ -251,6 +256,10 @@ export class GeminiLiveSession {
     private connectedAtPerf: number | null = null;
     private candidateStartPerf: number | null = null;
     private candidateEndPerf: number | null = null;
+    // Même tour, mesuré au micro (D-07) : première prise de parole et dernière fin.
+    private candidateVadStartPerf: number | null = null;
+    private candidateVadEndPerf: number | null = null;
+    private candidateVadActive = false;
     private examinerStartPerf: number | null = null;
 
     constructor(descriptor: RealtimeSessionDescriptor, cb: GeminiLiveCallbacks) {
@@ -260,7 +269,10 @@ export class GeminiLiveSession {
         this.outputRate = descriptor.outputSampleRate ?? 24000;
         this.inputMime = descriptor.inputAudioMimeType ?? "audio/pcm;rate=16000";
         this.conduct = resolveConduct(descriptor);
-        this.vad = new VoiceActivityDetector(this.conduct.voiceActivity, (active) => this.cb.onCandidateVoice?.(active));
+        this.vad = new VoiceActivityDetector(this.conduct.voiceActivity, (active, sinceMs) => {
+            this.noteCandidateVoice(active, sinceMs);
+            this.cb.onCandidateVoice?.(active);
+        });
     }
 
     /** Énergie du micro au-dessus du seuil EN CE MOMENT (début de parole pas
@@ -485,10 +497,14 @@ export class GeminiLiveSession {
             const timing = {
                 startedAtMs: this.relMs(this.candidateStartPerf),
                 endedAtMs: this.relMs(this.candidateEndPerf),
+                startedAtMsVad: this.relMs(this.candidateVadStartPerf),
+                endedAtMsVad: this.relMs(this.candidateVadActive ? performance.now() : this.candidateVadEndPerf),
             };
             this.candidateBuf = "";
             this.candidateStartPerf = null;
             this.candidateEndPerf = null;
+            this.candidateVadStartPerf = null;
+            this.candidateVadEndPerf = null;
             if (text) this.cb.onCandidateTranscript?.(text, timing);
         } else {
             const text = this.examinerBuf.trim();
@@ -509,6 +525,17 @@ export class GeminiLiveSession {
         const now = performance.now();
         if (cutNow || !ctx) return now;
         return now + Math.max(0, this.playHead - ctx.currentTime) * 1000;
+    }
+
+    /** Parole du candidat mesurée au micro, ramenée à l'instant réel de la transition. */
+    private noteCandidateVoice(active: boolean, sinceMs: number): void {
+        const at = performance.now() - sinceMs;
+        this.candidateVadActive = active;
+        if (active) {
+            if (this.candidateVadStartPerf == null) this.candidateVadStartPerf = at;
+        } else {
+            this.candidateVadEndPerf = at;
+        }
     }
 
     private relMs(perf: number | null): number | null {

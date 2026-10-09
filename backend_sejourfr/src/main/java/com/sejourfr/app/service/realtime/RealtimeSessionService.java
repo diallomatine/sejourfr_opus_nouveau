@@ -252,8 +252,12 @@ public class RealtimeSessionService {
         }
         session.setTranscript(appendLine(session.getTranscript(), req.speaker(), req.text()));
         sessionManager.save(session);
-        mesureManager.ajouterTour(session.getId(), req.turnIndex(), speakerCode(req.speaker()), req.text().trim(),
-                req.startedAtMs(), req.endedAtMs());
+        String speaker = speakerCode(req.speaker());
+        boolean candidat = "CANDIDATE".equals(speaker);
+        // Les temps de détection locale ne décrivent que la parole du candidat.
+        mesureManager.ajouterTour(session.getId(), req.turnIndex(), speaker, req.text().trim(),
+                req.startedAtMs(), req.endedAtMs(),
+                candidat ? req.startedAtMsVad() : null, candidat ? req.endedAtMsVad() : null);
     }
 
     /**

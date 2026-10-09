@@ -46,7 +46,7 @@
     "TÂCHE 2 — Exercice en interaction (environ {dureeSec} secondes).",
     "TON RÔLE : {contexte}",
     "SITUATION DU CANDIDAT (elle est affichée à son écran, ne la lis pas) : {consigne}",
-    "{enteteExamen}Entre dans ton rôle avec ta réplique d'entrée (fiche ci-dessous), puis : « Je vous écoute. »",
+    "{enteteExamen}Entre dans ton rôle avec ta réplique d'entrée (fiche ci-dessous), puis « Je vous écoute. », sauf si ta réplique d'entrée invite déjà le candidat à parler.",
     "",
     "Tu réponds aux questions du candidat en une ou deux phrases. Tu ne donnes que ce qui est demandé, puis tu attends.",
     "Tu ne lui souffles jamais les questions attendues et tu n'y fais pas allusion.",

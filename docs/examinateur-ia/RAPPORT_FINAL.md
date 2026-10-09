@@ -78,7 +78,7 @@ une vraie bascule de langue en écriture non latine ; atténué en ne masquant q
 - Mobile : `lib/core/realtime/realtime_conduct.dart` (miroir), détection de voix dans
   `gemini_live_client.dart`, branchement dans `realtime_eo_controller.dart` et l'écran.
 - Backend : `RealtimeSessionDescriptor.contextRestored` à la reprise.
-- Vérification : les 9 cas du §4.4 exécutés hors dépôt sur les deux modules purs (D-02).
+- Vérification : les 9 cas du §4.4 sur les deux modules purs — hors dépôt au lot 2, versionnés depuis la revue (D-02).
 
 ---
 
@@ -142,7 +142,7 @@ D-12 (ligne 7 du verrou de langue), D-13 (précision sur « En français, s'il v
 
 ### Sujets T2 dont l'ouverture dépasse 35 mots
 
-**Aucun.** Ouverture en examen blanc (en-tête + réplique d'entrée + « Je vous écoute. ») de 12 à 25 mots sur les 20 sujets actifs (D-18). Remarque : 5 répliques d'entrée finissent déjà par « je vous écoute » / « je réponds à vos questions » — redite possible, à raccourcir en données si la recette la confirme.
+**Aucun.** Ouverture en examen blanc (en-tête + réplique d'entrée + « Je vous écoute. ») de 12 à 25 mots sur les 20 sujets actifs (D-18). 5 répliques d'entrée finissaient déjà par « je vous écoute » / « je réponds à vos questions » : la redite est traitée dans la persona à la revue (cf. « Revue des décisions »).
 
 ---
 
@@ -171,9 +171,9 @@ D-12 (ligne 7 du verrou de langue), D-13 (précision sur « En français, s'il v
 | Libellés de fin | `RT_TIMEUP_GRACE_STATUS` / `RT_TIMEUP_CLOSING_STATUS` | `kRtTimeUpGraceStatus` / `kRtTimeUpClosingStatus` |
 | Valeurs | `RealtimeConductConfig` servi | `RealtimeConductConfig` servi |
 
-### Vérification (D-02 : aucun test front versionné)
+### Vérification
 
-Les 9 cas du §4.4, plus 3 cas complémentaires (suspension pendant une coupure, aucune relance pendant la fin de temps, détection locale), exécutés **hors dépôt** sur les deux modules purs, horloge simulée :
+Les 9 cas du §4.4, plus 3 cas complémentaires (suspension pendant une coupure, aucune relance pendant la fin de temps, détection locale), exécutés **hors dépôt** sur les deux modules purs, horloge simulée (depuis la revue, les 9 cas sont **versionnés**, cf. « Revue des décisions ») :
 
 | Cas | TypeScript | Dart |
 |---|---|---|
@@ -194,6 +194,22 @@ Backend : `RealtimeSessionServiceTest` étendu (`contextRestored` vrai / faux). 
 
 ---
 
+## Revue des décisions (2026-10-09)
+
+Validées telles quelles : D-01, D-03 à D-17, D-19 à D-26. Tranchées par toi : D-02, D-07, D-18. D-27 et D-28 : pris en charge par toi. Statuts à jour dans `DECISIONS.md`.
+
+| Décision | Ce qui change | Fichiers |
+|---|---|---|
+| **D-02** — exception aux tests front pour ce chantier | Les 9 cas du §4.4 sont versionnés, mêmes cas et mêmes noms des deux côtés, sur horloge simulée. Exception notée dans le `CLAUDE.md` racine (décompte des tests front recompté : 18 TS, 25 Dart) et dans ceux des deux fronts. | `web_sejoufr/lib/realtime-conduct.test.ts`, `mobile_sejourfr/test/realtime_conduct_test.dart` |
+| **D-07** — A reste la référence, B s'ajoute | V091 : `started_at_ms_vad` / `ended_at_ms_vad` (nullables) sur `realtime_session_turns`. `AppendTranscriptRequest` gagne `startedAtMsVad` / `endedAtMsVad`, facultatifs, **ignorés sur un tour examinateur**. Les fronts les mesurent avec le détecteur local, ramenés à l'instant réel de la transition (le détecteur rend désormais `sinceMs` : 200 ms de confirmation au début, 600 ms d'attente à la fin) ; premier début et dernière fin du tour, fin = instant de clôture du tour si le candidat parle encore. Segments fusionnés : premier début, dernière fin. Nouvel indicateur 9 (`indicateurs.sql`) : délai fin de parole au micro → reprise de l'examinateur (médiane, p90, part < 1,5 s, nombre de reprises mesurées), à lire à côté de l'indicateur 3. | `V091__realtime_temps_candidat_vad.sql`, `RealtimeSessionTurn`, `RealtimeMesureManager`, `AppendTranscriptRequest`, `RealtimeSessionService` ; `conduct.ts`, `geminiLive.ts`, `RealtimeEoRunner.tsx`, `api.ts` ; `realtime_conduct.dart`, `gemini_live_client.dart`, `realtime_eo_controller.dart`, `realtime_repository.dart` |
+| **D-18** — redite « je vous écoute » | t2 de la persona v4 : « …puis « Je vous écoute. », sauf si ta réplique d'entrée invite déjà le candidat à parler. » (v4 n'est pas livrée : modifiée en place, pas de v5). Test mis à jour, `notation-ia-eo-ee.md` aussi. | `realtime-personas-v4.json`, `RealtimePersonaV4Test`, `docs/notation-ia-eo-ee.md` |
+
+**Vérification** : `RealtimeSessionServiceTest` 52 (+2 : temps micro conservés sur un tour candidat, ignorés sur un tour examinateur), `RealtimeMesureIT` 4 (temps micro persistés, indicateur 9 contrôlé, client sans mesure ⇒ colonnes nulles), `RealtimePersonaV4Test` 7, `RealtimePersonaV4SujetsIT` 1 — **verts**. `indicateurs.sql` sur la base locale, V090 + V091 appliquées dans une transaction annulée : **sans erreur**. Web : `realtime-conduct.test.ts` 9/9, `npx tsc --noEmit` et `eslint` propres. Mobile : `realtime_conduct_test.dart` 9/9, `realtime_finish_test.dart` vert (faux dépôt aligné), `flutter analyze` propre.
+
+À vérifier en recette : les temps micro dépendent du seuil d'énergie (L2-13) ; si le seuil est recalibré, l'indicateur 9 se lit par `conduct_config_version`.
+
+---
+
 ## À vérifier en conditions réelles
 
 Tout ce qui dépend du modèle et de l'audio réel : `RECETTE.md` (parties 1 et 2), en particulier la perception de la reprise de parole à 1,5 s (L1-5), le respect des ouvertures et des phrases prévues, la non-lecture des messages entre crochets, et le **calibrage du seuil d'énergie** (0,02) sur web, Android et iOS (L2-13). Rien de cela n'a été joué (D-27).
@@ -209,17 +225,12 @@ Tout ce qui dépend du modèle et de l'audio réel : `RECETTE.md` (parties 1 et 
 | `REALTIME_GEMINI_MODEL` | à vérifier | Dev : `gemini-2.5-flash-native-audio-latest` ; défaut du dépôt : `gemini-live-2.5-flash-native-audio`. |
 | `REALTIME_GEMINI_VAD_START/END_SENSITIVITY`, `…PREFIX_PADDING_MS`, `REALTIME_SESSION_*`, `REALTIME_CONTEXT_COMPRESSION_*`, `REALTIME_GEMINI_TOKEN_USES` | inchangées | — |
 
-La migration V090 s'applique au démarrage (additive, aucune donnée réécrite).
+Les migrations V090 et V091 s'appliquent au démarrage (additives, aucune donnée réécrite).
 
 ## Résumé
 
-**Décisions à valider en priorité**
-1. **D-02** — pas de tests front versionnés (règle du dépôt) ; les cas tournent hors dépôt. À lever si tu veux les garder.
-2. **D-16** — persona et conduite liées et contrôlées au boot (impact direct sur la variable de prod, cf. tableau).
-3. **D-09** — une erreur fatale clôt désormais la session en `FAILED` sans notation.
-4. **D-21 / D-22** — quand la relance démarre et comment elle cède la place au candidat.
-5. **D-12 / D-13 / D-14** — écarts de texte à la persona v4.
+**Décisions** : toutes revues le 2026-10-09 (cf. « Revue des décisions »). D-02, D-07 et D-18 appliquées selon ton arbitrage ; aucune décision en attente.
 
-**Bloqué — nécessite ton accord** : D-27 (recette réelle Gemini et mesures avant/après), D-28 (push, merge, variables de production).
+**À ta charge** : D-27 (recette réelle Gemini et mesures avant/après, `RECETTE.md`), D-28 (push, merge, variables de production).
 
 **Diagnostic langue (phase 0)** : option de masquage déterministe des passages non latins dans le texte noté, non implémentée (hors périmètre), décrite en tête de ce rapport.
