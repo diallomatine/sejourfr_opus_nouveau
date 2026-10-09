@@ -2336,13 +2336,16 @@ export const realtimeApi = {
      *  Il doit être strictement croissant sur la session et CONSERVÉ d'un essai
      *  à l'autre. `resumptionHandle` voyage ici plutôt que dans un appel dédié :
      *  le client POSTe déjà toutes les 1,2 s, le serveur reste à jour sans un
-     *  aller-retour de plus. */
+     *  aller-retour de plus. `startedAtMs`/`endedAtMs` : horodatage du segment
+     *  (mesure seulement), en ms depuis l'établissement de la connexion. */
     appendTranscript(
         sessionId: string,
         speaker: import("./types").RealtimeSpeaker,
         text: string,
         turnIndex?: number,
         resumptionHandle?: string | null,
+        startedAtMs?: number | null,
+        endedAtMs?: number | null,
     ): Promise<void> {
         return apiFetch<void>(
             `/api/realtime/eo/sessions/${sessionId}/transcript`,
@@ -2353,6 +2356,8 @@ export const realtimeApi = {
                     text,
                     ...(turnIndex === undefined ? {} : {turnIndex}),
                     ...(resumptionHandle ? {resumptionHandle} : {}),
+                    ...(startedAtMs == null ? {} : {startedAtMs}),
+                    ...(endedAtMs == null ? {} : {endedAtMs}),
                 },
                 auth: true,
             },
@@ -2364,10 +2369,11 @@ export const realtimeApi = {
      *  (pendant mobile : `onPlanChanged` de `RealtimeEoController`). */
     finishSession(
         sessionId: string,
+        body?: import("./types").FinishRealtimeSessionRequest,
     ): Promise<import("./types").RealtimeSessionStateResponse> {
         return apiFetch<import("./types").RealtimeSessionStateResponse>(
             `/api/realtime/eo/sessions/${sessionId}/finish`,
-            {method: "POST", auth: true},
+            {method: "POST", ...(body ? {json: body} : {}), auth: true},
         ).then((state) => {
             if (state.evaluated) {
                 invalidateProductionProgress();

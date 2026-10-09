@@ -3,7 +3,7 @@
 import {useCallback, useEffect, useRef, useState} from "react";
 import {ChevronDown, Mic, MessagesSquare, Square, Volume2, WifiOff, X} from "lucide-react";
 import {ApiException, realtimeApi} from "@/lib/api";
-import {GeminiLiveSession, type GeminiLiveState} from "@/lib/realtime/geminiLive";
+import {GeminiLiveSession, type GeminiLiveState, type TurnTiming} from "@/lib/realtime/geminiLive";
 import {
     needsRealtimeAcknowledgement,
     realtimeFinishNotice,
@@ -18,7 +18,13 @@ import {
     RT_RESUME_TITLE,
     type RealtimeFinishResult,
 } from "@/lib/realtime-finish";
-import type {ProductionTaskDto, RealtimeSessionDescriptor, RealtimeSpeaker} from "@/lib/types";
+import type {
+    ProductionTaskDto,
+    RealtimeConductEvent,
+    RealtimeEndCause,
+    RealtimeSessionDescriptor,
+    RealtimeSpeaker,
+} from "@/lib/types";
 import {useScreenWakeLock} from "@/lib/use-screen-wake-lock";
 import {TranscriptDialogue} from "./TranscriptDialogue";
 
@@ -146,7 +152,7 @@ export function RealtimeEoRunner({
     // File ORDONNÉE des tours à relayer (l'ordre du dialogue est un artefact de
     // notation) + chaîne d'envoi séquentielle : les appendTranscript partent un
     // par un, dans l'ordre, et `finish()` peut ATTENDRE que tout soit arrivé.
-    const pendingRef = useRef<{speaker: RealtimeSpeaker; text: string}[]>([]);
+    const pendingRef = useRef<({speaker: RealtimeSpeaker; text: string} & TurnTiming)[]>([]);
     const sendChainRef = useRef<Promise<void>>(Promise.resolve());
     const finishedRef = useRef(false);
     const elapsedRef = useRef(0);
@@ -164,6 +170,11 @@ export function RealtimeEoRunner({
     const spokenRef = useRef(0);
     const relayedRef = useRef(0);
     const droppedRef = useRef(0);
+    // Mesure (V090) : cause de fin déclarée à la clôture (la première posée
+    // l'emporte, une relance de l'envoi la reprend telle quelle) et événements
+    // de conduite accumulés pendant la session.
+    const endCauseRef = useRef<RealtimeEndCause | null>(null);
+    const conductEventsRef = useRef<RealtimeConductEvent[]>([]);
 
     // --- État de REPRISE. Ce runner en est le seul propriétaire : la session WS
     // remonte le handle et signale la chute, elle ne décide rien. -------------
@@ -203,12 +214,15 @@ export function RealtimeEoRunner({
         pendingRef.current = [];
         // Le numéro de tour est attribué ICI, une seule fois par segment et de
         // façon strictement croissante : c'est ce que le serveur déduplique.
-        const segments: {speaker: RealtimeSpeaker; text: string; turns: number; index: number}[] = [];
+        // Un segment fusionné court du début de son premier tour à la fin du dernier.
+        const segments: ({speaker: RealtimeSpeaker; text: string; turns: number; index: number} & TurnTiming)[] = [];
         for (const turn of batch) {
             const last = segments[segments.length - 1];
             if (last && last.speaker === turn.speaker) {
                 last.text += ` ${turn.text}`;
                 last.turns += 1;
+                last.startedAtMs = last.startedAtMs ?? turn.startedAtMs;
+                last.endedAtMs = turn.endedAtMs ?? last.endedAtMs;
             } else {
                 segments.push({...turn, turns: 1, index: turnIndexRef.current++});
             }
@@ -236,6 +250,8 @@ export function RealtimeEoRunner({
                             seg.text,
                             seg.index,
                             handle,
+                            seg.startedAtMs,
+                            seg.endedAtMs,
                         );
                         if (handle) handleRelayedRef.current = handle;
                         sent = true;
@@ -266,7 +282,10 @@ export function RealtimeEoRunner({
         for (let attempt = 0; attempt < 2 && !finishOk; attempt++) {
             if (attempt > 0) await new Promise((r) => setTimeout(r, 700));
             try {
-                const st = await realtimeApi.finishSession(sessionId);
+                const st = await realtimeApi.finishSession(sessionId, {
+                    endCause: endCauseRef.current,
+                    events: conductEventsRef.current,
+                });
                 serverEvaluated = st.evaluated;
                 finishOk = true;
             } catch {
@@ -282,9 +301,10 @@ export function RealtimeEoRunner({
         });
     }, [sessionId]);
 
-    const finish = useCallback(async () => {
+    const finish = useCallback(async (cause: RealtimeEndCause) => {
         if (finishedRef.current) return;
         finishedRef.current = true;
+        endCauseRef.current = endCauseRef.current ?? cause;
         if (settleTimerRef.current) clearTimeout(settleTimerRef.current);
         if (capTimerRef.current) clearTimeout(capTimerRef.current);
         setFinishing(true);
@@ -359,14 +379,20 @@ export function RealtimeEoRunner({
      *  classique (chemin de repli existant, `onFatalError`). */
     const giveUpRealtime = useCallback(() => {
         if (relayedRef.current > 0) {
-            void finish();
+            void finish("CONNECTION_LOST");
             return;
         }
         if (!finishedRef.current) {
             finishedRef.current = true;
+            // Rien d'évaluable : on clôt quand même côté serveur pour que la
+            // coupure soit comptée (mesure), sans attendre la réponse.
+            if (sessionId) {
+                realtimeApi.finishSession(sessionId, {endCause: "CONNECTION_LOST", events: conductEventsRef.current})
+                    .catch(() => undefined);
+            }
             onFatalError(RT_RESUME_FAILED_MESSAGE);
         }
-    }, [finish, onFatalError]);
+    }, [finish, onFatalError, sessionId]);
 
     /** Le transport est tombé. Trois issues, dans cet ordre :
      *   1. le temps est écoulé (ou la clôture est engagée) → on clôture, il n'y
@@ -380,7 +406,7 @@ export function RealtimeEoRunner({
     const handleConnectionLost = useCallback(async () => {
         if (finishedRef.current || reconnectingRef.current) return;
         if (timeUpRef.current) {
-            void finish();
+            void finish("TIME_UP");
             return;
         }
         if (!resumableRef.current || resumptionsLeftRef.current <= 0) {
@@ -407,13 +433,13 @@ export function RealtimeEoRunner({
         const live = new GeminiLiveSession(descriptor, {
             onStateChange: setState,
             onSpeakingChange: setExaminerSpeaking,
-            onCandidateTranscript: (t) => {
+            onCandidateTranscript: (t, timing) => {
                 spokenRef.current += 1;
-                pendingRef.current.push({speaker: "CANDIDATE", text: t});
+                pendingRef.current.push({speaker: "CANDIDATE", text: t, ...timing});
                 setLines((prev) => [...prev, {speaker: "CANDIDATE", text: t}]);
             },
-            onExaminerTranscript: (t) => {
-                pendingRef.current.push({speaker: "EXAMINER", text: t});
+            onExaminerTranscript: (t, timing) => {
+                pendingRef.current.push({speaker: "EXAMINER", text: t, ...timing});
                 setLines((prev) => [...prev, {speaker: "EXAMINER", text: t}]);
             },
             // Mémorisé ici, relayé gratuitement sur le prochain POST /transcript.
@@ -424,6 +450,12 @@ export function RealtimeEoRunner({
             onError: (m) => {
                 if (!finishedRef.current) {
                     finishedRef.current = true;
+                    // Erreur fatale : le serveur clôt sans notation (le candidat
+                    // repasse sur l'enregistrement classique) et la compte.
+                    if (sessionId) {
+                        realtimeApi.finishSession(sessionId, {endCause: "ERROR", events: conductEventsRef.current})
+                            .catch(() => undefined);
+                    }
                     onFatalError(m);
                 }
             },
@@ -463,7 +495,7 @@ export function RealtimeEoRunner({
                 // La clôture réelle est pilotée par la fin de parole (effet plus
                 // bas) ; le plafond borne le cas où l'examinateur ne conclut pas.
                 liveRef.current?.notifyTimeUp();
-                capTimerRef.current = setTimeout(() => void finish(), CLOSE_CAP_SEC * 1000);
+                capTimerRef.current = setTimeout(() => void finish("TIME_UP"), CLOSE_CAP_SEC * 1000);
             }
         }, 1000);
         return () => clearInterval(id);
@@ -482,7 +514,7 @@ export function RealtimeEoRunner({
                 settleTimerRef.current = null;
             }
         } else if (heardCloseRef.current && !settleTimerRef.current) {
-            settleTimerRef.current = setTimeout(() => void finish(), CLOSE_SETTLE_MS);
+            settleTimerRef.current = setTimeout(() => void finish("TIME_UP"), CLOSE_SETTLE_MS);
         }
     }, [timeUp, examinerSpeaking, finish]);
 
@@ -657,7 +689,7 @@ export function RealtimeEoRunner({
                 <button
                     type="button"
                     className="rte-stop"
-                    onClick={() => void finish()}
+                    onClick={() => void finish("USER_FINISH")}
                     disabled={finishing || state === "connecting"}
                 >
                     <Square size={16} strokeWidth={2.4} fill="currentColor" />

@@ -874,7 +874,16 @@ le client ouvre lui-même le WebSocket du fournisseur sur l'endpoint **contraint
   appliqué est ignoré, donc un réessai après timeout ne duplique rien. Absent =
   comportement historique. C'est **ici** que le slot est débité, à la transition
   `PENDING -> ACTIVE`, sous verrou de ligne : **une seule fois par session**.
+  Champs **facultatifs** de mesure (V090) : `startedAtMs`, `endedAtMs` — ms depuis
+  l'établissement de la connexion côté client ; chaque segment est aussi conservé
+  dans `realtime_session_turns`. La plateforme est lue sur `X-Sejourfr-Client`
+  à l'ouverture.
 - `POST /api/realtime/eo/sessions/{id}/finish` → clôture + déclenche la notation.
+  Corps **facultatif** (V090) : `{endCause?, events?[]}` — `endCause` ∈
+  `TIME_UP`/`USER_FINISH`/`CONNECTION_LOST`/`ERROR` (`ERROR` = clôture `FAILED`
+  **sans notation**), `events` = `{type: SILENCE_RELANCE|TIMEUP_GRACE, atMs?, valueMs?}`.
+  Enregistrés à la première clôture seulement. Indicateurs :
+  `docs/examinateur-ia/indicateurs.sql`.
 
 ## Compétences TCF (micro-entraînement EE/EO)
 

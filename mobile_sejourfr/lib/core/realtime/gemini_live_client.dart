@@ -64,6 +64,24 @@ const String _timeUpPrompt =
     '[Le temps de cette partie est écoulé. Remerciez brièvement le candidat '
     'et concluez maintenant.]';
 
+/// Horodatage d'un tour, en ms depuis l'établissement de la connexion
+/// (`setupComplete`, première connexion — une reprise ne remet pas le zéro).
+/// Mesure seulement (V090) : rien ne s'en sert pour conduire l'échange.
+///
+/// - EXAMINATEUR : début et fin de la LECTURE audio (moteur natif : début =
+///   amorçage de la pompe + réserve native déjà en file ; fin = fin de la file
+///   restant à jouer), pas de la réception des paquets.
+/// - CANDIDAT : premier → dernier fragment `inputTranscription` du tour. C'est
+///   une APPROXIMATION : la transcription arrive avec un retard sur la parole,
+///   donc le délai « fin candidat → début examinateur » est sous-estimé d'autant
+///   (DECISIONS D-07). Miroir : `TurnTiming` dans `geminiLive.ts`.
+class TurnTiming {
+  const TurnTiming({this.startedAtMs, this.endedAtMs});
+
+  final int? startedAtMs;
+  final int? endedAtMs;
+}
+
 /// Encapsule TOUT le protocole WebSocket Gemini Live pour une session EO temps
 /// réel (schéma A : client ↔ Gemini en direct via token éphémère). Un seul
 /// fichier porte le protocole fournisseur — un changement de fournisseur n'en
@@ -90,11 +108,12 @@ class GeminiLiveClient {
   /// par `POST /sessions/{id}/resume`. Les réglages audio, eux, ne changent pas.
   RealtimeSessionDescriptor descriptor;
 
-  /// Texte transcrit du candidat (entrée micro).
-  final void Function(String text)? onCandidateTranscript;
+  /// Tour transcrit du candidat (entrée micro), avec son horodatage.
+  final void Function(String text, TurnTiming timing)? onCandidateTranscript;
 
-  /// Texte transcrit de l'examinateur (sortie audio du modèle).
-  final void Function(String text)? onExaminerTranscript;
+  /// Tour transcrit de l'examinateur (sortie audio du modèle), avec son
+  /// horodatage.
+  final void Function(String text, TurnTiming timing)? onExaminerTranscript;
 
   /// true quand l'examinateur est en train de parler (audio en cours).
   final void Function(bool speaking)? onSpeakingChange;
@@ -121,6 +140,12 @@ class GeminiLiveClient {
   // interrupted). Ajouter un espace entre fragments coupait les mots.
   final StringBuffer _candidateBuf = StringBuffer();
   final StringBuffer _examinerBuf = StringBuffer();
+
+  // Horodatage des tours (mesure, cf. [TurnTiming]), en ms de [_clock].
+  int? _connectedAtMs;
+  int? _candidateStartMs;
+  int? _candidateEndMs;
+  int? _examinerStartMs;
 
   final AudioRecorder _recorder = AudioRecorder();
   WebSocketChannel? _channel;
@@ -355,7 +380,7 @@ class GeminiLiveClient {
     // Clôture en plein tour : on émet le dernier buffer (sinon la fin de la
     // dernière réponse du candidat serait perdue).
     _flushLine('candidate');
-    _flushLine('examiner');
+    _flushLine('examiner', cutNow: true);
     _closed = true;
     _welcomeTimer?.cancel();
     _welcomeTimer = null;
@@ -546,6 +571,10 @@ class GeminiLiveClient {
       return;
     }
     _pumpPrimed = true;
+    // Début de LECTURE du tour : ce qui reste dans la réserve native passe
+    // d'abord.
+    _examinerStartMs ??= _clock.elapsedMilliseconds +
+        _nativeRemainingNow * 1000 ~/ _outRate;
     // Pompe le lot NOUS-MÊMES. Surtout pas FlutterPcmSound.start() : il repose
     // sur un flag STATIQUE (_needsStart) partagé par tout le process, remis à
     // true uniquement par l'événement natif « buffer à zéro ». Une session
@@ -564,6 +593,8 @@ class GeminiLiveClient {
   void _primePlaybackNow() {
     if (_closed || _pumpPrimed || _queuedSamples == 0) return;
     _pumpPrimed = true;
+    _examinerStartMs ??= _clock.elapsedMilliseconds +
+        _nativeRemainingNow * 1000 ~/ _outRate;
     _onFeed(_nativeRemainingNow);
   }
 
@@ -682,6 +713,7 @@ class GeminiLiveClient {
     // de suite (fin de l'attente « il met du temps à arriver »).
     if (msg['setupComplete'] != null) {
       _everConnected = true;
+      _connectedAtMs ??= _clock.elapsedMilliseconds;
       // Après une REPRISE, l'entretien a déjà commencé : le contexte est
       // restauré côté fournisseur et renvoyer « Bonjour. » ferait rejouer un
       // accueil. On ne réamorce que si l'examinateur n'a jamais parlé.
@@ -714,7 +746,12 @@ class GeminiLiveClient {
     final input = server['inputTranscription'];
     if (input is Map<String, dynamic>) {
       final t = input['text'] as String?;
-      if (t != null && t.isNotEmpty) _candidateBuf.write(t);
+      if (t != null && t.isNotEmpty) {
+        _candidateBuf.write(t);
+        final at = _clock.elapsedMilliseconds;
+        _candidateStartMs ??= at;
+        _candidateEndMs = at;
+      }
     }
     final output = server['outputTranscription'];
     if (output is Map<String, dynamic>) {
@@ -764,18 +801,44 @@ class GeminiLiveClient {
     }
   }
 
-  /// Émet une ligne de transcription complète (tour terminé), puis vide le buffer.
-  void _flushLine(String speaker) {
+  /// Émet une ligne de transcription complète (tour terminé), puis vide le
+  /// buffer. [cutNow] : la lecture est coupée maintenant (clôture), sa fin
+  /// réelle est l'instant présent et non la fin de la file.
+  void _flushLine(String speaker, {bool cutNow = false}) {
     final buf = speaker == 'examiner' ? _examinerBuf : _candidateBuf;
     final text = buf.toString().trim();
     buf.clear();
-    if (text.isEmpty) return;
     if (speaker == 'examiner') {
-      onExaminerTranscript?.call(text);
+      final start = _examinerStartMs;
+      final now = _clock.elapsedMilliseconds;
+      final timing = TurnTiming(
+        startedAtMs: _relMs(start),
+        endedAtMs: start == null
+            ? null
+            : _relMs(cutNow ? now : now + _playbackRemainingMs),
+      );
+      _examinerStartMs = null;
+      if (text.isNotEmpty) onExaminerTranscript?.call(text, timing);
     } else {
-      onCandidateTranscript?.call(text);
+      final timing = TurnTiming(
+        startedAtMs: _relMs(_candidateStartMs),
+        endedAtMs: _relMs(_candidateEndMs),
+      );
+      _candidateStartMs = null;
+      _candidateEndMs = null;
+      if (text.isNotEmpty) onCandidateTranscript?.call(text, timing);
     }
   }
+
+  int? _relMs(int? clockMs) {
+    final t0 = _connectedAtMs;
+    if (clockMs == null || t0 == null) return null;
+    return math.max(0, clockMs - t0);
+  }
+
+  /// ms écoulées depuis l'établissement de la connexion (horodatage d'un
+  /// événement de conduite), `null` tant qu'elle n'est pas établie.
+  int? elapsedMs() => _relMs(_clock.elapsedMilliseconds);
 
   /// Amorce l'entretien : Gemini ne prend pas la parole seul après le setup. On
   /// envoie un vrai tour utilisateur « Bonjour. » ; l'examinateur enchaîne son

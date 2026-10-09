@@ -247,6 +247,8 @@ class _FakeRealtimeRepository implements RealtimeRepository {
     required String text,
     int? turnIndex,
     String? resumptionHandle,
+    int? startedAtMs,
+    int? endedAtMs,
   }) async {
     appendCalls++;
     if (appendThrows || turnIndex == failTurnIndex) {
@@ -262,7 +264,11 @@ class _FakeRealtimeRepository implements RealtimeRepository {
       throw UnimplementedError();
 
   @override
-  Future<RealtimeSessionStateResponse> finishSession(String sessionId) async {
+  Future<RealtimeSessionStateResponse> finishSession(
+    String sessionId, {
+    RealtimeEndCause? endCause,
+    List<RealtimeConductEvent> events = const [],
+  }) async {
     finishCalls++;
     if (finishThrows) throw Exception('réseau coupé');
     return RealtimeSessionStateResponse(

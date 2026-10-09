@@ -193,7 +193,14 @@ class RealtimeEoController extends StateNotifier<RealtimeEoState> {
   /// cette fenêtre le token de reprise ne peut plus ouvrir de connexion.
   static const _resumeBudgetSec = 15;
 
-  final List<({RealtimeSpeaker speaker, String text})> _pending = [];
+  final List<({RealtimeSpeaker speaker, String text, TurnTiming timing})>
+      _pending = [];
+
+  // Mesure (V090) : cause de fin déclarée à la clôture (la première posée
+  // l'emporte, une relance de l'envoi la reprend telle quelle) et événements de
+  // conduite accumulés pendant la session.
+  RealtimeEndCause? _endCause;
+  final List<RealtimeConductEvent> _conductEvents = [];
 
   // Comptage du relais de transcript, qui est best-effort : sans lui, un
   // fragment perdu rétrécissait silencieusement la production notée. Ce sont
@@ -235,8 +242,10 @@ class RealtimeEoController extends StateNotifier<RealtimeEoState> {
   Future<void> start() async {
     final client = GeminiLiveClient(
       descriptor: _args.descriptor,
-      onCandidateTranscript: (t) => _enqueue(RealtimeSpeaker.candidate, t),
-      onExaminerTranscript: (t) => _enqueue(RealtimeSpeaker.examiner, t),
+      onCandidateTranscript: (t, timing) =>
+          _enqueue(RealtimeSpeaker.candidate, t, timing),
+      onExaminerTranscript: (t, timing) =>
+          _enqueue(RealtimeSpeaker.examiner, t, timing),
       onSpeakingChange: (speaking) {
         if (!mounted) return;
         state = state.copyWith(examinerSpeaking: speaking);
@@ -248,8 +257,8 @@ class RealtimeEoController extends StateNotifier<RealtimeEoState> {
           _settleTimer?.cancel();
           _settleTimer = null;
         } else if (_heardClose && _settleTimer == null) {
-          _settleTimer =
-              Timer(const Duration(milliseconds: _settleMs), finish);
+          _settleTimer = Timer(const Duration(milliseconds: _settleMs),
+              () => finish(cause: RealtimeEndCause.timeUp));
         }
       },
       // L'examinateur a commencé (1er audio) ou garde-fou 8 s : fin de l'accueil,
@@ -266,7 +275,7 @@ class RealtimeEoController extends StateNotifier<RealtimeEoState> {
         // Mémorisé ici, relayé gratuitement sur le prochain POST /transcript.
         _resumptionHandle = handle;
       },
-      onError: (msg) => _fail(msg),
+      onError: (msg) => _failAndClose(msg, RealtimeEndCause.error),
       onConnectionLost: _onConnectionLost,
     );
     _client = client;
@@ -281,7 +290,7 @@ class RealtimeEoController extends StateNotifier<RealtimeEoState> {
       _flushTimer = Timer.periodic(
           const Duration(milliseconds: _transcriptRelayMs), (_) => _flush());
     } catch (e) {
-      _fail(e.toString());
+      _failAndClose(e.toString(), RealtimeEndCause.error);
     }
   }
 
@@ -304,7 +313,8 @@ class RealtimeEoController extends StateNotifier<RealtimeEoState> {
       // cas où l'examinateur ne conclut pas.
       _ticker?.cancel();
       _client?.notifyTimeUp();
-      _capTimer = Timer(const Duration(seconds: _capSeconds), finish);
+      _capTimer = Timer(const Duration(seconds: _capSeconds),
+          () => finish(cause: RealtimeEndCause.timeUp));
     }
   }
 
@@ -328,7 +338,7 @@ class RealtimeEoController extends StateNotifier<RealtimeEoState> {
         phase == RealtimePhase.welcoming ||
         phase == RealtimePhase.live;
     if (!resumablePhase) {
-      finish();
+      finish(cause: RealtimeEndCause.timeUp);
       return;
     }
     if (!_resumable || (_resumptionsRemaining ?? 0) <= 0) {
@@ -407,17 +417,18 @@ class RealtimeEoController extends StateNotifier<RealtimeEoState> {
   /// sauver : on bascule sur l'enregistrement classique (chemin de repli existant).
   void _giveUpRealtime() {
     if (_candidateTurnsRelayed > 0) {
-      finish();
+      finish(cause: RealtimeEndCause.connectionLost);
     } else {
-      _fail(kRtResumeFailedMessage);
+      _failAndClose(kRtResumeFailedMessage, RealtimeEndCause.connectionLost);
     }
   }
 
-  void _enqueue(RealtimeSpeaker speaker, String text) {
+  void _enqueue(RealtimeSpeaker speaker, String text,
+      [TurnTiming timing = const TurnTiming()]) {
     final trimmed = text.trim();
     if (trimmed.isEmpty) return;
     if (speaker == RealtimeSpeaker.candidate) _candidateTurnsSpoken++;
-    _pending.add((speaker: speaker, text: trimmed));
+    _pending.add((speaker: speaker, text: trimmed, timing: timing));
     // Chaque tour terminé = une ligne affichable (bouton « Voir ma transcription »).
     if (mounted) {
       state = state.copyWith(
@@ -444,8 +455,16 @@ class RealtimeEoController extends StateNotifier<RealtimeEoState> {
 
     // Le numéro de tour est attribué ICI, une seule fois par segment et de façon
     // strictement croissante : c'est ce que le serveur déduplique.
-    final segments =
-        <({RealtimeSpeaker speaker, String text, int turns, int index})>[];
+    // Un segment fusionné court du début de son premier tour à la fin du
+    // dernier.
+    final segments = <({
+      RealtimeSpeaker speaker,
+      String text,
+      int turns,
+      int index,
+      int? startedAtMs,
+      int? endedAtMs,
+    })>[];
     for (final frag in batch) {
       if (segments.isNotEmpty && segments.last.speaker == frag.speaker) {
         final last = segments.last;
@@ -454,6 +473,8 @@ class RealtimeEoController extends StateNotifier<RealtimeEoState> {
           text: '${last.text} ${frag.text}',
           turns: last.turns + 1,
           index: last.index,
+          startedAtMs: last.startedAtMs ?? frag.timing.startedAtMs,
+          endedAtMs: frag.timing.endedAtMs ?? last.endedAtMs,
         );
       } else {
         segments.add((
@@ -461,6 +482,8 @@ class RealtimeEoController extends StateNotifier<RealtimeEoState> {
           text: frag.text,
           turns: 1,
           index: _turnIndex++,
+          startedAtMs: frag.timing.startedAtMs,
+          endedAtMs: frag.timing.endedAtMs,
         ));
       }
     }
@@ -491,6 +514,8 @@ class RealtimeEoController extends StateNotifier<RealtimeEoState> {
               // l'ancien « on ne renvoie jamais ».
               turnIndex: seg.index,
               resumptionHandle: handle,
+              startedAtMs: seg.startedAtMs,
+              endedAtMs: seg.endedAtMs,
             );
             if (handle != null) _handleRelayed = handle;
             sent = true;
@@ -513,10 +538,13 @@ class RealtimeEoController extends StateNotifier<RealtimeEoState> {
     return _sendChain;
   }
 
-  /// Clôture demandée par l'utilisateur ou par le minuteur.
-  Future<void> finish() async {
+  /// Clôture demandée par l'utilisateur (« Terminer l'oral », [cause] par
+  /// défaut) ou par le minuteur / une coupure (cause explicite).
+  Future<void> finish(
+      {RealtimeEndCause cause = RealtimeEndCause.userFinish}) async {
     if (_finishing) return;
     _finishing = true;
+    _endCause ??= cause;
     _ticker?.cancel();
     _capTimer?.cancel();
     _settleTimer?.cancel();
@@ -576,7 +604,11 @@ class RealtimeEoController extends StateNotifier<RealtimeEoState> {
         await Future<void>.delayed(const Duration(milliseconds: 700));
       }
       try {
-        final res = await _repo.finishSession(_args.sessionId);
+        final res = await _repo.finishSession(
+          _args.sessionId,
+          endCause: _endCause,
+          events: List.of(_conductEvents),
+        );
         serverEvaluated = res.evaluated;
         _sessionsRemaining = res.sessionsRemaining;
         finishOk = true;
@@ -592,6 +624,21 @@ class RealtimeEoController extends StateNotifier<RealtimeEoState> {
       candidateTurnsRelayed: _candidateTurnsRelayed,
       droppedTurns: _droppedTurns,
     );
+  }
+
+  /// Échec sans clôture évaluable : le serveur clôt quand même la session (sans
+  /// notation pour une erreur) pour qu'elle soit comptée — sans attendre la
+  /// réponse, le candidat repasse tout de suite sur l'enregistrement classique.
+  void _failAndClose(String message, RealtimeEndCause cause) {
+    if (!_finishing && _args.sessionId.isNotEmpty) {
+      _finishing = true;
+      _endCause ??= cause;
+      unawaited(_repo
+          .finishSession(_args.sessionId,
+              endCause: cause, events: List.of(_conductEvents))
+          .then((_) {}, onError: (Object _) {}));
+    }
+    _fail(message);
   }
 
   void _fail(String message) {

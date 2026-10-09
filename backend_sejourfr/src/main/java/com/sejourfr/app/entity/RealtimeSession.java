@@ -1,6 +1,8 @@
 package com.sejourfr.app.entity;
 
+import com.sejourfr.app.enums.ClientPlatform;
 import com.sejourfr.app.enums.EpreuveType;
+import com.sejourfr.app.enums.RealtimeEndCause;
 import com.sejourfr.app.enums.RealtimeSessionStatus;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -119,6 +121,28 @@ public class RealtimeSession {
     private Integer lastTurnIndex;
 
     /** Emission du token (creation de la session). */
+    /** Qui a clos la session (V090) ; {@code null} = non déclaré ou jamais close. */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "end_cause", length = 20)
+    private RealtimeEndCause endCause;
+
+    /** Version de persona verrouillée dans le token (V090). */
+    @Column(name = "persona_version", length = 16)
+    private String personaVersion;
+
+    /** Plateforme déclarée par {@code X-Sejourfr-Client} à l'ouverture (V090). */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "client_platform", length = 16)
+    private ClientPlatform clientPlatform;
+
+    /** Version du JSON de conduite servi au client (V090). */
+    @Column(name = "conduct_config_version", length = 16)
+    private String conductConfigVersion;
+
+    /** {@code silenceDurationMs} verrouillé dans le token à l'ouverture (V090). */
+    @Column(name = "vad_silence_ms")
+    private Integer vadSilenceMs;
+
     @Column(name = "started_at", nullable = false)
     private Instant startedAt;
 
@@ -193,6 +217,21 @@ public class RealtimeSession {
 
     public Integer getLastTurnIndex() { return lastTurnIndex; }
     public void setLastTurnIndex(Integer lastTurnIndex) { this.lastTurnIndex = lastTurnIndex; }
+
+    public RealtimeEndCause getEndCause() { return endCause; }
+    public void setEndCause(RealtimeEndCause endCause) { this.endCause = endCause; }
+
+    public String getPersonaVersion() { return personaVersion; }
+    public void setPersonaVersion(String personaVersion) { this.personaVersion = personaVersion; }
+
+    public ClientPlatform getClientPlatform() { return clientPlatform; }
+    public void setClientPlatform(ClientPlatform clientPlatform) { this.clientPlatform = clientPlatform; }
+
+    public String getConductConfigVersion() { return conductConfigVersion; }
+    public void setConductConfigVersion(String conductConfigVersion) { this.conductConfigVersion = conductConfigVersion; }
+
+    public Integer getVadSilenceMs() { return vadSilenceMs; }
+    public void setVadSilenceMs(Integer vadSilenceMs) { this.vadSilenceMs = vadSilenceMs; }
 
     public Instant getStartedAt() { return startedAt; }
     public void setStartedAt(Instant startedAt) { this.startedAt = startedAt; }

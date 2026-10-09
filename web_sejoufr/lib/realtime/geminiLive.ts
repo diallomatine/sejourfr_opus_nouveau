@@ -49,11 +49,28 @@ const SPEAK_GUARD_MARGIN_SEC = 0.1;
  *  compensaient l'imprécision de l'estimation qu'on vient de supprimer. */
 const MIC_HOLD_AFTER_SPEECH_MS = 120;
 
+/**
+ * Horodatage d'un tour, en ms depuis l'établissement de la connexion
+ * (`setupComplete`, première connexion — une reprise ne remet pas le zéro).
+ * Mesure seulement (V090) : rien ne s'en sert pour conduire l'échange.
+ *
+ * - EXAMINATEUR : début et fin de la LECTURE audio réelle (horloge du contexte
+ *   de lecture), pas de la réception des paquets.
+ * - CANDIDAT : premier → dernier fragment `inputTranscription` du tour. C'est
+ *   une APPROXIMATION : la transcription arrive avec un retard sur la parole,
+ *   donc le délai « fin candidat → début examinateur » est sous-estimé d'autant
+ *   (DECISIONS D-07). Miroir : `TurnTiming` dans `gemini_live_client.dart`.
+ */
+export interface TurnTiming {
+    startedAtMs: number | null;
+    endedAtMs: number | null;
+}
+
 export interface GeminiLiveCallbacks {
-    /** Transcription d'un fragment dit par le CANDIDAT (micro). */
-    onCandidateTranscript?: (text: string) => void;
-    /** Transcription d'un fragment dit par l'EXAMINATEUR (modèle). */
-    onExaminerTranscript?: (text: string) => void;
+    /** Transcription d'un tour dit par le CANDIDAT (micro). */
+    onCandidateTranscript?: (text: string, timing: TurnTiming) => void;
+    /** Transcription d'un tour dit par l'EXAMINATEUR (modèle). */
+    onExaminerTranscript?: (text: string, timing: TurnTiming) => void;
     /** L'examinateur parle / s'arrête (pour un indicateur visuel). */
     onSpeakingChange?: (speaking: boolean) => void;
     onStateChange?: (state: GeminiLiveState) => void;
@@ -220,6 +237,11 @@ export class GeminiLiveSession {
     // / interrupted). Ajouter un espace entre fragments coupait les mots.
     private candidateBuf = "";
     private examinerBuf = "";
+    // Horodatage des tours (mesure, cf. `TurnTiming`), en `performance.now()`.
+    private connectedAtPerf: number | null = null;
+    private candidateStartPerf: number | null = null;
+    private candidateEndPerf: number | null = null;
+    private examinerStartPerf: number | null = null;
 
     constructor(descriptor: RealtimeSessionDescriptor, cb: GeminiLiveCallbacks) {
         this.descriptor = descriptor;
@@ -375,6 +397,7 @@ export class GeminiLiveSession {
         }
         if (msg.setupComplete) {
             this.everConnected = true;
+            if (this.connectedAtPerf == null) this.connectedAtPerf = performance.now();
             // Après une REPRISE, l'entretien a déjà commencé : le contexte est
             // restauré côté fournisseur et renvoyer « Bonjour. » ferait rejouer
             // un accueil. On ne réamorce que si l'examinateur n'a jamais parlé.
@@ -402,7 +425,12 @@ export class GeminiLiveSession {
         if (!sc) return;
 
         // Accumulation VERBATIM (les fragments Gemini portent leur espacement).
-        if (sc.inputTranscription?.text) this.candidateBuf += sc.inputTranscription.text;
+        if (sc.inputTranscription?.text) {
+            this.candidateBuf += sc.inputTranscription.text;
+            const at = performance.now();
+            if (this.candidateStartPerf == null) this.candidateStartPerf = at;
+            this.candidateEndPerf = at;
+        }
         if (sc.outputTranscription?.text) this.examinerBuf += sc.outputTranscription.text;
 
         if (sc.interrupted) {
@@ -423,17 +451,50 @@ export class GeminiLiveSession {
         }
     }
 
-    /** Émet une ligne de transcription complète (tour terminé), puis vide le buffer. */
-    private flushLine(speaker: "candidate" | "examiner"): void {
+    /** Émet une ligne de transcription complète (tour terminé), puis vide le buffer.
+     *  `cutNow` : la lecture est coupée maintenant (clôture), sa fin réelle est
+     *  l'instant présent et non la fin planifiée. */
+    private flushLine(speaker: "candidate" | "examiner", cutNow = false): void {
         if (speaker === "candidate") {
             const text = this.candidateBuf.trim();
+            const timing = {
+                startedAtMs: this.relMs(this.candidateStartPerf),
+                endedAtMs: this.relMs(this.candidateEndPerf),
+            };
             this.candidateBuf = "";
-            if (text) this.cb.onCandidateTranscript?.(text);
+            this.candidateStartPerf = null;
+            this.candidateEndPerf = null;
+            if (text) this.cb.onCandidateTranscript?.(text, timing);
         } else {
             const text = this.examinerBuf.trim();
+            const timing = {
+                startedAtMs: this.relMs(this.examinerStartPerf),
+                endedAtMs: this.examinerStartPerf == null ? null : this.relMs(this.playbackEndPerf(cutNow)),
+            };
             this.examinerBuf = "";
-            if (text) this.cb.onExaminerTranscript?.(text);
+            this.examinerStartPerf = null;
+            if (text) this.cb.onExaminerTranscript?.(text, timing);
         }
+    }
+
+    /** Fin de lecture de l'audio déjà planifié, en `performance.now()`. Après un
+     *  barge-in ou une coupure la file est vidée : c'est maintenant. */
+    private playbackEndPerf(cutNow: boolean): number {
+        const ctx = this.playbackCtx;
+        const now = performance.now();
+        if (cutNow || !ctx) return now;
+        return now + Math.max(0, this.playHead - ctx.currentTime) * 1000;
+    }
+
+    private relMs(perf: number | null): number | null {
+        if (perf == null || this.connectedAtPerf == null) return null;
+        return Math.max(0, Math.round(perf - this.connectedAtPerf));
+    }
+
+    /** ms écoulées depuis l'établissement de la connexion (horodatage d'un
+     *  événement de conduite), `null` tant qu'elle n'est pas établie. */
+    elapsedMs(): number | null {
+        return this.relMs(performance.now());
     }
 
     /**
@@ -555,6 +616,9 @@ export class GeminiLiveSession {
         // s'enchaînent bord à bord.
         const startAt = this.playHead > now ? this.playHead : now + PLAYBACK_PREROLL_SEC;
         src.start(startAt);
+        if (this.examinerStartPerf == null) {
+            this.examinerStartPerf = performance.now() + (startAt - now) * 1000;
+        }
         this.playHead = startAt + buf.duration;
         this.activeSources.add(src);
         if (!this.speaking) {
@@ -687,7 +751,7 @@ export class GeminiLiveSession {
         // Clôture en plein tour : on émet le dernier buffer (sinon la fin de la
         // dernière réponse du candidat serait perdue).
         this.flushLine("candidate");
-        this.flushLine("examiner");
+        this.flushLine("examiner", true);
         this.closed = true;
         if (this.welcomeTimer != null) {
             clearTimeout(this.welcomeTimer);

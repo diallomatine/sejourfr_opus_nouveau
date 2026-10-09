@@ -24,10 +24,24 @@ import jakarta.validation.constraints.PositiveOrZero;
  *                         appel dedie : le client POSTe deja regulierement, le
  *                         serveur reste a jour sans un aller-retour de plus.
  *                         {@code null} = rien de neuf a signaler.
+ * @param startedAtMs      debut du segment, en ms depuis l'etablissement de la
+ *                         connexion cote client (V090, mesure seulement).
+ *                         Examinateur : debut de LECTURE audio ; candidat :
+ *                         premier fragment de transcription. {@code null} =
+ *                         client qui ne mesure pas (accepte, comme avant).
+ * @param endedAtMs        fin du segment, meme reference ; {@code null} admis.
  */
 public record AppendTranscriptRequest(
         @NotBlank String speaker,
         @NotBlank String text,
         @PositiveOrZero Integer turnIndex,
-        String resumptionHandle
-) {}
+        String resumptionHandle,
+        @PositiveOrZero Integer startedAtMs,
+        @PositiveOrZero Integer endedAtMs
+) {
+
+    /** Forme d'avant la mesure (V090) : segment sans horodatage. */
+    public AppendTranscriptRequest(String speaker, String text, Integer turnIndex, String resumptionHandle) {
+        this(speaker, text, turnIndex, resumptionHandle, null, null);
+    }
+}

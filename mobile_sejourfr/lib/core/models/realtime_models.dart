@@ -18,6 +18,44 @@ extension RealtimeSpeakerX on RealtimeSpeaker {
       this == RealtimeSpeaker.candidate ? 'CANDIDATE' : 'EXAMINER';
 }
 
+/// Qui a clos une session temps réel (mesure, V090). Miroir de
+/// `RealtimeEndCause.java` et de `RealtimeEndCause` (web `lib/types.ts`).
+enum RealtimeEndCause { timeUp, userFinish, connectionLost, error }
+
+extension RealtimeEndCauseX on RealtimeEndCause {
+  String get wire => switch (this) {
+        RealtimeEndCause.timeUp => 'TIME_UP',
+        RealtimeEndCause.userFinish => 'USER_FINISH',
+        RealtimeEndCause.connectionLost => 'CONNECTION_LOST',
+        RealtimeEndCause.error => 'ERROR',
+      };
+}
+
+/// Type d'événement de conduite déclaré par le client à la clôture (V090).
+enum RealtimeConductEventType { silenceRelance, timeUpGrace }
+
+/// Événement de conduite (mesure, V090). Miroir de `RealtimeConductEvent`
+/// (web `lib/types.ts`).
+class RealtimeConductEvent {
+  const RealtimeConductEvent(this.type, {this.atMs, this.valueMs});
+
+  final RealtimeConductEventType type;
+
+  /// ms depuis l'établissement de la connexion (`setupComplete`).
+  final int? atMs;
+
+  /// Durée associée (grâce de fin de temps utilisée).
+  final int? valueMs;
+
+  Map<String, dynamic> toJson() => {
+        'type': type == RealtimeConductEventType.silenceRelance
+            ? 'SILENCE_RELANCE'
+            : 'TIMEUP_GRACE',
+        if (atMs != null) 'atMs': atMs,
+        if (valueMs != null) 'valueMs': valueMs,
+      };
+}
+
 /// Réponse au démarrage d'une session. En mode [RealtimeMode.realtime] le client
 /// ouvre lui-même le WebSocket [wsEndpoint] avec [ephemeralToken]. En
 /// [RealtimeMode.asyncFallback] les champs de connexion sont nuls → on bascule

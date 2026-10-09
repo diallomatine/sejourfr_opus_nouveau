@@ -60,12 +60,16 @@ class RealtimeRepository {
   /// Il doit être strictement croissant sur la session et CONSERVÉ d'un essai à
   /// l'autre. [resumptionHandle] voyage ici plutôt que dans un appel dédié : le
   /// client POSTe déjà toutes les 1,2 s, le serveur reste à jour gratuitement.
+  /// [startedAtMs]/[endedAtMs] : horodatage du segment (mesure seulement), en
+  /// ms depuis l'établissement de la connexion.
   Future<void> appendTranscript({
     required String sessionId,
     required RealtimeSpeaker speaker,
     required String text,
     int? turnIndex,
     String? resumptionHandle,
+    int? startedAtMs,
+    int? endedAtMs,
   }) async {
     await _client.dio.post<void>(
       '/api/realtime/eo/sessions/$sessionId/transcript',
@@ -74,13 +78,26 @@ class RealtimeRepository {
         'text': text,
         if (turnIndex != null) 'turnIndex': turnIndex,
         if (resumptionHandle != null) 'resumptionHandle': resumptionHandle,
+        if (startedAtMs != null) 'startedAtMs': startedAtMs,
+        if (endedAtMs != null) 'endedAtMs': endedAtMs,
       },
     );
   }
 
-  Future<RealtimeSessionStateResponse> finishSession(String sessionId) async {
+  /// Clôture. [endCause] et [events] sont de la mesure (V090) ;
+  /// [RealtimeEndCause.error] clôt sans notation (le candidat repasse sur
+  /// l'enregistrement classique).
+  Future<RealtimeSessionStateResponse> finishSession(
+    String sessionId, {
+    RealtimeEndCause? endCause,
+    List<RealtimeConductEvent> events = const [],
+  }) async {
     final res = await _client.dio.post<Map<String, dynamic>>(
       '/api/realtime/eo/sessions/$sessionId/finish',
+      data: {
+        if (endCause != null) 'endCause': endCause.wire,
+        'events': [for (final e in events) e.toJson()],
+      },
     );
     return RealtimeSessionStateResponse.fromJson(res.data!);
   }

@@ -125,10 +125,14 @@ db/migration/
 │   │                                             user_activity_day (V087, 365 j)
 │   ├── V088__audio_draft_external_id.sql        anti-doublon de l'import CO image
 │   │                                             (index unique, tous statuts)
-│   └── V089__questions_status_aligne_sur_is_active.sql  correctif : status = ACTIVE
-│                                                 pour toute question is_active (les
-│                                                 tirages exigent les deux ; sentinelle
-│                                                 rejouée par QuestionStatusAlignementIT)
+│   ├── V089__questions_status_aligne_sur_is_active.sql  correctif : status = ACTIVE
+│   │                                             pour toute question is_active (les
+│   │                                             tirages exigent les deux ; sentinelle
+│   │                                             rejouée par QuestionStatusAlignementIT)
+│   └── V090__realtime_mesure_examinateur.sql    mesure de l'examinateur IA : cause de
+│                                                 fin / persona / plateforme / VAD sur
+│                                                 realtime_sessions + realtime_session_turns,
+│                                                 _events, realtime_fallbacks
 │
 ├── 100_reference/                   V100-V199   données de référence (fixes, prod + dev)
 │   ├── V100__ref_plans.sql                      catalogue plans (abonnements dormants + passes one-time)
@@ -258,7 +262,7 @@ postérieures alimentent se numérote APRÈS elles.**
   `V075`/`V076` (Suivi) puis **`V077__journey_fin_de_cycle.sql`** (le geste qui a clos un
   cycle, « Mes cycles ») sont pris, puis **`V078__journey_fin_de_cycle_interrompu.sql`**
   (2026-09-27, D-68 : `INTERROMPU` admis par `chk_journey_fin_de_cycle`, cycle mis de côté par
-  le jalon d'examen complet) → V079 (date d'achat par défaut, 2026-09-27) → V080 (`email_campaign_log`, 2026-09-28) → V081 (`attempt_count`, 2026-09-28) → V082 (marqueur de réinitialisation au lancement) → **V083** (`access_overrides` + `admin_access_operations` + extension `btree_gist`, 2026-10-02) → **V084** (sessions EO temps réel d'un GRANT INTEGRAL : `access_overrides.realtime_eo_sessions_granted/remaining` + `realtime_sessions.access_override_id`, 2026-10-02) → **V085** (`ai_evaluation_flags`, signalements admin « Productions IA », 2026-10-03) → **V086** (`refresh_tokens.replaced_by` en `ON DELETE SET NULL` + index `expires_at`, purge, 2026-10-03) → **V087** (`user_login_event` + `user_activity_day`, activité des utilisateurs, 2026-10-03) → **V088** (`audio_question_draft.external_id` + index unique, import CO image, 2026-10-04) → **V089** (correctif : `questions.status` réaligné sur `is_active`, garde-fou des tirages, 2026-10-04) → **le prochain est `V090`**. Seed dev : `V901`
+  le jalon d'examen complet) → V079 (date d'achat par défaut, 2026-09-27) → V080 (`email_campaign_log`, 2026-09-28) → V081 (`attempt_count`, 2026-09-28) → V082 (marqueur de réinitialisation au lancement) → **V083** (`access_overrides` + `admin_access_operations` + extension `btree_gist`, 2026-10-02) → **V084** (sessions EO temps réel d'un GRANT INTEGRAL : `access_overrides.realtime_eo_sessions_granted/remaining` + `realtime_sessions.access_override_id`, 2026-10-02) → **V085** (`ai_evaluation_flags`, signalements admin « Productions IA », 2026-10-03) → **V086** (`refresh_tokens.replaced_by` en `ON DELETE SET NULL` + index `expires_at`, purge, 2026-10-03) → **V087** (`user_login_event` + `user_activity_day`, activité des utilisateurs, 2026-10-03) → **V088** (`audio_question_draft.external_id` + index unique, import CO image, 2026-10-04) → **V089** (correctif : `questions.status` réaligné sur `is_active`, garde-fou des tirages, 2026-10-04) → **V090** (mesure de l'examinateur IA temps réel, 2026-10-09) → **le prochain est `V091`**. Seed dev : `V901`
   (comptes seed internes) suit `V900`.
   ⚠️ `V059` n'existe pas : trou assumé, `out-of-order: true` le rend sans conséquence.
   ⚠️ **Un backfill de CONTENU seedé ne peut pas vivre en `00_schema`** : l'ordre suit le

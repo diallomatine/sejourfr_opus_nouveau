@@ -2906,6 +2906,25 @@ export interface RealtimeSessionDescriptor {
     connectWindowSec?: number | null;
 }
 
+/** Qui a clos une session temps réel (mesure, V090). */
+export type RealtimeEndCause = "TIME_UP" | "USER_FINISH" | "CONNECTION_LOST" | "ERROR";
+
+/** Événement de conduite déclaré par le client à la clôture (mesure, V090). */
+export interface RealtimeConductEvent {
+    type: "SILENCE_RELANCE" | "TIMEUP_GRACE";
+    /** ms depuis l'établissement de la connexion (`setupComplete`). */
+    atMs?: number | null;
+    /** Durée associée (grâce de fin de temps utilisée). */
+    valueMs?: number | null;
+}
+
+/** Body (facultatif) de POST /api/realtime/eo/sessions/{id}/finish. `ERROR` clôt
+ *  la session sans notation (le candidat repasse sur l'enregistrement classique). */
+export interface FinishRealtimeSessionRequest {
+    endCause?: RealtimeEndCause | null;
+    events?: RealtimeConductEvent[] | null;
+}
+
 /** Body de POST /api/realtime/eo/sessions/{id}/resume (corps entier facultatif). */
 export interface ResumeRealtimeSessionRequest {
     resumptionHandle?: string | null;

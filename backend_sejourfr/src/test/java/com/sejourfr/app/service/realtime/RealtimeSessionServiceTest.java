@@ -51,6 +51,7 @@ import static org.mockito.Mockito.when;
 class RealtimeSessionServiceTest {
 
     @Mock private RealtimeSessionManager sessionManager;
+    @Mock private com.sejourfr.app.manager.RealtimeMesureManager mesureManager;
     @Mock private RealtimeQuotaService quotaService;
     @Mock private RealtimePersonaBuilder personaBuilder;
     @Mock private RealtimeTokenBroker tokenBroker;
@@ -80,7 +81,7 @@ class RealtimeSessionServiceTest {
                 freeExamEntitlementService);
         service = new RealtimeSessionService(sessionManager, quotaService, personaBuilder,
                 tokenBroker, productionTaskManager, attemptManager, productionEvaluationService,
-                accessService, props);
+                accessService, props, mesureManager);
         user = new User();
         user.setId(UUID.randomUUID());
     }
@@ -736,5 +737,208 @@ class RealtimeSessionServiceTest {
         // cree. Annoncer evaluated=true enverrait le front sur un ecran de
         // resultat vide.
         assertThat(resp.evaluated()).isFalse();
+    }
+
+    // ----- mesure (V090, chantier examinateur IA, lot M) -----
+
+    private RealtimeSession sessionActiveAvecDialogue() {
+        Attempt attempt = new Attempt();
+        attempt.setId(UUID.randomUUID());
+        attempt.setUser(user);
+        RealtimeSession session = new RealtimeSession();
+        session.setId(UUID.randomUUID());
+        session.setUser(user);
+        session.setAttempt(attempt);
+        session.setProductionTask(eoTask((short) 1));
+        session.setStatus(RealtimeSessionStatus.ACTIVE);
+        session.setConnectedAt(Instant.now().minusSeconds(60));
+        session.setTranscript("Examinateur : Bonjour\nCandidat : Je m'appelle Karim");
+        when(sessionManager.findById(session.getId())).thenReturn(Optional.of(session));
+        return session;
+    }
+
+    @Test
+    void start_trace_la_version_de_persona_la_plateforme_et_la_fenetre_vad() {
+        when(quotaService.evaluate(user.getId())).thenReturn(quota(true, 3));
+        mintOk(UUID.randomUUID());
+        props.setPersonaVersion("v9");
+        props.getGemini().getVad().setSilenceDurationMs(1234);
+        org.mockito.ArgumentCaptor<RealtimeSession> saved = org.mockito.ArgumentCaptor.forClass(RealtimeSession.class);
+
+        service.start(user, new StartRealtimeSessionRequest(taskId, null),
+            com.sejourfr.app.enums.ClientPlatform.ANDROID);
+
+        verify(sessionManager).save(saved.capture());
+        assertThat(saved.getValue().getPersonaVersion()).isEqualTo("v9");
+        assertThat(saved.getValue().getClientPlatform()).isEqualTo(com.sejourfr.app.enums.ClientPlatform.ANDROID);
+        assertThat(saved.getValue().getVadSilenceMs()).isEqualTo(1234);
+    }
+
+    @Test
+    void start_sans_plateforme_declaree_trace_unknown() {
+        when(quotaService.evaluate(user.getId())).thenReturn(quota(true, 3));
+        mintOk(UUID.randomUUID());
+        org.mockito.ArgumentCaptor<RealtimeSession> saved = org.mockito.ArgumentCaptor.forClass(RealtimeSession.class);
+
+        service.start(user, new StartRealtimeSessionRequest(taskId, null));
+
+        verify(sessionManager).save(saved.capture());
+        assertThat(saved.getValue().getClientPlatform()).isEqualTo(com.sejourfr.app.enums.ClientPlatform.UNKNOWN);
+    }
+
+    @Test
+    void start_trace_chaque_repli_asynchrone_avec_sa_raison() {
+        when(productionTaskManager.findActiveById(taskId)).thenReturn(Optional.of(eoTask((short) 2)));
+        when(quotaService.evaluate(user.getId())).thenReturn(quota(false, 0));
+        when(tokenBroker.isConfigured()).thenReturn(true);
+        service.start(user, new StartRealtimeSessionRequest(taskId, null));
+        verify(mesureManager).tracerRepli(user.getId(), taskId, null, (short) 2,
+            com.sejourfr.app.enums.RealtimeFallbackReason.QUOTA);
+
+        when(tokenBroker.isConfigured()).thenReturn(false);
+        service.start(user, new StartRealtimeSessionRequest(taskId, null));
+        verify(mesureManager).tracerRepli(user.getId(), taskId, null, (short) 2,
+            com.sejourfr.app.enums.RealtimeFallbackReason.NOT_CONFIGURED);
+
+        when(tokenBroker.isConfigured()).thenReturn(true);
+        when(quotaService.evaluate(user.getId())).thenReturn(quota(true, 2));
+        when(personaBuilder.build(any())).thenReturn("persona");
+        when(tokenBroker.mint("persona", null)).thenThrow(new RuntimeException("mint KO"));
+        service.start(user, new StartRealtimeSessionRequest(taskId, null));
+        verify(mesureManager).tracerRepli(user.getId(), taskId, null, (short) 2,
+            com.sejourfr.app.enums.RealtimeFallbackReason.MINT_FAILED);
+    }
+
+    @Test
+    void appendTranscript_conserve_le_segment_horodate() {
+        RealtimeSession session = pendingSession(subscription());
+
+        service.appendTranscript(user, session.getId(),
+            new AppendTranscriptRequest("EXAMINER", "  Bonjour, presentez-vous  ", 0, null, 1200, 4800));
+
+        verify(mesureManager).ajouterTour(session.getId(), 0, "EXAMINER", "Bonjour, presentez-vous", 1200, 4800);
+    }
+
+    @Test
+    void appendTranscript_client_sans_horodatage_reste_accepte() {
+        RealtimeSession session = pendingSession(subscription());
+
+        service.appendTranscript(user, session.getId(), new AppendTranscriptRequest("CANDIDATE", "Bonjour", 0, null));
+
+        assertThat(session.getTranscript()).isEqualTo("Candidat : Bonjour");
+        verify(mesureManager).ajouterTour(session.getId(), 0, "CANDIDATE", "Bonjour", null, null);
+    }
+
+    @Test
+    void appendTranscript_rejeu_ne_duplique_pas_le_segment_mesure() {
+        RealtimeSession session = pendingSession(subscription());
+        session.setLastTurnIndex(3);
+
+        service.appendTranscript(user, session.getId(), new AppendTranscriptRequest("CANDIDATE", "Bonjour", 3, null, 10, 20));
+
+        verify(mesureManager, never()).ajouterTour(any(), any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void resume_trace_une_reprise_avec_handle() {
+        RealtimeSession session = activeResumableSession();
+        when(tokenBroker.provider()).thenReturn("gemini");
+        when(tokenBroker.supportsResumption()).thenReturn(true);
+        when(personaBuilder.build(any())).thenReturn("persona");
+        when(tokenBroker.mint("persona", "h1"))
+            .thenReturn(new RealtimeTokenBroker.MintedSession("tok2", "wss://g", "model-x"));
+
+        service.resume(user, session.getId(), new ResumeRealtimeSessionRequest("h1"));
+
+        verify(mesureManager).ajouterEvenement(session.getId(),
+            com.sejourfr.app.enums.RealtimeConductEventType.RESUME_WITH_HANDLE, null, null);
+    }
+
+    @Test
+    void resume_trace_une_reprise_sans_handle() {
+        RealtimeSession session = activeResumableSession();
+        when(tokenBroker.provider()).thenReturn("gemini");
+        when(tokenBroker.supportsResumption()).thenReturn(true);
+        when(personaBuilder.build(any())).thenReturn("persona");
+        when(tokenBroker.mint("persona", null))
+            .thenReturn(new RealtimeTokenBroker.MintedSession("tok2", "wss://g", "model-x"));
+
+        service.resume(user, session.getId(), null);
+
+        verify(mesureManager).ajouterEvenement(session.getId(),
+            com.sejourfr.app.enums.RealtimeConductEventType.RESUME_WITHOUT_HANDLE, null, null);
+    }
+
+    @Test
+    void resume_mint_en_echec_trace_le_repli() {
+        RealtimeSession session = activeResumableSession();
+        when(tokenBroker.supportsResumption()).thenReturn(true);
+        when(personaBuilder.build(any())).thenReturn("persona");
+        when(tokenBroker.mint("persona", null)).thenThrow(new RuntimeException("KO"));
+
+        service.resume(user, session.getId(), null);
+
+        verify(mesureManager).tracerRepli(user.getId(), taskId, session.getId(), (short) 1,
+            com.sejourfr.app.enums.RealtimeFallbackReason.RESUME_MINT_FAILED);
+    }
+
+    @Test
+    void finish_enregistre_la_cause_et_les_evenements_declares_par_le_client() {
+        RealtimeSession session = sessionActiveAvecDialogue();
+
+        service.finish(user, session.getId(), new com.sejourfr.app.dto.FinishRealtimeSessionRequest("time_up",
+            java.util.List.of(
+                new com.sejourfr.app.dto.FinishRealtimeSessionRequest.ConductEvent("SILENCE_RELANCE", 41000, null),
+                new com.sejourfr.app.dto.FinishRealtimeSessionRequest.ConductEvent("TIMEUP_GRACE", 180500, 3200),
+                // Réservé au serveur, et inconnu : ignorés.
+                new com.sejourfr.app.dto.FinishRealtimeSessionRequest.ConductEvent("RESUME_WITH_HANDLE", 1, null),
+                new com.sejourfr.app.dto.FinishRealtimeSessionRequest.ConductEvent("NOUVEAU_TYPE", 1, null))));
+
+        assertThat(session.getEndCause()).isEqualTo(com.sejourfr.app.enums.RealtimeEndCause.TIME_UP);
+        assertThat(session.getStatus()).isEqualTo(RealtimeSessionStatus.COMPLETED);
+        verify(mesureManager).ajouterEvenement(session.getId(),
+            com.sejourfr.app.enums.RealtimeConductEventType.SILENCE_RELANCE, 41000, null);
+        verify(mesureManager).ajouterEvenement(session.getId(),
+            com.sejourfr.app.enums.RealtimeConductEventType.TIMEUP_GRACE, 180500, 3200);
+        verify(mesureManager, times(2)).ajouterEvenement(any(), any(), any(), any());
+    }
+
+    @Test
+    void finish_sans_corps_laisse_la_cause_inconnue() {
+        RealtimeSession session = sessionActiveAvecDialogue();
+
+        service.finish(user, session.getId());
+
+        assertThat(session.getEndCause()).isNull();
+        assertThat(session.getStatus()).isEqualTo(RealtimeSessionStatus.COMPLETED);
+        verify(mesureManager, never()).ajouterEvenement(any(), any(), any(), any());
+    }
+
+    @Test
+    void finish_erreur_client_clot_en_failed_sans_notation() {
+        RealtimeSession session = sessionActiveAvecDialogue();
+
+        RealtimeSessionStateResponse resp = service.finish(user, session.getId(),
+            new com.sejourfr.app.dto.FinishRealtimeSessionRequest("ERROR", null));
+
+        assertThat(session.getStatus()).isEqualTo(RealtimeSessionStatus.FAILED);
+        assertThat(session.getEndCause()).isEqualTo(com.sejourfr.app.enums.RealtimeEndCause.ERROR);
+        assertThat(resp.evaluated()).isFalse();
+        verify(productionEvaluationService, never())
+            .evaluateRealtimeTranscript(any(), any(), any(), any(), any());
+        verify(quotaService, never()).debiter(any());
+    }
+
+    @Test
+    void finish_rejouee_n_enregistre_rien_de_plus() {
+        RealtimeSession session = sessionActiveAvecDialogue();
+        session.setStatus(RealtimeSessionStatus.COMPLETED);
+        session.setEndCause(com.sejourfr.app.enums.RealtimeEndCause.USER_FINISH);
+
+        service.finish(user, session.getId(), new com.sejourfr.app.dto.FinishRealtimeSessionRequest("TIME_UP",
+            java.util.List.of(new com.sejourfr.app.dto.FinishRealtimeSessionRequest.ConductEvent("SILENCE_RELANCE", 1, null))));
+
+        assertThat(session.getEndCause()).isEqualTo(com.sejourfr.app.enums.RealtimeEndCause.USER_FINISH);
+        verify(mesureManager, never()).ajouterEvenement(any(), any(), any(), any());
     }
 }

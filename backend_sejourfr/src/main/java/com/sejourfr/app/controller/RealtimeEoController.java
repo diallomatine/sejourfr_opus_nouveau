@@ -1,6 +1,7 @@
 package com.sejourfr.app.controller;
 
 import com.sejourfr.app.dto.AppendTranscriptRequest;
+import com.sejourfr.app.dto.FinishRealtimeSessionRequest;
 import com.sejourfr.app.dto.RealtimeSessionDescriptor;
 import com.sejourfr.app.dto.RealtimeSessionStateResponse;
 import com.sejourfr.app.dto.ResumeRealtimeSessionRequest;
@@ -8,6 +9,8 @@ import com.sejourfr.app.dto.StartRealtimeSessionRequest;
 import com.sejourfr.app.security.CurrentUser;
 import com.sejourfr.app.service.realtime.RealtimeQuotaService;
 import com.sejourfr.app.service.realtime.RealtimeSessionService;
+import com.sejourfr.app.util.ClientContextResolver;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -36,6 +39,7 @@ public class RealtimeEoController {
     private final RealtimeSessionService sessionService;
     private final RealtimeQuotaService quotaService;
     private final CurrentUser currentUser;
+    private final ClientContextResolver clientContextResolver;
 
     /** Sessions temps reel restantes (compteur du modal de lancement). */
     @GetMapping("/quota")
@@ -50,8 +54,9 @@ public class RealtimeEoController {
      * basculer en enregistrement classique.
      */
     @PostMapping("/sessions")
-    public RealtimeSessionDescriptor start(@Valid @RequestBody StartRealtimeSessionRequest req) {
-        return sessionService.start(currentUser.get(), req);
+    public RealtimeSessionDescriptor start(@Valid @RequestBody StartRealtimeSessionRequest req,
+                                           HttpServletRequest http) {
+        return sessionService.start(currentUser.get(), req, clientContextResolver.resolve(http).platform());
     }
 
     /**
@@ -72,9 +77,13 @@ public class RealtimeEoController {
         sessionService.appendTranscript(currentUser.get(), id, req);
     }
 
-    /** Cloture la session (COMPLETED si elle a eu lieu, sinon FAILED). */
+    /**
+     * Cloture la session (COMPLETED si elle a eu lieu, sinon FAILED). Corps
+     * optionnel : cause de fin et evenements de conduite (mesure, V090).
+     */
     @PostMapping("/sessions/{id}/finish")
-    public RealtimeSessionStateResponse finish(@PathVariable("id") UUID id) {
-        return sessionService.finish(currentUser.get(), id);
+    public RealtimeSessionStateResponse finish(@PathVariable("id") UUID id,
+                                               @Valid @RequestBody(required = false) FinishRealtimeSessionRequest req) {
+        return sessionService.finish(currentUser.get(), id, req);
     }
 }
