@@ -7,6 +7,7 @@ import '../../../core/api/repositories.dart';
 import '../../../core/models/enums.dart';
 import '../../../core/models/production_models.dart';
 import '../../../core/models/realtime_models.dart';
+import '../../../core/realtime/realtime_conduct.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/app_sheet.dart';
@@ -597,8 +598,11 @@ class _MicStage extends StatelessWidget {
     }
 
     final examiner = state.examinerSpeaking && !state.reconnecting;
-    final yourTurn =
-        state.phase == RealtimePhase.live && !examiner && !state.reconnecting;
+    final inGrace = state.phase == RealtimePhase.finishing &&
+        state.conductPhase == ConductPhase.grace;
+    final yourTurn = (state.phase == RealtimePhase.live || inGrace) &&
+        !examiner &&
+        !state.reconnecting;
     // Accueil + connexion + reprise : on attend (micro coupé), état neutre.
     final waiting = state.phase == RealtimePhase.connecting ||
         state.phase == RealtimePhase.welcoming ||
@@ -621,9 +625,13 @@ class _MicStage extends StatelessWidget {
                     'À vous de parler',
                     'Parlez naturellement, comme à un vrai oral.'
                   ),
-            RealtimePhase.finishing => examiner
-                ? ('Temps écoulé — l\'examinateur conclut.', '')
-                : ('Préparation de votre évaluation…', ''),
+            RealtimePhase.finishing => inGrace
+                ? (kRtTimeUpGraceStatus, '')
+                : examiner ||
+                        state.conductPhase == ConductPhase.closing ||
+                        state.conductPhase == ConductPhase.waitExaminer
+                    ? (kRtTimeUpClosingStatus, '')
+                    : ('Préparation de votre évaluation…', ''),
             RealtimePhase.done => ('Échange terminé', ''),
             RealtimePhase.failed => ('', ''),
           };

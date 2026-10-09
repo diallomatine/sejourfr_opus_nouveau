@@ -2904,6 +2904,10 @@ export interface RealtimeSessionDescriptor {
     /** Secondes pendant lesquelles ce token peut encore ouvrir une connexion ;
      *  au-delà, il faut redemander une reprise. ⚠️ Absent du JSON quand nul. */
     connectWindowSec?: number | null;
+    /** Reprise seulement : `false` = le serveur n'avait aucun handle à
+     *  verrouiller, la conversation repart SANS contexte côté fournisseur — le
+     *  client lui redonne la fin de l'échange (`[REPRISE]`). Absent ailleurs. */
+    contextRestored?: boolean | null;
     /** Paramètres de conduite (lot 1 examinateur IA). Absent en
      *  `ASYNC_FALLBACK` et sur un backend antérieur → `resolveConduct`. */
     conduct?: RealtimeConductConfig | null;

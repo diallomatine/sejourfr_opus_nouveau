@@ -81,3 +81,145 @@ une vraie bascule de langue en écriture non latine ; atténué en ne masquant q
 - Vérification : les 9 cas du §4.4 exécutés hors dépôt sur les deux modules purs (D-02).
 
 ---
+
+## Lot M — Mesure (F11, F19, F20) · commit `40ae67e5`
+
+### Ce qui a été fait
+
+| Constat | Correction | Fichiers |
+|---|---|---|
+| **F11** — aucun horodatage par tour | Chaque segment relayé porte `startedAtMs` / `endedAtMs` (ms depuis `setupComplete` côté client ; examinateur = lecture audio réelle, candidat = premier → dernier fragment de transcription) et est conservé dans `realtime_session_turns`, sous le même contrôle d'idempotence que le transcript. Le format texte noté ne change pas. | `V090__realtime_mesure_examinateur.sql`, `RealtimeSessionTurn`, `RealtimeMesureManager`, `AppendTranscriptRequest`, `RealtimeSessionService.appendTranscript` ; `geminiLive.ts`, `RealtimeEoRunner.tsx` ; `gemini_live_client.dart`, `realtime_eo_controller.dart`, `realtime_repository.dart` |
+| **F19** — aucune cause de fin | `end_cause` (`TIME_UP` / `USER_FINISH` / `CONNECTION_LOST` / `ERROR`) via un corps facultatif sur `finish` ; une erreur fatale clôt désormais la session (`FAILED`, sans notation) au lieu de la laisser ouverte. | `FinishRealtimeSessionRequest`, `RealtimeEndCause`, `RealtimeEoController`, `RealtimeSessionService.finish` ; runner web, contrôleur mobile |
+| **F20** — ni persona, ni plateforme, ni repli tracés | `persona_version`, `client_platform` (lu sur `X-Sejourfr-Client`, aucun changement client), `vad_silence_ms`, `conduct_config_version` sur `realtime_sessions` ; table `realtime_fallbacks` pour chaque repli asynchrone ; `realtime_session_events` pour les relances, la grâce de fin de temps et les reprises (avec / sans handle, tracées par le serveur). | `RealtimeSession`, `RealtimeFallback`, `RealtimeSessionEvent`, `RealtimeSessionService.start/resume` |
+| Indicateurs | `docs/examinateur-ia/indicateurs.sql` : 9 requêtes, ventilées par tâche × persona × plateforme (parole en secondes et en mots, longueur des répliques, délai de reprise de parole, relances, causes de fin, durée effective, termes interdits, replis, reprises). | — |
+
+### Écarts au brief
+
+D-04 (table dédiée), D-05 (plateforme lue sur l'en-tête existant, valeurs `MOBILE`/`UNKNOWN` en plus), D-06 (zéro = `setupComplete`), D-07 (temps candidat = transcription, gardé après le lot 2 pour la comparabilité), D-08 (événements transmis à la clôture), D-09 (`ERROR` ⇒ `FAILED` sans notation), D-10 (table des replis), D-11 (documents versionnés).
+
+### Tests
+
+- `RealtimeSessionServiceTest` : +13 (traçage à l'ouverture, replis × 3 raisons, segment horodaté, client sans horodatage, rejeu sans doublon, reprises avec / sans handle, repli de reprise, cause + événements, sans corps, `ERROR`, clôture rejouée) — **vert**.
+- `RealtimeMesureIT` (nouveau, Postgres embarqué + vraies migrations) : session de bout en bout avec doubles, client sans horodatage, repli comptable, **exécution de toutes les requêtes d'`indicateurs.sql`** avec contrôle de deux résultats — **vert**.
+- `indicateurs.sql` exécuté sur la **base locale** dans une transaction annulée (migration V090 appliquée puis retirée) : **sans erreur**.
+- Mobile : faux dépôt de `test/realtime_finish_test.dart` adapté aux nouvelles signatures (aucun test ajouté) — **vert** (13).
+- `flutter analyze` propre, `npx tsc --noEmit` propre.
+
+### Aucun changement visible pour le candidat
+
+Oui : seuls des champs facultatifs voyagent en plus ; un ancien client est accepté tel quel (vérifié par test).
+
+---
+
+## Lot 1 — Persona v4 et configuration (F01, F05, F06, F08, F09, F10, F15, F16) · commit `5cce4577`
+
+### Ce qui a été fait
+
+| Constat | Correction | Fichiers |
+|---|---|---|
+| **F01** | `silenceDurationMs` 500 → **1 500** (yaml **et** POJO), trace par session | `application.yaml`, `RealtimeProperties` |
+| **F05** | T2 non passive : une aide par blocage, dans le rôle, sans jamais nommer une information non demandée | `realtime-personas-v4.json` |
+| **F06** | Ouvertures courtes : T1 « Bonjour. Nous commençons la première partie. Pouvez-vous vous présenter, s'il vous plaît ? » ; T2 = (en-tête en examen blanc) + réplique d'entrée + « Je vous écoute. », situation non relue | `realtime-personas-v4.json`, `RealtimePersonaBuilder` |
+| **F08** | Neutralité : acquiescements neutres seuls, liste d'interdits | idem |
+| **F09** | Température surchargeable (`REALTIME_GEMINI_TEMPERATURE`) ; `maxOutputTokens` reste absent (tronquerait en plein mot) | `application.yaml` |
+| **F10** | Cas prévus avec leur phrase ; contradiction « n'adapte pas son niveau » levée (D-12, D-13) | `realtime-personas-v4.json` |
+| **F15** | Une seule phrase de clôture (`[FIN]` ⇒ « Merci, nous allons nous arrêter ici. ») ; « Voici la deuxième partie » en examen blanc seulement (D-14, D-15) | persona, `RealtimeSessionService.examenBlanc` |
+| **F16** | POJO aligné sur le yaml (v4) ; javadoc VAD-par-niveau corrigée | `RealtimeProperties`, `RealtimePersonaBuilder` |
+| JSON de conduite | `realtime-conduct-v1.json` (valeurs du brief) servi dans `RealtimeSessionDescriptor.conduct`, lu par les deux fronts (repli local identique si absent) ; `realtime-conduct-v0.json` = comportement d'avant pour les personas v1-v3 ; paire contrôlée au boot (D-16) | `RealtimeConductConfig`, descripteur ; `conduct-config.ts`, `realtime_models.dart`, `geminiLive.ts`, `gemini_live_client.dart`, runner, contrôleur |
+
+### Écarts au brief
+
+D-12 (ligne 7 du verrou de langue), D-13 (précision sur « En français, s'il vous plaît », titre de section), D-14 (formulation de l'en-tête), D-15 (examen blanc = `isExamSession`), D-16 (champ `personas` + conduite v0), D-17 (plafond de clôture 12 → 15 s).
+
+### Tests
+
+- `RealtimePersonaV4Test` (7) : aucun placeholder (T1/T2, examen/entraînement, avec/sans fiche), ouverture T1 ≤ 25 mots, en-tête T2 en examen seulement, T2 non passive, règles et cas prévus présents et anciennes formules absentes, verrou de langue v3 repris au caractère près, v1-v3 inchangées — **vert**.
+- `RealtimePersonaV4SujetsIT` : les **20 sujets T2 actifs** seedés, en examen et en entraînement, sans placeholder et ouverture ≤ 35 mots — **vert**.
+- `RealtimeConductConfigTest` (5) : défauts livrés, valeurs v1 du brief, v0 = comportement d'avant, mélange persona/conduite refusé au boot, version inconnue refusée — **vert**.
+- `RealtimeSessionServiceTest` : +3 (conduite servie et tracée, mode examen / entraînement transmis au builder) — **vert**.
+- Mis à jour : `GeminiTokenBrokerTest` (1 500 ms), `RealtimePersonaBuilderTest` (persona v1 explicite).
+- `flutter analyze` propre, `npx tsc --noEmit` propre.
+
+### Sujets T2 dont l'ouverture dépasse 35 mots
+
+**Aucun.** Ouverture en examen blanc (en-tête + réplique d'entrée + « Je vous écoute. ») de 12 à 25 mots sur les 20 sujets actifs (D-18). Remarque : 5 répliques d'entrée finissent déjà par « je vous écoute » / « je réponds à vos questions » — redite possible, à raccourcir en données si la recette la confirme.
+
+---
+
+## Lot 2 — Orchestration (F02, F03, F13) · commit du lot 2
+
+### Ce qui a été fait
+
+| Constat | Correction | Fichiers |
+|---|---|---|
+| **F03** — micro coupé net à 0:00 | Fin de temps douce : l'examinateur finit sa lecture (≤ 10 s, D-19), le candidat finit sa phrase (≤ `graceMaxMs` 10 s, écran « Temps écoulé — terminez votre phrase »), puis micro coupé + `[FIN]`, clôture après 1,2 s de silence de l'examinateur, au plus 15 s ; grâce tracée (`TIMEUP_GRACE`) | `lib/realtime/conduct.ts` ⇄ `core/realtime/realtime_conduct.dart` ; runner, contrôleur, écran |
+| **F02** — aucune relance sur silence | Minuteur armé à la fin de lecture de l'examinateur, annulé dès que le candidat parle ; `[SILENCE]` à 7 s ; 2 relances au plus sans parole entre elles ; aucune dans les 15 dernières secondes, pendant la fin de temps ni pendant une coupure ; course gérée (D-21, D-22, D-24) ; chaque relance tracée | idem |
+| Signal « le candidat parle » | Détection locale d'énergie du micro, après annulation d'écho, sur ce qui serait émis seulement (D-23) ; un seul détecteur par front | `VoiceActivityDetector`, `geminiLive.ts`, `gemini_live_client.dart` |
+| **F13** — reprise sans contexte | Le serveur dit si un handle a été verrouillé (`contextRestored`, D-25) ; sinon le client envoie `[REPRISE]` + les 3 derniers tours au nouveau socket, à la place de l'amorce (D-26) ; chrono en pause pendant la coupure (inchangé) | `RealtimeSessionDescriptor`, `RealtimeSessionService.resume` ; `resumePrimer`, `reconnect(next, primer)` |
+
+`notifyTimeUp` est supprimé des deux clients (remplacé par `muteInput` + `sendTextTurn`), ainsi que les minuteurs de clôture ad hoc du runner web et du contrôleur mobile.
+
+### Parité web ⇄ mobile
+
+| Comportement | Web | Mobile |
+|---|---|---|
+| Module de conduite pur | `lib/realtime/conduct.ts` | `core/realtime/realtime_conduct.dart` |
+| Détection de voix | `VoiceActivityDetector` sur paquets Float32 (40 ms) | `VoiceActivityDetector` sur paquets PCM16 (`rmsOfPcm16`) |
+| Fin de temps douce | ✅ | ✅ |
+| Relance sur silence | ✅ | ✅ |
+| Reprise sans contexte | ✅ (`reconnect(next, primer)`) | ✅ (`reconnect(next, primer:)`) |
+| Libellés de fin | `RT_TIMEUP_GRACE_STATUS` / `RT_TIMEUP_CLOSING_STATUS` | `kRtTimeUpGraceStatus` / `kRtTimeUpClosingStatus` |
+| Valeurs | `RealtimeConductConfig` servi | `RealtimeConductConfig` servi |
+
+### Vérification (D-02 : aucun test front versionné)
+
+Les 9 cas du §4.4, plus 3 cas complémentaires (suspension pendant une coupure, aucune relance pendant la fin de temps, détection locale), exécutés **hors dépôt** sur les deux modules purs, horloge simulée :
+
+| Cas | TypeScript | Dart |
+|---|---|---|
+| Échéance, candidat silencieux → `[FIN]` immédiat, clôture `TIME_UP` | ✅ | ✅ |
+| Échéance, candidat parle, finit en 4 s → micro ouvert 4 s puis `[FIN]` (grâce 4 000 ms tracée) | ✅ | ✅ |
+| Échéance, candidat parle > 10 s → coupure à 10 s puis `[FIN]` | ✅ | ✅ |
+| Échéance pendant que l'examinateur parle → `[FIN]` après sa lecture | ✅ | ✅ |
+| 7 s de silence → une relance `[SILENCE]` (tracée) | ✅ | ✅ |
+| Silence prolongé → deux relances au maximum, puis le compteur repart après une prise de parole | ✅ | ✅ |
+| Le candidat parle à 6,9 s → aucune relance | ✅ | ✅ |
+| Course : énergie au seuil à l'expiration → aucune relance | ✅ | ✅ |
+| Silence dans les 15 dernières secondes → aucune relance (+ témoin à 23 s) | ✅ | ✅ |
+| Coupure en cours / fin de temps → aucune relance | ✅ | ✅ |
+| Reconnexion sans handle → `[REPRISE]` + 3 derniers tours, sans l'ouverture | ✅ | ✅ |
+| Détection : début après 200 ms, fin après 600 ms ; RMS | ✅ | ✅ |
+
+Backend : `RealtimeSessionServiceTest` étendu (`contextRestored` vrai / faux). **Suite backend complète** (`./mvnw verify`, 5 389 tests unitaires et d'intégration) : un seul échec, dans `RealtimePersonaV4SujetsIT` (lot 1) — il lisait tous les sujets T2 actifs de la base partagée, où un autre test laisse un sujet sans fiche ; il ne mesure plus que les sujets seedés (avec fiche). Correctif dans le commit du lot 2, test repassé au vert. `flutter analyze` propre, `npx tsc --noEmit` propre, `npm run build` **réussi** (serveur de dev web arrêté pendant le build).
+
+---
+
+## À vérifier en conditions réelles
+
+Tout ce qui dépend du modèle et de l'audio réel : `RECETTE.md` (parties 1 et 2), en particulier la perception de la reprise de parole à 1,5 s (L1-5), le respect des ouvertures et des phrases prévues, la non-lecture des messages entre crochets, et le **calibrage du seuil d'énergie** (0,02) sur web, Android et iOS (L2-13). Rien de cela n'a été joué (D-27).
+
+## Variables d'environnement à poser ou vérifier sur le VPS
+
+| Variable | Valeur cible | Remarque |
+|---|---|---|
+| `REALTIME_PERSONA_VERSION` | `v4` (ou absente) | 🛑 Si elle vaut `v3` en prod, le serveur **refuse de démarrer** avec la conduite v1 par défaut : la retirer, ou poser `REALTIME_CONDUCT_VERSION=v0` en même temps. |
+| `REALTIME_CONDUCT_VERSION` | `v1` (ou absente) | Retour arrière : `v0` **avec** `REALTIME_PERSONA_VERSION=v3`. |
+| `REALTIME_GEMINI_VAD_SILENCE_DURATION_MS` | `1500` (ou absente) | Si elle est posée à `500` en prod, elle annule F01. |
+| `REALTIME_GEMINI_TEMPERATURE` | `0.7` (ou absente) | Nouvelle, facultative. |
+| `REALTIME_GEMINI_MODEL` | à vérifier | Dev : `gemini-2.5-flash-native-audio-latest` ; défaut du dépôt : `gemini-live-2.5-flash-native-audio`. |
+| `REALTIME_GEMINI_VAD_START/END_SENSITIVITY`, `…PREFIX_PADDING_MS`, `REALTIME_SESSION_*`, `REALTIME_CONTEXT_COMPRESSION_*`, `REALTIME_GEMINI_TOKEN_USES` | inchangées | — |
+
+La migration V090 s'applique au démarrage (additive, aucune donnée réécrite).
+
+## Résumé
+
+**Décisions à valider en priorité**
+1. **D-02** — pas de tests front versionnés (règle du dépôt) ; les cas tournent hors dépôt. À lever si tu veux les garder.
+2. **D-16** — persona et conduite liées et contrôlées au boot (impact direct sur la variable de prod, cf. tableau).
+3. **D-09** — une erreur fatale clôt désormais la session en `FAILED` sans notation.
+4. **D-21 / D-22** — quand la relance démarre et comment elle cède la place au candidat.
+5. **D-12 / D-13 / D-14** — écarts de texte à la persona v4.
+
+**Bloqué — nécessite ton accord** : D-27 (recette réelle Gemini et mesures avant/après), D-28 (push, merge, variables de production).
+
+**Diagnostic langue (phase 0)** : option de masquage déterministe des passages non latins dans le texte noté, non implémentée (hors périmètre), décrite en tête de ce rapport.

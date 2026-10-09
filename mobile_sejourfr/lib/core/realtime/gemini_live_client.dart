@@ -14,6 +14,7 @@ import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:web_socket_channel/status.dart' as ws_status;
 
 import '../models/realtime_models.dart';
+import 'realtime_conduct.dart';
 
 // --- Réglages temps réel (déclarés une fois, lus par tout le fichier) --------
 
@@ -78,6 +79,7 @@ class GeminiLiveClient {
     this.onExaminerTranscript,
     this.onSpeakingChange,
     this.onListeningStart,
+    this.onCandidateVoice,
     this.onResumptionHandle,
     this.onError,
     this.onConnectionLost,
@@ -102,6 +104,10 @@ class GeminiLiveClient {
   /// garde-fou a expiré → le micro du candidat s'ouvre.
   final void Function()? onListeningStart;
 
+  /// Le candidat commence / cesse de parler, d'après l'énergie LOCALE du micro
+  /// (après annulation d'écho). Temps réel, contrairement à la transcription.
+  final void Function(bool active)? onCandidateVoice;
+
   /// Dernier `sessionResumptionUpdate.newHandle` reçu du fournisseur. Le client
   /// WS ne le stocke PAS : l'état de reprise a un seul propriétaire, le
   /// contrôleur, qui le relaie au serveur et le renvoie à la reprise.
@@ -120,6 +126,14 @@ class GeminiLiveClient {
   // interrupted). Ajouter un espace entre fragments coupait les mots.
   final StringBuffer _candidateBuf = StringBuffer();
   final StringBuffer _examinerBuf = StringBuffer();
+
+  // Détection locale de voix, alimentée par les paquets micro (cf. `_startMic`).
+  late final VoiceActivityDetector _vad =
+      VoiceActivityDetector(conduct, (active) => onCandidateVoice?.call(active));
+
+  // Reprise SANS contexte restauré : tour texte à envoyer dès que le nouveau
+  // socket est établi (`[REPRISE]` + derniers tours), à la place de l'amorce.
+  String? _resumePrimer;
 
   // Horodatage des tours (mesure, cf. [TurnTiming]), en ms de [_clock].
   int? _connectedAtMs;
@@ -270,8 +284,10 @@ class GeminiLiveClient {
   /// ⚠️ Le handle de reprise est verrouillé dans le setup du token côté serveur
   /// (endpoint contraint) : on ne peut ni le poser ici, ni réutiliser l'ancien
   /// token, d'où le passage obligé par le serveur.
-  Future<void> reconnect(RealtimeSessionDescriptor next) async {
+  Future<void> reconnect(RealtimeSessionDescriptor next,
+      {String? primer}) async {
     if (_closed) return;
+    _resumePrimer = (primer == null || primer.isEmpty) ? null : primer;
     final endpoint = next.wsEndpoint;
     final token = next.ephemeralToken;
     if (endpoint == null || token == null) {
@@ -342,14 +358,17 @@ class GeminiLiveClient {
     onListeningStart?.call();
   }
 
-  /// Signale au modèle que le temps est écoulé (`timeUp.message`, `[FIN]` en
-  /// conduite v1, servi par le backend : un seul texte pour les deux fronts)
-  /// pour qu'il prononce sa clôture. Coupe aussi le micro candidat : le seul
-  /// tour restant est la conclusion de l'examinateur.
-  void notifyTimeUp() {
+  /// Coupe le micro du candidat (fin de temps, juste avant `[FIN]`) : le seul
+  /// tour restant est la clôture de l'examinateur, un dernier mot du candidat
+  /// ne relance pas l'échange. La WebSocket reste ouverte pour l'entendre.
+  void muteInput() {
     _inputMuted = true;
-    sendTextTurn(conduct.timeUpMessage);
+    _vad.reset();
   }
+
+  /// Énergie du micro au-dessus du seuil EN CE MOMENT (début de parole pas
+  /// encore confirmé compris) — c'est ce qui tranche la course d'une relance.
+  bool candidateEnergyNow() => _vad.energyNow();
 
   /// Envoie un VRAI tour utilisateur texte (`clientContent` + `turnComplete`) :
   /// amorce, message de l'application entre crochets. Un texte vide n'envoie
@@ -663,16 +682,24 @@ class GeminiLiveClient {
     );
     _micSub = stream.listen(
       (chunk) {
+        if (_closed) return;
         // Accueil : micro coupé tant que l'examinateur n'a pas parlé. Puis
         // half-duplex : on n'émet pas pendant qu'il parle (anti-écho ; le
         // candidat attend la fin de la question — pas de barge-in). `_inputMuted`
         // : temps écoulé → on écoute la clôture, plus d'émission candidat.
-        if (_closed || _awaitingFirstExaminer || _speaking || _inputMuted) {
-          return;
-        }
         // Tenue post-parole : fenêtre courte après la fin de l'examinateur
         // pendant laquelle on n'émet pas (anti faux barge-in par écho).
-        if (_clock.elapsedMilliseconds < _micHoldUntilMs) return;
+        final gated = _awaitingFirstExaminer ||
+            _speaking ||
+            _inputMuted ||
+            _clock.elapsedMilliseconds < _micHoldUntilMs;
+        // La détection locale de voix ne lit que ce qui serait émis : pendant
+        // la lecture de l'examinateur, le micro capte surtout son écho résiduel.
+        if (gated) {
+          _vad.reset();
+          return;
+        }
+        _vad.feed(rmsOfPcm16(chunk), chunk.length / 2 / _inRate * 1000);
         _send({
           'realtimeInput': {
             'audio': {'mimeType': _inMime, 'data': base64Encode(chunk)}
@@ -713,6 +740,13 @@ class GeminiLiveClient {
       // Après une REPRISE, l'entretien a déjà commencé : le contexte est
       // restauré côté fournisseur et renvoyer « Bonjour. » ferait rejouer un
       // accueil. On ne réamorce que si l'examinateur n'a jamais parlé.
+      final primer = _resumePrimer;
+      if (!_awaitingFirstExaminer && primer != null) {
+        // Reprise sans contexte : l'examinateur ne connaît plus l'échange, on
+        // lui en redonne la fin au lieu de le laisser rejouer l'ouverture.
+        _resumePrimer = null;
+        sendTextTurn(primer);
+      }
       if (_awaitingFirstExaminer) {
         _sendOpeningTrigger();
         // Garde-fou d'accueil armé ICI, à l'instant où la session est réellement

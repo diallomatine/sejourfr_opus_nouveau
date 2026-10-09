@@ -3218,8 +3218,25 @@ Quatre précisions qui comptent :
 - **L'examinateur est patient mais réactif.** Il laisse le candidat finir ses phrases (il ne le
   coupe pas sur une pause de réflexion), tout en répondant assez vite pour que l'échange reste
   fluide. Le détail de ce réglage — et pourquoi il vient d'être modifié — est juste en dessous.
-- **Quand le temps est écoulé, l'examinateur termine sa phrase de conclusion.** Il n'est pas
-  coupé au milieu d'un mot, et il n'y a pas non plus de silence inutile avant la suite.
+- **Quand le temps est écoulé, personne n'est coupé** (9 octobre 2026). Si le candidat est en
+  train de parler, son micro reste ouvert et l'écran affiche « Temps écoulé — terminez votre
+  phrase » : il a jusqu'à dix secondes pour finir. Si c'est l'examinateur qui parle, on attend
+  la fin de sa phrase. Ensuite seulement le micro se ferme et l'examinateur dit « Merci, nous
+  allons nous arrêter ici. » Avant, le micro du candidat se coupait net à 0:00, souvent au milieu
+  d'une phrase, et la fin de sa réponse manquait à la correction.
+- **Un silence n'est plus laissé sans réponse** (9 octobre 2026). Si le candidat ne dit rien
+  pendant sept secondes après une question, l'examinateur le relance d'une phrase, plus simple
+  que sa question précédente. Deux relances au plus d'affilée : si le candidat reste muet,
+  l'examinateur attend. Aucune relance dans les quinze dernières secondes, ni pendant la fin de
+  temps. Ce n'est pas l'examinateur qui « remarque » le silence : c'est l'application qui le
+  mesure, à partir du volume du micro, et qui lui envoie le signal `[SILENCE]` — sans elle,
+  l'IA ne reçoit rien quand personne ne parle, et ne peut donc relancer personne. Le volume ne
+  sert qu'à savoir si le candidat parle ; il n'est ni enregistré ni noté.
+- **Après une coupure réseau, l'examinateur ne recommence pas l'entretien** (9 octobre 2026).
+  Quand la conversation peut être reprise telle quelle, rien ne change. Quand elle ne le peut
+  pas (coupure dans les toutes premières secondes), l'application rappelle à l'examinateur les
+  trois derniers échanges, et il reprend par une courte question au lieu de rejouer son
+  accueil.
 - **Il parle un français normal**, clair et accessible, à un débit naturel (comme à un vrai
   examen). Si le candidat ne comprend pas, il reformule une fois, plus simplement. S'il n'a pas
   compris, il demande simplement de répéter — il ne fait jamais semblant d'avoir compris.

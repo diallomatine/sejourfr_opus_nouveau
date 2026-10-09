@@ -3,6 +3,7 @@
 import {useCallback, useEffect, useRef, useState} from "react";
 import {ChevronDown, Mic, MessagesSquare, Square, Volume2, WifiOff, X} from "lucide-react";
 import {ApiException, realtimeApi} from "@/lib/api";
+import {ConductController, type ConductPhase, resumePrimer} from "@/lib/realtime/conduct";
 import {resolveConduct} from "@/lib/realtime/conduct-config";
 import {GeminiLiveSession, type GeminiLiveState, type TurnTiming} from "@/lib/realtime/geminiLive";
 import {
@@ -17,6 +18,8 @@ import {
     RT_RESUME_MESSAGE,
     RT_RESUME_STATUS,
     RT_RESUME_TITLE,
+    RT_TIMEUP_CLOSING_STATUS,
+    RT_TIMEUP_GRACE_STATUS,
     type RealtimeFinishResult,
 } from "@/lib/realtime-finish";
 import type {
@@ -118,21 +121,23 @@ export function RealtimeEoRunner({
 }) {
     const sessionId = descriptor.sessionId ?? "";
     const target = descriptor.targetDurationSec ?? DEFAULT_TARGET_SEC;
-    // Clôture après le temps écoulé : à 0:00 on signale la fin à l'examinateur
-    // (il prononce sa phrase de clôture), puis on clôture DÈS QU'IL REDEVIENT
-    // SILENCIEUX (`timeUp.closeIdleMs` de repos après avoir parlé) — pas de
-    // silence mort ni de coupure en plein milieu. `timeUp.closeMaxMs` borne le
-    // cas où il divague ou ne conclut jamais. Valeurs servies (conduite).
+    // Conduite servie : fin de temps douce, relance sur silence, reprise. Toute
+    // la logique vit dans `ConductController` (`lib/realtime/conduct.ts`), pure ;
+    // ce runner ne fait que lui transmettre les faits et exécuter ses demandes.
     const conduct = resolveConduct(descriptor);
 
     const [state, setState] = useState<GeminiLiveState>("connecting");
     const [elapsed, setElapsed] = useState(0);
     const [examinerSpeaking, setExaminerSpeaking] = useState(false);
     const [timeUp, setTimeUp] = useState(false);
+    // Phase de fin de temps (le candidat finit sa phrase, l'examinateur conclut).
+    const [conductPhase, setConductPhase] = useState<ConductPhase>("live");
     const [finishing, setFinishing] = useState(false);
     // Dialogue affiché à la demande (bouton « Voir ma transcription »). Chaque
     // tour terminé arrive comme UNE ligne complète → une bulle.
     const [lines, setLines] = useState<{speaker: RealtimeSpeaker; text: string}[]>([]);
+    // Miroir des lignes pour la reprise sans contexte (lue hors rendu).
+    const linesRef = useRef<{speaker: RealtimeSpeaker; text: string}[]>([]);
     const [showTranscript, setShowTranscript] = useState(false);
     // Consigne dépliée par défaut : le candidat garde son sujet sous les yeux.
     const [showSubject, setShowSubject] = useState(true);
@@ -154,11 +159,10 @@ export function RealtimeEoRunner({
     const finishedRef = useRef(false);
     const elapsedRef = useRef(0);
     const timeUpRef = useRef(false);
-    // Clôture pilotée par la fin de parole : l'examinateur a-t-il commencé sa
-    // conclusion (parlé au moins une fois depuis 0:00) ? + timers repos/plafond.
-    const heardCloseRef = useRef(false);
-    const settleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-    const capTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const conductRef = useRef<ConductController | null>(null);
+    // La conduite est montée une seule fois : elle clôt par ce relais plutôt que
+    // par un `finish` figé dans la closure du premier rendu.
+    const finishRef = useRef<(cause: RealtimeEndCause) => Promise<void>>(async () => undefined);
     // Comptage du relais de transcript, qui est best-effort : sans lui, un
     // fragment perdu rétrécissait silencieusement la production notée. Ce sont
     // ces trois compteurs qui rendent la perte DÉTECTABLE et permettent de
@@ -302,8 +306,7 @@ export function RealtimeEoRunner({
         if (finishedRef.current) return;
         finishedRef.current = true;
         endCauseRef.current = endCauseRef.current ?? cause;
-        if (settleTimerRef.current) clearTimeout(settleTimerRef.current);
-        if (capTimerRef.current) clearTimeout(capTimerRef.current);
+        conductRef.current?.dispose();
         setFinishing(true);
         // stop() émet synchroneusement les derniers tours en tampon (callbacks →
         // pendingRef) ; on ATTEND ensuite la chaîne d'envoi complète avant de
@@ -346,7 +349,10 @@ export function RealtimeEoRunner({
                 resumableRef.current = next.resumable;
                 resumptionsLeftRef.current = next.resumptionsRemaining ?? 0;
                 connectWindowRef.current = next.connectWindowSec ?? connectWindowRef.current;
-                liveRef.current?.reconnect(next);
+                // Pas de handle verrouillé : la conversation repart sans contexte
+                // côté fournisseur, on lui redonne la fin de l'échange.
+                const primer = next.contextRestored === false ? resumePrimer(conduct, linesRef.current) : null;
+                liveRef.current?.reconnect(next, primer);
                 return true;
             } catch (e) {
                 if (e instanceof ApiException && e.status >= 400 && e.status < 500) return false;
@@ -354,7 +360,7 @@ export function RealtimeEoRunner({
             }
         }
         return false;
-    }, [sessionId]);
+    }, [sessionId, conduct]);
 
     /** Relance demandée par le candidat : `finish` est idempotent côté backend
      *  et le transcript est déjà en base — c'est bien l'ENVOI qu'on rejoue, pas
@@ -425,19 +431,29 @@ export function RealtimeEoRunner({
         connectionLostRef.current = () => void handleConnectionLost();
     }, [handleConnectionLost]);
 
+    useEffect(() => {
+        finishRef.current = finish;
+    }, [finish]);
+
     // Connexion Gemini Live (montée une seule fois).
     useEffect(() => {
         const live = new GeminiLiveSession(descriptor, {
             onStateChange: setState,
-            onSpeakingChange: setExaminerSpeaking,
+            onSpeakingChange: (speaking) => {
+                setExaminerSpeaking(speaking);
+                conductRef.current?.examinerSpeakingChanged(speaking);
+            },
+            onCandidateVoice: (active) => conductRef.current?.candidateVoiceChanged(active),
             onCandidateTranscript: (t, timing) => {
                 spokenRef.current += 1;
                 pendingRef.current.push({speaker: "CANDIDATE", text: t, ...timing});
-                setLines((prev) => [...prev, {speaker: "CANDIDATE", text: t}]);
+                linesRef.current = [...linesRef.current, {speaker: "CANDIDATE", text: t}];
+                setLines(linesRef.current);
             },
             onExaminerTranscript: (t, timing) => {
                 pendingRef.current.push({speaker: "EXAMINER", text: t, ...timing});
-                setLines((prev) => [...prev, {speaker: "EXAMINER", text: t}]);
+                linesRef.current = [...linesRef.current, {speaker: "EXAMINER", text: t}];
+                setLines(linesRef.current);
             },
             // Mémorisé ici, relayé gratuitement sur le prochain POST /transcript.
             onResumptionHandle: (h) => {
@@ -458,19 +474,39 @@ export function RealtimeEoRunner({
             },
         });
         liveRef.current = live;
+        const conductor = new ConductController(
+            conduct,
+            {
+                now: () => performance.now(),
+                setTimeout: (fn, ms) => window.setTimeout(fn, ms),
+                clearTimeout: (h) => window.clearTimeout(h as number),
+            },
+            {
+                sendText: (text) => live.sendTextTurn(text),
+                muteCandidate: () => live.muteInput(),
+                close: () => void finishRef.current("TIME_UP"),
+                recordEvent: (event) => {
+                    conductEventsRef.current.push(event);
+                },
+                onPhaseChange: setConductPhase,
+            },
+            target,
+            () => live.elapsedMs(),
+            () => live.candidateEnergyNow(),
+        );
+        conductRef.current = conductor;
         live.start();
         const relay = setInterval(flush, TRANSCRIPT_RELAY_MS);
         return () => {
             clearInterval(relay);
-            if (settleTimerRef.current) clearTimeout(settleTimerRef.current);
-            if (capTimerRef.current) clearTimeout(capTimerRef.current);
+            conductor.dispose();
             live.stop();
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    // Minuteur : la cible fait foi. À échéance, on signale au modèle puis on
-    // clôture après une courte grâce (phrase de fin de l'examinateur).
+    // Minuteur : la cible fait foi. À échéance, la conduite prend la main (fin
+    // de temps douce : phrase du candidat, puis `[FIN]`, puis clôture).
     useEffect(() => {
         // Le chrono ne démarre QU'AU premier mot de l'examinateur (passage en
         // "live" via beginConversation), pas pendant l'accueil : la latence de
@@ -485,35 +521,20 @@ export function RealtimeEoRunner({
         const id = setInterval(() => {
             elapsedRef.current += 1;
             setElapsed(elapsedRef.current);
+            conductRef.current?.tick(target - elapsedRef.current);
             if (!timeUpRef.current && elapsedRef.current >= target) {
                 timeUpRef.current = true;
                 setTimeUp(true);
-                // Signale la fin (coupe le micro candidat + demande la conclusion).
-                // La clôture réelle est pilotée par la fin de parole (effet plus
-                // bas) ; le plafond borne le cas où l'examinateur ne conclut pas.
-                liveRef.current?.notifyTimeUp();
-                capTimerRef.current = setTimeout(() => void finish("TIME_UP"), conduct.timeUp.closeMaxMs);
+                conductRef.current?.timeUp();
             }
         }, 1000);
         return () => clearInterval(id);
-    }, [state, target, finish, reconnecting, conduct.timeUp.closeMaxMs]);
+    }, [state, target, reconnecting]);
 
-    // Clôture pilotée par la parole de l'examinateur après 0:00 : on attend qu'il
-    // ait prononcé sa conclusion (a parlé au moins une fois) PUIS qu'il se taise
-    // (repos `CLOSE_SETTLE_MS`) avant de couper — sinon on tranche en plein mot ou
-    // on laisse un silence. S'il reparle, on annule le repos et on réattend.
+    // Coupure réseau : aucune relance ne part tant que la reprise n'a pas abouti.
     useEffect(() => {
-        if (!timeUp) return;
-        if (examinerSpeaking) {
-            heardCloseRef.current = true;
-            if (settleTimerRef.current) {
-                clearTimeout(settleTimerRef.current);
-                settleTimerRef.current = null;
-            }
-        } else if (heardCloseRef.current && !settleTimerRef.current) {
-            settleTimerRef.current = setTimeout(() => void finish("TIME_UP"), conduct.timeUp.closeIdleMs);
-        }
-    }, [timeUp, examinerSpeaking, finish, conduct.timeUp.closeIdleMs]);
+        conductRef.current?.setSuspended(reconnecting);
+    }, [reconnecting]);
 
     // Panneau ouvert / nouveau tour → on colle le dialogue en bas.
     useEffect(() => {
@@ -524,7 +545,8 @@ export function RealtimeEoRunner({
 
     const remaining = Math.max(0, target - elapsed);
     const speaking = examinerSpeaking && !reconnecting;
-    const yourTurn = state === "live" && !speaking && !timeUp && !reconnecting;
+    const inGrace = conductPhase === "grace";
+    const yourTurn = state === "live" && !speaking && (!timeUp || inGrace) && !reconnecting;
     const statusLabel = reconnecting
         ? RT_RESUME_STATUS
         : finishing
@@ -534,7 +556,9 @@ export function RealtimeEoRunner({
             : state === "welcoming"
               ? "L'examinateur vous accueille…"
               : timeUp
-                ? "Temps écoulé — l'examinateur conclut."
+                ? inGrace
+                    ? RT_TIMEUP_GRACE_STATUS
+                    : RT_TIMEUP_CLOSING_STATUS
                 : speaking
                   ? "L'examinateur parle…"
                   : "À vous de parler.";

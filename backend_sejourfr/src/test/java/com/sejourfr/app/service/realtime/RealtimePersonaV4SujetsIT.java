@@ -33,8 +33,11 @@ class RealtimePersonaV4SujetsIT extends AbstractIntegrationTest {
 
     @Test
     void chaque_sujet_t2_actif_s_assemble_sans_placeholder_et_s_ouvre_en_35_mots_au_plus() {
+        // Les sujets SEEDÉS portent tous une fiche ; un autre test peut laisser en base
+        // un sujet T2 sans fiche (base partagée) : on ne mesure que les premiers.
         List<UUID> ids = jdbc.queryForList(
-                "SELECT id FROM production_tasks WHERE epreuve = 'TCF_EO' AND tache_numero = 2 AND is_active",
+                "SELECT id FROM production_tasks WHERE epreuve = 'TCF_EO' AND tache_numero = 2 AND is_active "
+                        + "AND agent_role_card IS NOT NULL",
                 UUID.class);
         assertThat(ids).hasSizeGreaterThanOrEqualTo(20);
 

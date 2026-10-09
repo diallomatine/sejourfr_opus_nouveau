@@ -9,6 +9,7 @@ import '../../../core/api/repositories.dart';
 import '../../../core/models/production_models.dart';
 import '../../../core/models/realtime_models.dart';
 import '../../../core/realtime/gemini_live_client.dart';
+import '../../../core/realtime/realtime_conduct.dart';
 import '../../plan/learning_plan_provider.dart';
 import 'realtime_finish.dart';
 
@@ -62,6 +63,7 @@ class RealtimeEoState {
     this.finishResult,
     this.retryingFinish = false,
     this.reconnecting = false,
+    this.conductPhase = ConductPhase.live,
   });
 
   final RealtimePhase phase;
@@ -75,6 +77,9 @@ class RealtimeEoState {
   /// la transcription sont CONSERVÉS : l'écran affiche un bandeau discret, il
   /// ne repart pas de zéro et ne bloque rien.
   final bool reconnecting;
+
+  /// Phase de fin de temps (le candidat finit sa phrase, l'examinateur conclut).
+  final ConductPhase conductPhase;
 
   /// Issue de la clôture, renseignée uniquement en phase `done`. Remplace
   /// l'ancien booléen `evaluated`, qui valait `true` même quand l'appel de
@@ -102,6 +107,7 @@ class RealtimeEoState {
     RealtimeFinishResult? finishResult,
     bool? retryingFinish,
     bool? reconnecting,
+    ConductPhase? conductPhase,
   }) {
     return RealtimeEoState(
       phase: phase ?? this.phase,
@@ -114,6 +120,7 @@ class RealtimeEoState {
       finishResult: finishResult ?? this.finishResult,
       retryingFinish: retryingFinish ?? this.retryingFinish,
       reconnecting: reconnecting ?? this.reconnecting,
+      conductPhase: conductPhase ?? this.conductPhase,
     );
   }
 }
@@ -139,18 +146,14 @@ class RealtimeEoController extends StateNotifier<RealtimeEoState> {
   GeminiLiveClient? _client;
   Timer? _ticker;
   Timer? _flushTimer;
-  Timer? _capTimer;
-  Timer? _settleTimer;
   bool _finishing = false;
-  // Après 0:00, l'examinateur a-t-il commencé sa conclusion (parlé au moins une
-  // fois) ? La clôture attend qu'il ait parlé PUIS se taise (repos), pas un
-  // délai fixe — sinon silence mort ou coupure en plein mot.
-  bool _heardClose = false;
 
-  /// Conduite servie (repos de silence après la conclusion avant de couper,
-  /// `timeUp.closeIdleMs` ; plafond après 0:00 si l'examinateur ne conclut
-  /// jamais, `timeUp.closeMaxMs`).
+  /// Conduite servie : fin de temps douce, relance sur silence, reprise. Toute
+  /// la logique vit dans [ConductController] (`realtime_conduct.dart`), pure ;
+  /// ce contrôleur ne fait que lui transmettre les faits et exécuter ses
+  /// demandes.
   RealtimeConductConfig get _conduct => _args.descriptor.conduct;
+  ConductController? _conductor;
 
   /// Repli de DERNIER RECOURS quand le backend n'envoie pas
   /// `targetDurationSec`. La valeur canonique est
@@ -247,19 +250,9 @@ class RealtimeEoController extends StateNotifier<RealtimeEoState> {
       onSpeakingChange: (speaking) {
         if (!mounted) return;
         state = state.copyWith(examinerSpeaking: speaking);
-        // Fenêtre de clôture (temps écoulé, clôture pas encore lancée) : on
-        // attend que l'examinateur ait prononcé sa conclusion PUIS se taise.
-        if (state.phase != RealtimePhase.finishing || _finishing) return;
-        if (speaking) {
-          _heardClose = true;
-          _settleTimer?.cancel();
-          _settleTimer = null;
-        } else if (_heardClose && _settleTimer == null) {
-          _settleTimer = Timer(
-              Duration(milliseconds: _conduct.timeUpCloseIdleMs),
-              () => finish(cause: RealtimeEndCause.timeUp));
-        }
+        _conductor?.examinerSpeakingChanged(speaking);
       },
+      onCandidateVoice: (active) => _conductor?.candidateVoiceChanged(active),
       // L'examinateur a commencé (1er audio) ou garde-fou 8 s : fin de l'accueil,
       // le micro du candidat s'ouvre → on passe en conversation. C'est ICI que
       // le chrono de la tâche démarre : le temps ne compte QU'À partir du premier
@@ -278,6 +271,22 @@ class RealtimeEoController extends StateNotifier<RealtimeEoState> {
       onConnectionLost: _onConnectionLost,
     );
     _client = client;
+    _conductor = ConductController(
+      conduct: _conduct,
+      clock: const _RealClock(),
+      actions: ConductActions(
+        sendText: client.sendTextTurn,
+        muteCandidate: client.muteInput,
+        close: () => finish(cause: RealtimeEndCause.timeUp),
+        recordEvent: _conductEvents.add,
+        onPhaseChange: (phase) {
+          if (mounted) state = state.copyWith(conductPhase: phase);
+        },
+      ),
+      targetSec: state.targetSec,
+      elapsedMs: client.elapsedMs,
+      candidateEnergyNow: client.candidateEnergyNow,
+    );
     try {
       await client.start();
       if (!mounted) return;
@@ -303,17 +312,15 @@ class RealtimeEoController extends StateNotifier<RealtimeEoState> {
     if (!mounted) return;
     final next = state.elapsedSec + 1;
     state = state.copyWith(elapsedSec: next);
+    _conductor?.tick(state.targetSec - next);
     if (next >= state.targetSec &&
         (state.phase == RealtimePhase.live ||
             state.phase == RealtimePhase.welcoming)) {
       state = state.copyWith(phase: RealtimePhase.finishing);
-      // Signale la fin (coupe le micro + demande la conclusion). La clôture réelle
-      // est pilotée par la fin de parole (onSpeakingChange) ; le plafond borne le
-      // cas où l'examinateur ne conclut pas.
+      // La conduite prend la main : fin de temps douce (phrase du candidat,
+      // puis `[FIN]`, puis clôture quand l'examinateur se tait).
       _ticker?.cancel();
-      _client?.notifyTimeUp();
-      _capTimer = Timer(Duration(milliseconds: _conduct.timeUpCloseMaxMs),
-          () => finish(cause: RealtimeEndCause.timeUp));
+      _conductor?.timeUp();
     }
   }
 
@@ -345,6 +352,7 @@ class RealtimeEoController extends StateNotifier<RealtimeEoState> {
       return;
     }
     _reconnecting = true;
+    _conductor?.setSuspended(true);
     // Le chrono s'ARRÊTE pendant la coupure : le candidat ne doit pas perdre du
     // temps de parole à cause de notre réseau. Il ne repart pas de zéro non plus
     // — `elapsedSec` est conservé et le décompte reprend à la reconnexion.
@@ -355,6 +363,7 @@ class RealtimeEoController extends StateNotifier<RealtimeEoState> {
     final resumed = await _attemptResume();
     if (!mounted) return;
     _reconnecting = false;
+    _conductor?.setSuspended(false);
     state = state.copyWith(reconnecting: false);
     if (!resumed) {
       _giveUpRealtime();
@@ -399,7 +408,14 @@ class RealtimeEoController extends StateNotifier<RealtimeEoState> {
         _resumable = next.resumable;
         _resumptionsRemaining = next.resumptionsRemaining;
         _connectWindowSec = next.connectWindowSec ?? _connectWindowSec;
-        await _client?.reconnect(next);
+        // Pas de handle verrouillé : la conversation repart sans contexte côté
+        // fournisseur, on lui redonne la fin de l'échange.
+        final primer = next.contextRestored == false
+            ? resumePrimer(_conduct, [
+                for (final l in state.transcript) (speaker: l.speaker, text: l.text)
+              ])
+            : null;
+        await _client?.reconnect(next, primer: primer);
         return true;
       } catch (e) {
         final api = ApiClient.toApiException(e);
@@ -545,8 +561,7 @@ class RealtimeEoController extends StateNotifier<RealtimeEoState> {
     _finishing = true;
     _endCause ??= cause;
     _ticker?.cancel();
-    _capTimer?.cancel();
-    _settleTimer?.cancel();
+    _conductor?.dispose();
     if (mounted) {
       state = state.copyWith(
           phase: RealtimePhase.finishing, reconnecting: false);
@@ -650,11 +665,27 @@ class RealtimeEoController extends StateNotifier<RealtimeEoState> {
   void dispose() {
     _ticker?.cancel();
     _flushTimer?.cancel();
-    _capTimer?.cancel();
-    _settleTimer?.cancel();
+    _conductor?.dispose();
     _client?.dispose();
     super.dispose();
   }
+}
+
+/// Horloge réelle de la conduite (minuteurs `Timer`, temps monotone).
+class _RealClock implements ConductClock {
+  const _RealClock();
+
+  static final Stopwatch _watch = Stopwatch()..start();
+
+  @override
+  int nowMs() => _watch.elapsedMilliseconds;
+
+  @override
+  Object setTimeout(void Function() fn, int ms) =>
+      Timer(Duration(milliseconds: ms), fn);
+
+  @override
+  void clearTimeout(Object handle) => (handle as Timer).cancel();
 }
 
 final realtimeEoControllerProvider = StateNotifierProvider.autoDispose

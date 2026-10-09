@@ -5609,3 +5609,28 @@ Mots : `lib/plan-unlock.ts` (`PLAN_UNLOCK_NON_EVALUE*`, `planUnlockGroupeMeta`, 
   bilan quand le polling voit tout évalué ou au bout de 40 × 3 s. Même vue pendant l'attente
   de `ProductionResults` (l'ancien spinner est supprimé). Examen complet : retour au hub, inchangé.
 
+
+## L'examinateur IA temps réel — mesure, conduite servie, fin de temps douce (2026-10-09)
+
+> Chantier : `docs/examinateur-ia/` (audit, brief, `DECISIONS.md`, `RAPPORT_FINAL.md`,
+> `RECETTE.md`, `indicateurs.sql`). Miroir mobile posé dans la même passe.
+
+- **Mesure (V090)** : `geminiLive.ts` horodate chaque tour (`TurnTiming`, ms depuis
+  `setupComplete` ; examinateur = lecture audio réelle, candidat = transcription) et le
+  runner les relaie (`appendTranscript(…, startedAtMs, endedAtMs)`). `finishSession(id,
+  {endCause, events})` : `TIME_UP` / `USER_FINISH` / `CONNECTION_LOST` / `ERROR` (erreur
+  fatale : clôture sans notation, envoyée sans attendre).
+- **Conduite servie** : `RealtimeSessionDescriptor.conduct` (JSON
+  `prompts/realtime-conduct-<v>.json`), lu par `resolveConduct` (`lib/realtime/conduct-config.ts`,
+  repli identique à la v1 si absent). 🛑 Aucune valeur de conduite en dur : amorce, garde
+  d'accueil, tenue micro, messages `[SILENCE]` / `[FIN]` / `[REPRISE]`, délais de clôture.
+- 🛑 **La logique de conduite est PURE** : `lib/realtime/conduct.ts` (`ConductController`,
+  `VoiceActivityDetector`, `resumePrimer`), horloge injectée. Le runner lui transmet les faits
+  (`examinerSpeakingChanged`, `candidateVoiceChanged`, `tick`, `timeUp`, `setSuspended`) et
+  exécute ses demandes. Fin de temps douce (le candidat finit sa phrase, ≤ 10 s ; l'examinateur
+  finit la sienne), relance sur silence (7 s, 2 max, aucune dans les 15 dernières s), reprise
+  sans contexte (`descriptor.contextRestored === false` ⇒ `[REPRISE]` + 3 derniers tours).
+  Signal « le candidat parle » = énergie LOCALE du micro, jamais la transcription.
+  ⚠️ Pas de propriété de paramètre (`private readonly x` dans un constructeur) : le runner de
+  tests Node n'accepte que la syntaxe effaçable.
+- `notifyTimeUp` est supprimé : `muteInput()` + `sendTextTurn(message)`.

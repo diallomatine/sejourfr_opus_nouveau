@@ -78,6 +78,7 @@ class RealtimeSessionDescriptor {
     this.resumable = false,
     this.resumptionsRemaining,
     this.connectWindowSec,
+    this.contextRestored,
     RealtimeConductConfig? conduct,
   }) : conduct = conduct ?? RealtimeConductConfig.fallback;
 
@@ -111,6 +112,11 @@ class RealtimeSessionDescriptor {
   /// nul.
   final int? connectWindowSec;
 
+  /// Reprise seulement : `false` = le serveur n'avait aucun handle à verrouiller,
+  /// la conversation repart SANS contexte côté fournisseur — le client lui
+  /// redonne la fin de l'échange (`[REPRISE]`). `null` à l'ouverture.
+  final bool? contextRestored;
+
   /// Paramètres de conduite servis par le backend (lot 1 examinateur IA) ;
   /// [RealtimeConductConfig.fallback] sur un backend qui ne les sert pas.
   final RealtimeConductConfig conduct;
@@ -135,6 +141,7 @@ class RealtimeSessionDescriptor {
       resumable: json['resumable'] as bool? ?? false,
       resumptionsRemaining: (json['resumptionsRemaining'] as num?)?.toInt(),
       connectWindowSec: (json['connectWindowSec'] as num?)?.toInt(),
+      contextRestored: json['contextRestored'] as bool?,
       conduct: json['conduct'] is Map<String, dynamic>
           ? RealtimeConductConfig.fromJson(json['conduct'] as Map<String, dynamic>)
           : null,

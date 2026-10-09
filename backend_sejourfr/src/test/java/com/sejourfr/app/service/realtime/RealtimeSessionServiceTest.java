@@ -853,6 +853,8 @@ class RealtimeSessionServiceTest {
 
         verify(mesureManager).ajouterEvenement(session.getId(),
             com.sejourfr.app.enums.RealtimeConductEventType.RESUME_WITH_HANDLE, null, null);
+        assertThat(service.resume(user, session.getId(), new ResumeRealtimeSessionRequest("h1")).contextRestored())
+            .isTrue();
     }
 
     @Test
@@ -864,10 +866,12 @@ class RealtimeSessionServiceTest {
         when(tokenBroker.mint("persona", null))
             .thenReturn(new RealtimeTokenBroker.MintedSession("tok2", "wss://g", "model-x"));
 
-        service.resume(user, session.getId(), null);
+        RealtimeSessionDescriptor d = service.resume(user, session.getId(), null);
 
         verify(mesureManager).ajouterEvenement(session.getId(),
             com.sejourfr.app.enums.RealtimeConductEventType.RESUME_WITHOUT_HANDLE, null, null);
+        // Le client redonnera la fin de l'échange ([REPRISE]) : rien n'a été restauré.
+        assertThat(d.contextRestored()).isFalse();
     }
 
     @Test

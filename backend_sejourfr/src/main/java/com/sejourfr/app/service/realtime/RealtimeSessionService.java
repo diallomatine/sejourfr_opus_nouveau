@@ -150,7 +150,7 @@ public class RealtimeSessionService {
         session = sessionManager.save(session);
 
         // Slot reserve par cette session -> on l'enleve de l'affichage.
-        return descriptor(session, minted, tache, target, Math.max(0, quota.remaining() - 1));
+        return descriptor(session, minted, tache, target, Math.max(0, quota.remaining() - 1), null);
     }
 
     /**
@@ -212,7 +212,8 @@ public class RealtimeSessionService {
         int remaining = quotaService.remaining(user.getId());
         int shown = session.getStatus() == RealtimeSessionStatus.PENDING
                 ? Math.max(0, remaining - 1) : remaining;
-        return descriptor(session, minted, session.getTacheNumero(), task.getDureeMaxSec(), shown);
+        return descriptor(session, minted, session.getTacheNumero(), task.getDureeMaxSec(), shown,
+                session.getResumptionHandle() != null);
     }
 
     @Transactional
@@ -280,7 +281,8 @@ public class RealtimeSessionService {
                                                  RealtimeTokenBroker.MintedSession minted,
                                                  int tache,
                                                  Integer target,
-                                                 int sessionsRemaining) {
+                                                 int sessionsRemaining,
+                                                 Boolean contextRestored) {
         RealtimeProperties.Audio audio = props.getAudio();
         RealtimeProperties.Gemini gemini = props.getGemini();
         boolean resumable = gemini.getSessionResumption().isEnabled() && tokenBroker.supportsResumption();
@@ -303,6 +305,7 @@ public class RealtimeSessionService {
                         ? Math.max(0, gemini.getSessionResumption().getMaxResumptions() - session.getResumptionCount())
                         : 0,
                 gemini.getNewSessionExpireSeconds(),
+                contextRestored,
                 conductConfig.client()
         );
     }

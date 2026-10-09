@@ -5,8 +5,8 @@ Brief : `docs/examinateur-ia/spec-corrections-examinateur-ia.md`. Audit de réf�
 
 | Statut | Nombre |
 |---|---|
-| À valider | 0 |
-| Bloqué — nécessite ton accord | 0 |
+| À valider | 26 |
+| Bloqué — nécessite ton accord | 2 |
 
 ---
 
@@ -220,4 +220,104 @@ Brief : `docs/examinateur-ia/spec-corrections-examinateur-ia.md`. Audit de réf�
 - **Pourquoi :** —
 - **Réversible ?** —
 - **Fichiers :** `RealtimePersonaV4SujetsIT.java`
+- **Ton avis :** ☐ OK  ☐ À changer → …
+
+## D-19 · [Lot 2] Borne de l'attente « l'examinateur finit sa phrase »
+- **Statut :** À valider
+- **Question :** le brief dit « si l'examinateur parle à l'échéance, attendre la fin de sa lecture », sans borne.
+- **Options envisagées :** A. attente illimitée · B. attente bornée par `timeUp.graceMaxMs` (10 s)
+- **Décision :** B. Au-delà, `[FIN]` part quand même.
+- **Pourquoi :** une lecture qui ne se termine jamais (événement de fin perdu) ne doit pas retenir la clôture ; même borne que la phrase du candidat, aucune valeur de plus dans le JSON.
+- **Réversible ?** Oui.
+- **Fichiers :** `conduct.ts`, `realtime_conduct.dart`
+- **Ton avis :** ☐ OK  ☐ À changer → …
+
+## D-20 · [Lot 2] Conduite v0 = coupure immédiate
+- **Statut :** À valider
+- **Question :** que fait la fin de temps quand la conduite ne prévoit aucune grâce (`graceMaxMs: 0`, conduite v0) ?
+- **Options envisagées :** A. appliquer quand même l'attente de l'examinateur · B. reproduire exactement l'ancien comportement : micro coupé et message envoyé tout de suite
+- **Décision :** B.
+- **Pourquoi :** la v0 existe pour le retour arrière ; elle doit rendre le comportement d'avant, pas un mélange.
+- **Réversible ?** Oui.
+- **Fichiers :** `conduct.ts`, `realtime_conduct.dart`, `realtime-conduct-v0.json`
+- **Ton avis :** ☐ OK  ☐ À changer → …
+
+## D-21 · [Lot 2] Quand le minuteur de relance démarre
+- **Statut :** À valider
+- **Question :** faut-il aussi relancer quand le candidat a parlé puis s'est tu sans que l'examinateur ne réponde ?
+- **Options envisagées :** A. minuteur armé aussi à la fin de la parole du candidat · B. minuteur armé seulement à la fin de la lecture de l'examinateur (texte du brief)
+- **Décision :** B.
+- **Pourquoi :** c'est le texte du brief ; après une prise de parole, c'est à l'examinateur de répondre (VAD serveur, 1,5 s) — une relance par-dessus créerait une double prise de parole. À revoir si la recette montre des silences après une réponse du candidat.
+- **Réversible ?** Oui (une ligne dans les deux modules).
+- **Fichiers :** `conduct.ts`, `realtime_conduct.dart`
+- **Ton avis :** ☐ OK  ☐ À changer → …
+
+## D-22 · [Lot 2] Course « le candidat commence à parler à l'instant où la relance part »
+- **Statut :** À valider
+- **Question :** comment empêcher la relance de partir pendant les 200 ms où une prise de parole n'est pas encore confirmée (`minSpeechMs`) ?
+- **Options envisagées :** A. ne regarder que la parole confirmée · B. regarder aussi l'énergie du DERNIER paquet micro (`candidateEnergyNow`) au moment où le minuteur expire
+- **Décision :** B. Si l'énergie est au-dessus du seuil, la relance est abandonnée (pas reportée) ; le minuteur sera réarmé à la prochaine fin de parole de l'examinateur. Le même test sert à la fin de temps : un candidat qui démarre sa phrase à 0:00 obtient sa grâce.
+- **Pourquoi :** le pire cas (parler par-dessus le candidat) est exactement ce que l'audit reproche ; un bruit annule au pire une relance, sans gravité (biais assumé par le brief).
+- **Réversible ?** Oui.
+- **Fichiers :** `conduct.ts`, `realtime_conduct.dart`, `geminiLive.ts`, `gemini_live_client.dart`
+- **Ton avis :** ☐ OK  ☐ À changer → …
+
+## D-23 · [Lot 2] La détection locale ne lit que ce qui serait émis
+- **Statut :** À valider
+- **Question :** faut-il mesurer l'énergie du micro pendant que l'examinateur parle ?
+- **Options envisagées :** A. toujours · B. seulement quand le micro serait émis (pas pendant la lecture de l'examinateur ni ses 120 ms de tenue, ni avant l'accueil, ni après `[FIN]`) ; ailleurs le détecteur est remis à zéro
+- **Décision :** B.
+- **Pourquoi :** pendant la lecture, le micro capte surtout l'écho résiduel ; le compter comme parole annulerait les relances et ouvrirait des grâces à tort. Cohérent avec le half-duplex, hors périmètre de ce chantier.
+- **Réversible ?** Oui.
+- **Fichiers :** `geminiLive.ts`, `gemini_live_client.dart`
+- **Ton avis :** ☐ OK  ☐ À changer → …
+
+## D-24 · [Lot 2] Le temps restant se lit à l'instant voulu
+- **Statut :** À valider
+- **Question :** le chrono ne bat qu'une fois par seconde ; « pas de relance dans les 15 dernières secondes » se lisait au dernier tic.
+- **Options envisagées :** A. dernier tic · B. reste = dernier tic − temps écoulé depuis ; et une relance qui TOMBERAIT dans les 15 dernières secondes n'est pas armée du tout
+- **Décision :** B (trouvé par la vérification des cas : la version A laissait partir une relance à 13 s de la fin).
+- **Pourquoi :** exactitude ; aucune valeur nouvelle.
+- **Réversible ?** Oui.
+- **Fichiers :** `conduct.ts`, `realtime_conduct.dart`
+- **Ton avis :** ☐ OK  ☐ À changer → …
+
+## D-25 · [Lot 2] Qui sait qu'une reprise est « sans handle »
+- **Statut :** À valider
+- **Question :** le client peut-il décider seul qu'il faut `[REPRISE]` ?
+- **Options envisagées :** A. le client regarde s'il possède un handle · B. le serveur le dit : `RealtimeSessionDescriptor.contextRestored` (champ additif, nul à l'ouverture), vrai seulement quand il a verrouillé un handle dans le token de reprise
+- **Décision :** B.
+- **Pourquoi :** dérivé serveur, une seule autorité — c'est le serveur qui verrouille le handle et trace `RESUME_WITH/WITHOUT_HANDLE`. Un client ancien ignore le champ.
+- **Réversible ?** Oui.
+- **Fichiers :** `RealtimeSessionDescriptor.java`, `RealtimeSessionService.java`, `lib/types.ts`, `realtime_models.dart`
+- **Ton avis :** ☐ OK  ☐ À changer → …
+
+## D-26 · [Lot 2] Forme du tour `[REPRISE]`
+- **Statut :** À valider
+- **Question :** comment transmettre les 3 derniers tours ?
+- **Options envisagées :** A. trois tours de dialogue rejoués · B. un seul tour texte : `[REPRISE]` puis une ligne par tour, `Examinateur : …` / `Candidat : …` (le format du transcript)
+- **Décision :** B, envoyé dès l'établissement du nouveau socket, à la place de l'amorce « Bonjour. ». Rien n'est envoyé si la conduite désactive la reprise (message vide).
+- **Pourquoi :** un tour unique ne peut pas être pris pour plusieurs prises de parole ; le format est celui que le modèle connaît déjà par la persona.
+- **Réversible ?** Oui.
+- **Fichiers :** `conduct.ts` (`resumePrimer`), `realtime_conduct.dart`, `geminiLive.ts`, `gemini_live_client.dart`
+- **Ton avis :** ☐ OK  ☐ À changer → …
+
+## D-27 · [Lot 2] Recette réelle et mesures avant/après
+- **Statut :** Bloqué — nécessite ton accord
+- **Question :** les comportements du lot 1 (persona v4, 1,5 s) et du lot 2 (grâce, relance, reprise) ne se valident qu'avec de vraies sessions Gemini Live, et le seuil d'énergie (0,02) doit être calibré sur web, Android et iOS.
+- **Options envisagées :** —
+- **Décision :** rien n'a été ouvert (aucune session Gemini, aucun appel payant). Le protocole et la grille sont prêts dans `RECETTE.md` ; la mesure avant/après se fait avec `indicateurs.sql` une fois le lot M déployé seul.
+- **Pourquoi :** règle du brief et du dépôt.
+- **Réversible ?** —
+- **Fichiers :** `RECETTE.md`, `indicateurs.sql`
+- **Ton avis :** ☐ OK  ☐ À changer → …
+
+## D-28 · [Final] Push, merge et variables de production
+- **Statut :** Bloqué — nécessite ton accord
+- **Question :** les trois commits sont locaux ; les variables d'environnement de production ne sont pas connues (Q1).
+- **Options envisagées :** —
+- **Décision :** rien n'est poussé ni fusionné. La liste des variables à poser/vérifier sur le VPS est dans `RAPPORT_FINAL.md` ; ordre conseillé : déployer le lot M seul (mesure de base), puis le lot 1, puis le lot 2, chacun après sa recette.
+- **Pourquoi :** règle du brief.
+- **Réversible ?** —
+- **Fichiers :** —
 - **Ton avis :** ☐ OK  ☐ À changer → …

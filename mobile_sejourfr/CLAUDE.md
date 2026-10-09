@@ -4873,3 +4873,23 @@ existe dès que le rapide est clos », `planIndisponible` et `prep.planDisponibl
   « Diagnostic non réalisé ») ; `civiqueAction` mène toujours au Plan civique. Kicker du Plan
   TCF gratuit : « Votre parcours personnalisé ». `journeyCycleHint` a sa phrase de fin de
   cycle d'examens.
+
+## L'examinateur IA temps réel — mesure, conduite servie, fin de temps douce (2026-10-09)
+
+> Chantier : `docs/examinateur-ia/` (audit, brief, `DECISIONS.md`, `RAPPORT_FINAL.md`,
+> `RECETTE.md`, `indicateurs.sql`). Miroir web posé dans la même passe.
+
+- **Mesure (V090)** : `GeminiLiveClient` horodate chaque tour (`TurnTiming`, ms depuis
+  `setupComplete` ; examinateur = lecture audio, candidat = transcription) ; le contrôleur les
+  relaie (`appendTranscript(startedAtMs:, endedAtMs:)`). `finishSession(endCause:, events:)` :
+  `RealtimeEndCause` ; une erreur fatale clôt sans notation (`_failAndClose`, sans attendre).
+- **Conduite servie** : `RealtimeSessionDescriptor.conduct` (`RealtimeConductConfig`, repli
+  `.fallback` identique à la v1 si absent). 🛑 Aucune valeur de conduite en dur.
+- 🛑 **La logique de conduite est PURE** : `core/realtime/realtime_conduct.dart`
+  (`ConductController`, `VoiceActivityDetector`, `rmsOfPcm16`, `resumePrimer`), horloge
+  injectée (`_RealClock` dans le contrôleur). Fin de temps douce, relance sur silence, reprise
+  sans contexte (`descriptor.contextRestored == false`) — mêmes règles que `web/lib/realtime/conduct.ts`.
+  Signal « le candidat parle » = énergie LOCALE du micro, jamais la transcription.
+  `RealtimeEoState.conductPhase` pilote les libellés de fin (`kRtTimeUpGraceStatus` /
+  `kRtTimeUpClosingStatus`).
+- `notifyTimeUp` est supprimé : `muteInput()` + `sendTextTurn(message)`.

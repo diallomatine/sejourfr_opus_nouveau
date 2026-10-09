@@ -101,6 +101,12 @@ export const RT_FINISH_PARTIAL_MESSAGE =
 export const RT_RESUME_TITLE = "Connexion perdue";
 export const RT_RESUME_MESSAGE =
     "Reprise de l'échange en cours — votre transcription et votre temps de parole sont conservés.";
+/** Échéance atteinte pendant que le candidat parle : il finit sa phrase
+ *  (fin de temps douce). Miroir : `kRtTimeUpGraceStatus`. */
+export const RT_TIMEUP_GRACE_STATUS = "Temps écoulé — terminez votre phrase.";
+/** Échéance atteinte : l'examinateur conclut. Miroir : `kRtTimeUpClosingStatus`. */
+export const RT_TIMEUP_CLOSING_STATUS = "Temps écoulé — l'examinateur conclut.";
+
 export const RT_RESUME_STATUS = "Reprise de la connexion…";
 export const RT_RESUME_HINT = "Restez sur cet écran, on repart là où vous en étiez.";
 export const RT_RESUME_FAILED_MESSAGE =

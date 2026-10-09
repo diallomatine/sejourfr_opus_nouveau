@@ -574,6 +574,15 @@ dédiée plus bas). Ici, uniquement de quoi se repérer.
     5 valeurs sont surchargeables par env, la température aussi
     (`REALTIME_GEMINI_TEMPERATURE`). Chaque session trace la valeur effective
     (`realtime_sessions.vad_silence_ms`, V090).
+  - **Conduite côté client** (lot 2 du chantier examinateur IA, 2026-10-09) : fin de
+    temps douce, relance sur silence et reprise sans contexte vivent dans un module PUR
+    par front (`web_sejoufr/lib/realtime/conduct.ts` ⇄
+    `mobile_sejourfr/lib/core/realtime/realtime_conduct.dart`), réglé par le JSON de
+    conduite servi. Le signal « le candidat parle » est une détection LOCALE d'énergie du
+    micro (après annulation d'écho), jamais la transcription. `RealtimeSessionDescriptor
+    .contextRestored` (reprise) dit si un handle a été verrouillé : `false` ⇒ le client
+    envoie `[REPRISE]` + les 3 derniers tours. Chaque relance et chaque grâce de fin de
+    temps est tracée (`realtime_session_events`, V090).
   - **Reprise de session** (`sessionResumption` + `contextWindowCompression`,
     V032 additive, `POST /api/realtime/eo/sessions/{id}/resume`). Le token vise
     l'endpoint **contraint** : le client ne peut poser **aucun** champ de setup,

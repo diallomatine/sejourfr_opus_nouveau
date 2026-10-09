@@ -872,6 +872,8 @@ le client ouvre lui-même le WebSocket du fournisseur sur l'endpoint **contraint
   serveur). Renvoie un **nouveau** `RealtimeSessionDescriptor` sur la **même**
   session : même transcript, **aucun slot re-débité**. 422 si la session est
   terminée, si la reprise est désactivée ou si le plafond de reprises est atteint.
+  `contextRestored` (lot 2 examinateur IA) : `false` quand aucun handle n'a pu être
+  verrouillé — le client redonne alors la fin de l'échange (`[REPRISE]`).
 - `POST /api/realtime/eo/sessions/{id}/transcript` → fragment de dialogue.
   `{speaker, text, turnIndex?, resumptionHandle?}`. `turnIndex` (strictement
   croissant, attribué par le client) rend l'appel **idempotent** : un tour déjà

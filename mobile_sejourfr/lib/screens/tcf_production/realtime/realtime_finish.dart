@@ -129,6 +129,13 @@ const String kRtResumeTitle = 'Connexion perdue';
 const String kRtResumeMessage =
     'Reprise de l\'échange en cours — votre transcription et votre temps de '
     'parole sont conservés.';
+/// Échéance atteinte pendant que le candidat parle : il finit sa phrase (fin de
+/// temps douce). Miroir : `RT_TIMEUP_GRACE_STATUS`.
+const String kRtTimeUpGraceStatus = 'Temps écoulé — terminez votre phrase.';
+
+/// Échéance atteinte : l'examinateur conclut. Miroir : `RT_TIMEUP_CLOSING_STATUS`.
+const String kRtTimeUpClosingStatus = 'Temps écoulé — l\'examinateur conclut.';
+
 const String kRtResumeStatus = 'Reprise de la connexion…';
 const String kRtResumeHint = 'Restez sur cet écran, on repart là où vous en '
     'étiez.';

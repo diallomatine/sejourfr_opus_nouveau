@@ -16,6 +16,7 @@
 
 import type {RealtimeConductConfig, RealtimeSessionDescriptor} from "../types";
 import {resolveConduct} from "./conduct-config";
+import {rmsOf, VoiceActivityDetector} from "./conduct";
 
 export type GeminiLiveState = "connecting" | "welcoming" | "live" | "closed" | "error";
 
@@ -67,8 +68,11 @@ export interface GeminiLiveCallbacks {
     onCandidateTranscript?: (text: string, timing: TurnTiming) => void;
     /** Transcription d'un tour dit par l'EXAMINATEUR (modèle). */
     onExaminerTranscript?: (text: string, timing: TurnTiming) => void;
-    /** L'examinateur parle / s'arrête (pour un indicateur visuel). */
+    /** L'examinateur parle / s'arrête : fin de LECTURE réelle, pas de réception. */
     onSpeakingChange?: (speaking: boolean) => void;
+    /** Le candidat commence / cesse de parler, d'après l'énergie LOCALE du micro
+     *  (après annulation d'écho). Temps réel, contrairement à la transcription. */
+    onCandidateVoice?: (active: boolean) => void;
     onStateChange?: (state: GeminiLiveState) => void;
     /** Dernier `sessionResumptionUpdate.newHandle` reçu du fournisseur. Cette
      *  session ne le stocke PAS : l'état de reprise a un seul propriétaire, le
@@ -238,6 +242,11 @@ export class GeminiLiveSession {
     // / interrupted). Ajouter un espace entre fragments coupait les mots.
     private candidateBuf = "";
     private examinerBuf = "";
+    // Détection locale de voix, alimentée par les paquets micro (cf. `sendFrame`).
+    private readonly vad: VoiceActivityDetector;
+    // Reprise SANS contexte restauré : tour texte à envoyer dès que le nouveau
+    // socket est établi (`[REPRISE]` + derniers tours), à la place de l'amorce.
+    private resumePrimer: string | null = null;
     // Horodatage des tours (mesure, cf. `TurnTiming`), en `performance.now()`.
     private connectedAtPerf: number | null = null;
     private candidateStartPerf: number | null = null;
@@ -251,6 +260,13 @@ export class GeminiLiveSession {
         this.outputRate = descriptor.outputSampleRate ?? 24000;
         this.inputMime = descriptor.inputAudioMimeType ?? "audio/pcm;rate=16000";
         this.conduct = resolveConduct(descriptor);
+        this.vad = new VoiceActivityDetector(this.conduct.voiceActivity, (active) => this.cb.onCandidateVoice?.(active));
+    }
+
+    /** Énergie du micro au-dessus du seuil EN CE MOMENT (début de parole pas
+     *  encore confirmé compris) — c'est ce qui tranche la course d'une relance. */
+    candidateEnergyNow(): boolean {
+        return this.vad.energyNow();
     }
 
     /** Ouvre le micro + le WebSocket et démarre la conversation. */
@@ -338,9 +354,10 @@ export class GeminiLiveSession {
      * (endpoint contraint) : on ne peut ni le poser ici, ni réutiliser l'ancien
      * token, d'où le passage obligé par le serveur.
      */
-    reconnect(next: RealtimeSessionDescriptor): void {
+    reconnect(next: RealtimeSessionDescriptor, primer: string | null = null): void {
         if (this.closed) return;
         this.descriptor = next;
+        this.resumePrimer = primer || null;
         const old = this.ws;
         this.ws = null;
         if (old) {
@@ -414,6 +431,11 @@ export class GeminiLiveSession {
                 // passe en conversation (un greeting audio manquant ne doit pas
                 // bloquer le candidat).
                 this.welcomeTimer = setTimeout(() => this.beginConversation(), this.conduct.welcomeGuardMs);
+            } else if (this.resumePrimer) {
+                // Reprise sans contexte : l'examinateur ne connaît plus l'échange,
+                // on lui en redonne la fin au lieu de le laisser rejouer l'ouverture.
+                this.sendTextTurn(this.resumePrimer);
+                this.resumePrimer = null;
             }
             return;
         }
@@ -577,15 +599,22 @@ export class GeminiLiveSession {
     }
 
     private sendFrame(frame: Float32Array, ctxRate: number): void {
-        if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
         // Half-duplex : on n'émet PAS le micro pendant que l'examinateur parle —
         // évite la boucle d'écho (sa voix transcrite comme parole candidat).
         // Conséquence assumée : pas de barge-in (le candidat attend la question).
         // `inputMuted` : temps écoulé → le candidat ne parle plus, on écoute la clôture.
-        if (this.awaitingFirstExaminer || this.speaking || this.inputMuted) return;
         // Tenue post-parole : on n'émet pas pendant la courte fenêtre qui suit la
         // fin (réelle ou supposée) de l'examinateur — anti faux barge-in par écho.
-        if (Date.now() < this.micHoldUntilMs) return;
+        const gated = this.awaitingFirstExaminer || this.speaking || this.inputMuted
+            || Date.now() < this.micHoldUntilMs;
+        // La détection locale de voix ne lit que ce qui serait émis : pendant la
+        // lecture de l'examinateur, le micro capte surtout son écho résiduel.
+        if (gated) {
+            this.vad.reset();
+            return;
+        }
+        this.vad.feed(rmsOf(frame), (frame.length / ctxRate) * 1000);
+        if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
         const pcm = ctxRate === this.inputRate ? frame : downsample(frame, ctxRate, this.inputRate);
         const b64 = arrayBufferToBase64(floatToPcm16(pcm));
         this.ws.send(JSON.stringify({
@@ -731,16 +760,13 @@ export class GeminiLiveSession {
     }
 
     /**
-     * Signale au modèle que le temps de la tâche est écoulé (`timeUp.message`,
-     * `[FIN]` en conduite v1, servi par le backend : un seul texte pour les deux
-     * fronts) — c'est ce qui déclenche la phrase de clôture de la persona.
+     * Coupe le micro du candidat (fin de temps, juste avant `[FIN]`) : le seul
+     * tour restant est la clôture de l'examinateur, un dernier mot du candidat
+     * ne relance pas l'échange. La WebSocket reste ouverte pour l'entendre.
      */
-    notifyTimeUp(): void {
-        // Le candidat ne parle plus : on coupe son micro pour que le seul tour
-        // restant soit la clôture de l'examinateur (évite qu'un dernier mot du
-        // candidat relance un échange après le temps).
+    muteInput(): void {
         this.inputMuted = true;
-        this.sendTextTurn(this.conduct.timeUp.message);
+        this.vad.reset();
     }
 
     /** Coupe tout : micro, WebSocket, lecture. */
